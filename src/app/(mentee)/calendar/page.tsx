@@ -109,35 +109,7 @@ export default function CalendarPage() {
                             {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
                         </h2>
                         {/* Monthly Progress Indicator */}
-                        <div className="flex items-center gap-2 mt-1">
-                            <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-blue-500 rounded-full transition-all duration-1000"
-                                    style={{
-                                        width: `${(() => {
-                                            const monthTasks = MENTOR_TASKS.filter(task =>
-                                                task.deadline &&
-                                                task.deadline.getMonth() === currentDate.getMonth() &&
-                                                task.deadline.getFullYear() === currentDate.getFullYear()
-                                            );
-                                            if (monthTasks.length === 0) return 0;
-                                            return Math.round((monthTasks.filter(t => t.status !== 'pending').length / monthTasks.length) * 100);
-                                        })()}%`
-                                    }}
-                                />
-                            </div>
-                            <span className="text-[10px] font-bold text-gray-400">
-                                {(() => {
-                                    const monthTasks = MENTOR_TASKS.filter(task =>
-                                        task.deadline &&
-                                        task.deadline.getMonth() === currentDate.getMonth() &&
-                                        task.deadline.getFullYear() === currentDate.getFullYear()
-                                    );
-                                    if (monthTasks.length === 0) return '달성률 0%';
-                                    return `달성률 ${Math.round((monthTasks.filter(t => t.status !== 'pending').length / monthTasks.length) * 100)}%`;
-                                })()}
-                            </span>
-                        </div>
+
                     </div>
                     <button onClick={nextMonth} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
                         <ChevronRight size={24} className="text-gray-600" />
