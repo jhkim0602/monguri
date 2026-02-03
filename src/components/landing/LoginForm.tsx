@@ -67,6 +67,30 @@ export default function LoginForm() {
         </button>
       </form>
 
+      <div className="mt-8 pt-6 border-t border-gray-100">
+        <p className="text-[10px] font-bold text-gray-400 text-center mb-3">체험용 계정 (클릭 시 자동 입력)</p>
+        <div className="flex gap-2 justify-center">
+          <button
+            onClick={() => { setId("mentor1"); setPassword("password"); }}
+            className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-[10px] font-bold hover:bg-purple-100 transition-colors border border-purple-100"
+          >
+            Mentor 1
+          </button>
+          <button
+            onClick={() => { setId("mentee1"); setPassword("password"); }}
+            className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition-colors border border-blue-100"
+          >
+            Mentee 1
+          </button>
+          <button
+            onClick={() => { setId("mentee2"); setPassword("password"); }}
+            className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition-colors border border-blue-100"
+          >
+            Mentee 2
+          </button>
+        </div>
+      </div>
+
       <div className="mt-6 text-center">
         <p className="text-xs text-gray-400">
           계정이 없으신가요? <span className="text-blue-500 font-bold cursor-pointer hover:underline">회원가입</span>
