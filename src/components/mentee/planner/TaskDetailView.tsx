@@ -2,7 +2,7 @@
 
 import { ChevronLeft, Download, Eye, FileText, Image as ImageIcon, MessageCircle, Upload, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-import { DEFAULT_CATEGORIES } from "@/constants/mockData";
+import { DEFAULT_CATEGORIES } from "@/constants/common";
 
 interface Attachment {
     name: string;

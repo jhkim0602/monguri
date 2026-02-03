@@ -22,8 +22,7 @@ import {
     Calculator,
     Languages
 } from "lucide-react";
-import BottomNav from "@/components/BottomNav";
-import { USER_PROFILE, MENTOR_TASKS, DEFAULT_CATEGORIES } from "@/constants/mockData";
+import { USER_PROFILE, MENTOR_TASKS, DEFAULT_CATEGORIES } from "@/constants/common";
 
 export default function MyPage() {
     const router = useRouter();
@@ -74,7 +73,7 @@ export default function MyPage() {
     ];
 
     return (
-        <main className="h-screen overflow-y-auto bg-gray-50 pb-32">
+        <div className="h-full overflow-y-auto bg-gray-50 pb-32">
             {/* Header */}
             <header className="px-6 pt-8 pb-6 flex justify-between items-center bg-white sticky top-0 z-20 border-b border-gray-50">
                 <h1 className="text-xl font-bold text-gray-900 border-l-4 border-primary pl-3">마이페이지</h1>
@@ -340,7 +339,6 @@ export default function MyPage() {
                 </div>
             )}
 
-            <BottomNav />
-        </main>
+        </div>
     );
 }

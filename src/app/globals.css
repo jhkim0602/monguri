@@ -32,7 +32,6 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: var(--ios-gray);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import TaskDetailView from "@/components/planner/TaskDetailView";
-import { MENTOR_TASKS } from "@/constants/mockData";
+import TaskDetailView from "@/components/mentee/planner/TaskDetailView";
+import { MENTOR_TASKS } from "@/constants/common";
 import { useEffect, useState } from "react";
 
 export default function TaskDetailPage() {

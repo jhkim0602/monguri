@@ -1,0 +1,77 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Lock, User } from "lucide-react";
+
+export default function LoginForm() {
+  const router = useRouter();
+  const [id, setId] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (id.startsWith("admin") || id.startsWith("mentor")) {
+      router.push("/mentor");
+    } else {
+      router.push("/home");
+    }
+  };
+
+  return (
+    <div className="w-full max-w-sm bg-white/80 backdrop-blur-md p-8 rounded-[32px] border border-white/50 shadow-xl">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-black text-gray-900 mb-2">시작하기</h2>
+        <p className="text-sm text-gray-500 font-medium">멘토와 멘티, 성장을 위한 연결</p>
+      </div>
+
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">아이디</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+              <User size={18} />
+            </div>
+            <input
+              type="text"
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+              placeholder="아이디를 입력하세요"
+              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">비밀번호</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+              <Lock size={18} />
+            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호를 입력하세요"
+              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white h-14 rounded-2xl font-black text-sm flex items-center justify-center gap-2 mt-6 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-200"
+        >
+          로그인하고 시작하기
+          <ArrowRight size={18} />
+        </button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <p className="text-xs text-gray-400">
+          계정이 없으신가요? <span className="text-blue-500 font-bold cursor-pointer hover:underline">회원가입</span>
+        </p>
+      </div>
+    </div>
+  );
+}

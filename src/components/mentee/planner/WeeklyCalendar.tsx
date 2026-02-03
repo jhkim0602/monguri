@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { WEEKLY_SCHEDULE, DEFAULT_CATEGORIES, MENTOR_TASKS } from "@/constants/mockData";
+import { DEFAULT_CATEGORIES, MENTOR_TASKS } from "@/constants/common";
+import { WEEKLY_SCHEDULE } from "@/constants/mentee";
 
 interface WeeklyCalendarProps {
     currentDate?: Date;

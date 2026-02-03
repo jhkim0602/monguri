@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
     title: "설스터디(SeolStudy) - 멘티",
@@ -15,12 +14,9 @@ export default function RootLayout({
     return (
         <html lang="ko">
             <body>
-                <div className="mobile-container relative bg-white min-h-screen">
-                    <main className="pb-24 min-h-screen">
-                        {children}
-                    </main>
-                    <BottomNav />
-                </div>
+            <body>
+                {children}
+            </body>
             </body>
         </html>
     );

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Flame, Trophy } from "lucide-react"; // Icons for insights
-import BottomNav from "@/components/BottomNav";
-import { MENTOR_TASKS, DAILY_RECORDS, WEEKLY_SCHEDULE, DEFAULT_CATEGORIES } from "@/constants/mockData"; // Ensure DAILY_RECORDS is used
-import TaskDetailModal from "@/components/TaskDetailModal";
+import { MENTOR_TASKS, DEFAULT_CATEGORIES } from "@/constants/common";
+import { DAILY_RECORDS, WEEKLY_SCHEDULE } from "@/constants/mentee";
+ // Ensure DAILY_RECORDS is used
+import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
 
 export default function CalendarPage() {
@@ -87,7 +88,7 @@ export default function CalendarPage() {
     }
 
     return (
-        <main className="h-screen overflow-y-auto bg-white pb-24">
+        <div className="h-full overflow-y-auto bg-white">
             {/* Header */}
             <header className="px-6 py-4 border-b border-gray-50 flex justify-between items-center">
                 <h1 className="text-xl font-bold">인사이트 캘린더 📅</h1>
@@ -325,7 +326,6 @@ export default function CalendarPage() {
                 task={selectedTask}
             />
 
-            <BottomNav />
-        </main>
+        </div>
     );
 }

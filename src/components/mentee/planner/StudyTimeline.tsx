@@ -1,6 +1,7 @@
 "use client";
 
-import { SCHEDULE_HOURS, DEFAULT_CATEGORIES } from "@/constants/mockData";
+import { DEFAULT_CATEGORIES } from "@/constants/common";
+import { SCHEDULE_HOURS } from "@/constants/mentee";
 
 interface StudyTimelineProps {
     selectedGridCategoryId: string;

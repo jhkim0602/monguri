@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, CheckCircle2 } from "lucide-react";
-import { MENTOR_TASKS } from "@/constants/mockData";
+import { MENTOR_TASKS } from "@/constants/common";
 
 interface HomeTasksProps {
     onOpenTask: (task: any) => void;

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { ChevronRight, Calendar } from "lucide-react";
-import { USER_PROFILE, MENTOR_TASKS, SUBJECT_TIPS } from "@/constants/mockData";
-import TaskDetailModal from "@/components/TaskDetailModal";
-import WeeklyCalendar from "@/components/WeeklyCalendar";
-import Header from "@/components/layout/Header";
-import HomeProgress from "@/components/home/HomeProgress";
-import HomeTasks from "@/components/home/HomeTasks";
+import { USER_PROFILE, MENTOR_TASKS } from "@/constants/common";
+import { SUBJECT_TIPS } from "@/constants/mentee";
+import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
+import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
+import Header from "@/components/mentee/layout/Header";
+import HomeProgress from "@/components/mentee/home/HomeProgress";
+import HomeTasks from "@/components/mentee/home/HomeTasks";
 
 export default function Home() {
     const [selectedTask, setSelectedTask] = useState<any>(null);

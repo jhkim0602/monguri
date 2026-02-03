@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, Camera, Pause, Play, Trash2, Plus } from "lucide-react";
-import { DEFAULT_CATEGORIES } from "@/constants/mockData";
+import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/utils/timeUtils";
 

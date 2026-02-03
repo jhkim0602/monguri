@@ -11,11 +11,12 @@ import {
     ArrowRight,
     Camera
 } from "lucide-react";
-import { SCHEDULE_HOURS, DEFAULT_CATEGORIES, MENTOR_TASKS, USER_PROFILE } from "@/constants/mockData";
-import TaskDetailModal from "@/components/TaskDetailModal";
-import Header from "@/components/layout/Header";
-import PlannerTasks from "@/components/planner/PlannerTasks";
-import StudyTimeline from "@/components/planner/StudyTimeline";
+import { DEFAULT_CATEGORIES, MENTOR_TASKS, USER_PROFILE } from "@/constants/common";
+import { SCHEDULE_HOURS } from "@/constants/mentee";
+import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
+import Header from "@/components/mentee/layout/Header";
+import PlannerTasks from "@/components/mentee/planner/PlannerTasks";
+import StudyTimeline from "@/components/mentee/planner/StudyTimeline";
 
 export default function PlannerPage() {
     const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 2)); // Feb 2, 2026
