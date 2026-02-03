@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Flame, Trophy } from "lucide-react"; // Icons for insights
+import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { MENTOR_TASKS, DEFAULT_CATEGORIES } from "@/constants/common";
 import { DAILY_RECORDS, WEEKLY_SCHEDULE } from "@/constants/mentee";
- // Ensure DAILY_RECORDS is used
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
+import MonguriSticker from "@/components/common/MonguriSticker";
+import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
+import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Default to Today
+    const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+    const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -29,12 +33,10 @@ export default function CalendarPage() {
     const today = new Date();
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
-
-
-    const isToday = (day: number) => {
-        return day === today.getDate() &&
-            currentDate.getMonth() === today.getMonth() &&
-            currentDate.getFullYear() === today.getFullYear();
+    const isToday = (date: Date) => {
+        return date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
     };
 
     const isSameDay = (date1: Date, date2: Date) => {
@@ -43,31 +45,42 @@ export default function CalendarPage() {
             date1.getFullYear() === date2.getFullYear();
     };
 
-    // Finds daily record for heatmap/mood
-    const getDailyRecord = (day: number) => {
-        const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const getDailyRecord = (day: number | Date) => {
+        const targetDate = typeof day === 'number'
+            ? new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+            : day;
         return DAILY_RECORDS.find(r => isSameDay(r.date, targetDate));
     };
 
-    // Finds tasks for the day (for dots)
-    const getTasksForDay = (day: number) => {
-        const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-        return MENTOR_TASKS.filter(task => task.deadline && isSameDay(task.deadline, targetDate));
-    };
-
-    const previousMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+    const previousPeriod = () => {
+        if (viewMode === 'month') {
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+        } else {
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+        }
         setSelectedDate(null);
     };
 
-    const nextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+    const nextPeriod = () => {
+        if (viewMode === 'month') {
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+        } else {
+             setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+        }
         setSelectedDate(null);
     };
 
-    const handleDateClick = (day: number) => {
-        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const handleDateClick = (day: number | Date) => {
+        const date = typeof day === 'number'
+            ? new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+            : day;
+
         setSelectedDate(date);
+
+        // If in Planner Collection View, open the detail modal
+        if (viewMode === 'week') {
+            setIsPlannerModalOpen(true);
+        }
     };
 
     const openTaskDetail = (task: any) => {
@@ -75,10 +88,9 @@ export default function CalendarPage() {
         setIsModalOpen(true);
     };
 
-    // Calculate Streak (Mock Logic - assumes straight streaks from daily records)
-    const currentStreak = 12; // Mock value for display
+    const currentStreak = 12;
 
-    // Generate calendar grid
+    // Generate month calendar grid
     const calendarDays = [];
     for (let i = 0; i < startingDayOfWeek; i++) {
         calendarDays.push(null);
@@ -90,107 +102,126 @@ export default function CalendarPage() {
     return (
         <div className="h-full overflow-y-auto bg-white">
             {/* Header */}
-            <header className="px-6 py-4 border-b border-gray-50 flex justify-between items-center">
-                <h1 className="text-xl font-bold">인사이트 캘린더 📅</h1>
-                <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100">
-                    <Flame size={16} className="text-orange-500 fill-orange-500" />
-                    <span className="text-xs font-bold text-orange-600">{currentStreak}일 연속 학습 중!</span>
+            <header className="px-6 py-4 border-b border-gray-50 flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-xl font-bold">인사이트 캘린더 📅</h1>
+                    <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100">
+                        <Flame size={16} className="text-orange-500 fill-orange-500" />
+                        <span className="text-xs font-bold text-orange-600">{currentStreak}일 연속 학습 중!</span>
+                    </div>
+                </div>
+
+                {/* View Toggle */}
+                <div className="flex bg-gray-100 p-1 rounded-xl w-full">
+                    <button
+                        onClick={() => setViewMode('month')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+                    >
+                        월간
+                    </button>
+                    <button
+                        onClick={() => setViewMode('week')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+                    >
+                        플래너 모아보기
+                    </button>
                 </div>
             </header>
 
-            {/* Month Selector */}
+            {/* Content */}
             <section className="px-6 py-6">
                 <div className="flex items-center justify-between mb-6">
-                    <button onClick={previousMonth} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
+                    <button onClick={previousPeriod} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
                         <ChevronLeft size={24} className="text-gray-600" />
                     </button>
                     <div className="flex flex-col items-center">
                         <h2 className="text-2xl font-bold">
                             {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
+                            {viewMode === 'week' && <span className="text-sm font-normal text-gray-400 ml-2">플래너 모아보기</span>}
                         </h2>
-                        {/* Monthly Progress Indicator */}
-
                     </div>
-                    <button onClick={nextMonth} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
+                    <button onClick={nextPeriod} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
                         <ChevronRight size={24} className="text-gray-600" />
                     </button>
                 </div>
 
-                {/* Monthly Calendar Grid with Task Chips */}
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                    <div className="grid grid-cols-7 gap-2 mb-4">
-                        {dayNames.map((day, index) => (
-                            <div key={day} className="text-center">
-                                <span className={`text-xs font-bold ${index === 0 ? 'text-red-400' : index === 6 ? 'text-blue-400' : 'text-gray-400'}`}>
-                                    {day}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="grid grid-cols-7 gap-1">
-                        {calendarDays.map((day, index) => {
-                            if (day === null) return <div key={`empty-${index}`} className="min-h-[80px]" />;
-
-                            const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-                            const record = getDailyRecord(day);
-                            const studyTime = record ? record.studyTime : 0;
-                            const isTodayDate = isToday(day);
-                            const isSelected = selectedDate && isSameDay(selectedDate, targetDate);
-
-                            // Get Tasks & Events
-                            const dailyEvents = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate))?.events || [];
-                            const mentorDeadlines = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, targetDate));
-
-                            // Combine for display (prioritize mentor tasks)
-                            const allItems = [
-                                ...mentorDeadlines.map(t => ({ ...t, type: 'mentor', color: DEFAULT_CATEGORIES.find(c => c.id === t.categoryId)?.color || 'bg-gray-200', textColor: DEFAULT_CATEGORIES.find(c => c.id === t.categoryId)?.textColor || 'text-gray-700' })),
-                                ...dailyEvents.map(e => ({ ...e, type: 'event', color: DEFAULT_CATEGORIES.find(c => c.id === e.categoryId)?.color || 'bg-gray-200', textColor: DEFAULT_CATEGORIES.find(c => c.id === e.categoryId)?.textColor || 'text-gray-700' }))
-                            ];
-
-                            return (
-                                <button
-                                    key={day}
-                                    onClick={() => handleDateClick(day)}
-                                    className={`rounded-xl flex flex-col items-center justify-start p-1.5 min-h-[90px] transition-all relative border overflow-hidden
-                                        ${isSelected ? 'border-primary bg-blue-50/30 ring-1 ring-primary' : 'border-transparent hover:bg-gray-50'}
-                                        ${isTodayDate ? 'bg-gray-50' : ''}
-                                    `}
-                                >
-                                    <div className={`text-sm font-bold w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isTodayDate ? 'bg-primary text-white' :
-                                        index % 7 === 0 ? 'text-red-400' :
-                                            index % 7 === 6 ? 'text-blue-400' : 'text-gray-700'
-                                        }`}>
+                {viewMode === 'month' ? (
+                    /* Monthly Grid (Sticker Book) */
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                        <div className="grid grid-cols-7 gap-2 mb-4">
+                            {dayNames.map((day, index) => (
+                                <div key={day} className="text-center">
+                                    <span className={`text-xs font-bold ${index === 0 ? 'text-red-400' : index === 6 ? 'text-blue-400' : 'text-gray-400'}`}>
                                         {day}
-                                    </div>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
 
-                                    {/* Subject Chips Summary */}
-                                    <div className="w-full flex flex-col gap-0.5">
-                                        {Array.from(new Set(allItems.map(item => item.categoryId))).slice(0, 3).map((catId, idx) => {
-                                            const category = DEFAULT_CATEGORIES.find(c => c.id === catId);
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    className={`w-full text-[8px] font-extrabold px-1.5 py-0.5 rounded text-center truncate leading-tight ${category?.color} ${category?.textColor}`}
-                                                >
-                                                    {category?.name}
-                                                </div>
-                                            );
-                                        })}
-                                        {new Set(allItems.map(item => item.categoryId)).size > 3 && (
-                                            <div className="text-[9px] text-gray-400 font-bold text-center">+{new Set(allItems.map(item => item.categoryId)).size - 3}</div>
+                        <div className="grid grid-cols-7 gap-1">
+                            {calendarDays.map((day, index) => {
+                                if (day === null) return <div key={`empty-${index}`} className="min-h-[90px]" />;
+
+                                const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                                const isTodayDate = isToday(targetDate);
+                                const isSelected = selectedDate && isSameDay(selectedDate, targetDate);
+
+                                const dailyEvents = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate))?.events || [];
+                                const mentorDeadlines = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, targetDate));
+                                const hasActivity = dailyEvents.length > 0 || mentorDeadlines.length > 0;
+                                const randomOpacity = hasActivity ? Math.random() * 0.7 + 0.3 : 0;
+                                const randomRotate = (index % 3 - 1) * 10;
+
+                                return (
+                                    <button
+                                        key={day}
+                                        onClick={() => handleDateClick(day)}
+                                        className={`rounded-xl flex flex-col items-center justify-start p-1.5 min-h-[90px] transition-all relative border overflow-hidden
+                                            ${isSelected ? 'border-primary bg-blue-50/10 ring-1 ring-primary' : 'border-transparent hover:bg-gray-50'}
+                                            ${isTodayDate ? 'bg-gray-50' : ''}
+                                        `}
+                                    >
+                                        <div className={`text-sm font-bold w-6 h-6 flex items-center justify-center rounded-full mb-1 z-10 ${isTodayDate ? 'bg-primary text-white' :
+                                            index % 7 === 0 ? 'text-red-400' :
+                                                index % 7 === 6 ? 'text-blue-400' : 'text-gray-700'
+                                            }`}>
+                                            {day}
+                                        </div>
+
+                                        {hasActivity && (
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-80 mt-2">
+                                                <MonguriSticker
+                                                    opacity={randomOpacity}
+                                                    className="w-12 h-12"
+                                                    rotate={randomRotate}
+                                                />
+                                            </div>
                                         )}
-                                    </div>
-                                </button>
-                            );
-                        })}
+
+                                        {!hasActivity && (
+                                            <div className="w-full h-full flex items-center justify-center opacity-10">
+                                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300" />
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
+                ) : (
+                    /* Planner Collection View (Vertical Scroll 3-Column Grid) */
+                    <PlannerCollectionView
+                        currentDate={currentDate}
+                        daysInMonth={daysInMonth}
+                        isToday={isToday}
+                        isSameDay={isSameDay}
+                        onDateClick={handleDateClick}
+                    />
+                )}
 
-                </div>
-
-                {/* Selected Date Details */}
-                <div className="mt-6 animate-in slide-in-from-bottom-2 fade-in duration-300">
-                    {selectedDate ? (
+                {/* Selected Date Details (Only visible in Month view for now) */}
+                {viewMode === 'month' && selectedDate && (
+                    <div className="mt-6 animate-in slide-in-from-bottom-2 fade-in duration-300">
                         <div className="space-y-4">
                             <div className="flex items-center justify-between items-baseline mb-2">
                                 <h3 className="text-lg font-bold text-gray-800">
@@ -199,12 +230,11 @@ export default function CalendarPage() {
                                 <div className="flex items-center gap-1.5 text-primary">
                                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Study Time</span>
                                     <span className="text-lg font-mono font-bold">
-                                        {formatTime(getDailyRecord(selectedDate.getDate())?.studyTime || 0)}
+                                        {formatTime(getDailyRecord(selectedDate)?.studyTime || 0)}
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Learning Plan List (Grouped by Subject) */}
                             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
                                 <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <div className="w-1.5 h-4 bg-primary rounded-full" />
@@ -239,7 +269,6 @@ export default function CalendarPage() {
                                 </div>
                             </div>
 
-                            {/* Mentor Feedback Section (Grouped by Subject) */}
                             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
                                 <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <div className="w-1.5 h-4 bg-purple-500 rounded-full" />
@@ -284,18 +313,24 @@ export default function CalendarPage() {
                                 </div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                            <p className="text-gray-400 text-sm">날짜를 클릭하여 상세 기록을 확인하세요</p>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </section>
 
             <TaskDetailModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 task={selectedTask}
+            />
+
+            {/* Daily Planner Detail Modal */}
+            <PlannerDetailModal
+                isOpen={isPlannerModalOpen}
+                onClose={() => setIsPlannerModalOpen(false)}
+                date={selectedDate}
+                dailyRecord={selectedDate ? getDailyRecord(selectedDate) : null}
+                mentorDeadlines={selectedDate ? MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate)) : []}
+                dailyEvents={selectedDate ? WEEKLY_SCHEDULE.find(s => isSameDay(s.date, selectedDate))?.events || [] : []}
             />
 
         </div>
