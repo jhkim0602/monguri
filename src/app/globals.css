@@ -2,19 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 255, 255, 255;
   --background-end-rgb: 245, 245, 245;
-  --primary-blue: #007AFF;
-  --ios-gray: #F2F2F7;
-  --ios-gray-2: #E5E5EA;
-  --ios-gray-3: #D1D1D6;
+  --primary-blue: #007aff;
+  --ios-gray: #f2f2f7;
+  --ios-gray-2: #e5e5ea;
+  --ios-gray-3: #d1d1d6;
   --ios-label: #000000;
-  --ios-secondary-label: #3C3C43;
-  --ios-tertiary-label: #3C3C4399;
+  --ios-secondary-label: #3c3c43;
+  --ios-tertiary-label: #3c3c4399;
 }
 
 /* Hide scrollbar globally for iOS-style appearance */
@@ -32,7 +32,14 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -111,4 +118,20 @@ body {
 .ios-separator {
   height: 0.5px;
   background: var(--ios-gray-3);
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  }
+
+  .dark .glass-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  }
 }
