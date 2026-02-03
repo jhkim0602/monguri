@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Calendar, Video, User } from "lucide-react";
+import { Home, ClipboardList, Calendar, User } from "lucide-react";
 
 const navItems = [
     { name: "홈", icon: Home, href: "/home" },
     { name: "플래너", icon: ClipboardList, href: "/planner" },
     { name: "캘린더", icon: Calendar, href: "/calendar" },
-    { name: "화상수업", icon: Video, href: "/video" },
     { name: "마이페이지", icon: User, href: "/mypage" },
 ];
 
