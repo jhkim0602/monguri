@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronLeft, Download, Eye, FileText, Image as ImageIcon, MessageCircle, Upload, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronDown, ChevronUp, Download, Eye, FileText, Image as ImageIcon, MessageCircle, Upload, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 
 interface Attachment {
@@ -35,6 +36,7 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
     const category = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId) || DEFAULT_CATEGORIES[0];
     const isMentorTask = task.isMentorTask ?? true;  // 기본값: 멘토 과제
     const isCompleted = task.completed || !!task.studyRecord;
+    const [isStudyRecordExpanded, setIsStudyRecordExpanded] = useState(false);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
@@ -175,18 +177,53 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">학습 내용</p>
                             <div className="space-y-3">
                                 {task.studyRecord ? (
-                                    <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                                        {task.studyRecord.photo && (
-                                            <p className="text-[12px] text-blue-600 font-bold mb-2">📸 학습 사진 첨부됨</p>
-                                        )}
-                                        {task.studyRecord.note && (
-                                            <p className="text-[13px] text-gray-700 font-medium italic">
-                                                "{task.studyRecord.note}"
-                                            </p>
+                                    <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                                        {/* Toggle Header */}
+                                        <button
+                                            onClick={() => setIsStudyRecordExpanded(!isStudyRecordExpanded)}
+                                            className="w-full px-4 py-3 bg-white flex items-center justify-between hover:bg-gray-50 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {task.studyRecord.photo && (
+                                                    <ImageIcon size={16} className="text-gray-600" />
+                                                )}
+                                                <span className="text-[12px] font-bold text-gray-700">학습 기록 보기</span>
+                                            </div>
+                                            {isStudyRecordExpanded ? (
+                                                <ChevronUp size={18} className="text-gray-400" />
+                                            ) : (
+                                                <ChevronDown size={18} className="text-gray-400" />
+                                            )}
+                                        </button>
+
+                                        {/* Expandable Content */}
+                                        {isStudyRecordExpanded && (
+                                            <div className="px-4 py-4 bg-gray-50 border-t border-gray-200 space-y-3">
+                                                {task.studyRecord.photo && (
+                                                    <div className="bg-white rounded-xl p-3 border border-gray-200">
+                                                        <p className="text-[10px] text-gray-500 font-bold mb-2">📸 학습 사진</p>
+                                                        <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                                                            <img
+                                                                src={task.studyRecord.photo}
+                                                                alt="study record"
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {task.studyRecord.note && (
+                                                    <div className="bg-white rounded-xl p-3 border border-gray-200">
+                                                        <p className="text-[10px] text-gray-500 font-bold mb-2">✍️ 학습 노트</p>
+                                                        <p className="text-[13px] text-gray-700 font-medium leading-relaxed italic">
+                                                            "{task.studyRecord.note}"
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 ) : (
-                                    <button className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-100 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-colors group">
+                                    <button className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-colors group">
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary group-hover:bg-primary/5 transition-colors">
                                             <Upload size={18} />
                                         </div>
@@ -199,9 +236,9 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
 
                     {/* Section 2: 코멘트 / 질문하기 (멘티 과제) */}
                     {!task.hasMentorResponse ? (
-                        <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-[32px] p-6 border border-blue-100 shadow-sm space-y-4">
+                        <section className="bg-white rounded-[32px] p-6 border-2 border-gray-200 shadow-sm space-y-4">
                             <div className="flex items-center gap-2 mb-2">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600">
                                     <MessageCircle size={18} />
                                 </div>
                                 <h3 className="text-[15px] font-black text-gray-900">💭 질문하기</h3>
@@ -209,9 +246,9 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                             <p className="text-[12px] text-gray-600 font-medium">
                                 이 과제에 대해 멘토에게 질문이 있으신가요?
                             </p>
-                            <button className="w-full py-4 rounded-2xl bg-white border-2 border-blue-300 text-blue-600 text-[13px] font-black flex items-center justify-center gap-2 hover:bg-blue-50 active:scale-95 transition-all">
+                            <button className="w-full py-4 rounded-2xl bg-gray-900 text-white text-[13px] font-black flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all">
                                 <MessageCircle size={16} />
-                                질문 남리기
+                                질문 남기기
                             </button>
                         </section>
                     ) : (
@@ -225,7 +262,7 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
 
                                 <div className="space-y-4">
                                     <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">질문 내용</p>
-                                    <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
                                         <p className="text-[13px] text-gray-700 font-medium leading-relaxed italic">
                                             "{task.userQuestion}"
                                         </p>
@@ -244,7 +281,7 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
 
                                 <div>
                                     <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">멘토 코멘트</p>
-                                    <div className="min-h-[100px] bg-blue-50/50 rounded-[24px] p-4 border border-blue-100">
+                                    <div className="min-h-[100px] bg-gray-50 rounded-[24px] p-4 border border-gray-200">
                                         <p className="text-[13px] text-gray-700 font-medium leading-relaxed italic">
                                             "{task.mentorComment || '멘토가 확인 중입니다.'}"
                                         </p>

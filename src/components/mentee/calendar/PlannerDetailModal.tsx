@@ -1,6 +1,8 @@
 import { X, Check } from "lucide-react";
+import Link from "next/link";
 import { formatTime } from "@/utils/timeUtils";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
+import { USER_TASKS } from "@/constants/mentee";
 
 interface PlannerDetailModalProps {
     isOpen: boolean;
@@ -24,8 +26,19 @@ export default function PlannerDetailModal({
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
     const isToday = false;
     const studyTime = dailyRecord?.studyTime || 0;
-    const hasActivity = dailyEvents.length > 0 || mentorDeadlines.length > 0;
-    const tasksWithFeedback = mentorDeadlines.filter(t => t.mentorFeedback);
+    const memo = dailyRecord?.memo || "";
+    const studyTimeBlocks = dailyRecord?.studyTimeBlocks || {};
+
+    const isSameDay = (date1: Date, date2: Date) => {
+        return date1.getDate() === date2.getDate() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getFullYear() === date2.getFullYear();
+    };
+
+    const userTasks = USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
+    const allTasks = [...mentorDeadlines, ...userTasks];
+    const hasActivity = dailyEvents.length > 0 || allTasks.length > 0;
+    const tasksWithFeedback = mentorDeadlines.filter(t => t.mentorFeedback && t.mentorComment);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -59,7 +72,7 @@ export default function PlannerDetailModal({
                     <div className="w-full bg-sky-50/50 rounded-lg p-3 border border-sky-100/50">
                         <span className="text-xs font-bold text-sky-600 mb-1 block">Daily Memo</span>
                         <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
-                            "{dailyRecord?.memo || '오늘의 메모가 없습니다.'}"
+                            {memo ? `"${memo}"` : '오늘의 메모가 없습니다.'}
                         </p>
                     </div>
 
@@ -69,19 +82,42 @@ export default function PlannerDetailModal({
                         <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
                             {/* Mentor Tasks */}
                             {mentorDeadlines.map(task => (
-                                <div key={task.id} className="flex items-start gap-2">
+                                <Link
+                                    key={task.id}
+                                    href={`/planner/${task.id}`}
+                                    className="flex items-start gap-2 hover:bg-purple-50/50 rounded-lg p-2 -m-2 transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? 'bg-purple-500 border-purple-500' : 'border-purple-300 bg-purple-50'} shrink-0 mt-0.5`}>
                                         {task.completed && <Check size={12} className="text-white" />}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className={`text-base font-bold truncate ${task.completed ? 'text-gray-800' : 'text-gray-600'}`}>{task.title}</p>
-                                        <p className="text-xs text-purple-500 font-medium">멘토 과제</p>
+                                        <p className="text-xs text-purple-500 font-medium">📚 멘토 과제</p>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
 
-                            {/* Self Studies */}
-                            {dailyEvents.map((event, idx) => {
+                            {/* User Tasks */}
+                            {userTasks.map(task => (
+                                <Link
+                                    key={task.id}
+                                    href={`/planner/${task.id}`}
+                                    className="flex items-start gap-2 hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? 'bg-blue-500 border-blue-500' : 'border-blue-300 bg-blue-50'} shrink-0 mt-0.5`}>
+                                        {task.completed && <Check size={12} className="text-white" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-base font-bold truncate ${task.completed ? 'text-gray-800' : 'text-gray-600'}`}>{task.title}</p>
+                                        <p className="text-xs text-blue-500 font-medium">✏️ 나의 과제</p>
+                                    </div>
+                                </Link>
+                            ))}
+
+                            {/* Self Studies from WEEKLY_SCHEDULE */}
+                            {dailyEvents.filter(e => e.taskType === 'plan').map((event, idx) => {
                                  const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
                                  const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
                                  return (
@@ -106,16 +142,27 @@ export default function PlannerDetailModal({
                         <div className="w-[30%] border-l border-gray-100 pl-3 flex flex-col gap-1 pt-2 overflow-y-auto custom-scrollbar">
                            <span className="text-xs font-bold text-gray-400 mb-2 block text-right">Time</span>
                             {/* Real Time Blocks */}
-                            {Array.from({ length: 14 }).map((_, idx) => { // 6am to 8pm roughly
+                            {Array.from({ length: 15 }).map((_, idx) => { // 6am to 8pm
                                 const hour = 6 + idx;
+                                const timeKey = `${String(hour).padStart(2, '0')}:00`;
+                                const hasBlock = studyTimeBlocks[timeKey] ||
+                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:10`] ||
+                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:20`] ||
+                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:30`] ||
+                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:40`] ||
+                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:50`];
+
+                                const categoryId = hasBlock;
+                                const category = categoryId ? DEFAULT_CATEGORIES.find(c => c.id === categoryId) : null;
+                                const bgColor = category?.color?.replace('bg-', 'bg-') || 'bg-gray-100';
+
                                 return (
                                     <div key={idx} className="flex gap-1 items-center h-8">
                                         <div className="text-[10px] text-gray-400 w-3 text-right shrink-0">{hour}</div>
                                         <div className="flex-1 h-full relative min-w-0">
                                             <div className="absolute top-1/2 w-full h-[1px] bg-gray-100" />
-                                            {/* Fake Activity Bar for Demo */}
-                                            {hasActivity && idx % 3 !== 0 && (
-                                                <div className={`absolute top-1 bottom-1 left-0 right-0 rounded-sm ${idx % 2 === 0 ? 'bg-blue-100' : 'bg-purple-100'}`} />
+                                            {hasBlock && (
+                                                <div className={`absolute top-1 bottom-1 left-0 right-0 rounded-sm ${bgColor}/80`} />
                                             )}
                                         </div>
                                     </div>

@@ -20,6 +20,7 @@ export interface Task {
   feedbackFiles?: any[];
   startTime?: string;
   endTime?: string;
+  deadline?: Date;
 }
 
 const STORAGE_KEY = 'mentee-tasks';

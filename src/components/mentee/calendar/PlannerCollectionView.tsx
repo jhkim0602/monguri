@@ -1,10 +1,6 @@
 import DailyPlannerCard from "./DailyPlannerCard";
 import { formatTime } from "@/utils/timeUtils";
-// Note: In real app, we should pass filtered data, but for now we import constants or receive via props.
-// Ideally, the page should fetch/filter and pass just what's needed.
-// For now, let's keep the isSameDay logic or utility here?
-// Better to pass utility or import it.
-import { WEEKLY_SCHEDULE, DAILY_RECORDS, MENTOR_TASKS } from "@/constants/mentee";
+import { WEEKLY_SCHEDULE, DAILY_RECORDS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
 
 interface PlannerCollectionViewProps {
     currentDate: Date;
@@ -35,6 +31,7 @@ export default function PlannerCollectionView({
                     const isTodayDate = isToday(date);
                     const dailyEvents = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, date))?.events || [];
                     const mentorDeadlines = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
+                    const userTasks = USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
                     const record = getDailyRecord(date);
 
                     return (
@@ -43,8 +40,11 @@ export default function PlannerCollectionView({
                             date={date}
                             isToday={isTodayDate}
                             studyTime={record?.studyTime}
+                            memo={record?.memo}
                             mentorDeadlines={mentorDeadlines}
+                            userTasks={userTasks}
                             dailyEvents={dailyEvents}
+                            studyTimeBlocks={(record?.studyTimeBlocks as { [key: string]: string }) || {}}
                             onClick={() => onDateClick(date)}
                         />
                     );
