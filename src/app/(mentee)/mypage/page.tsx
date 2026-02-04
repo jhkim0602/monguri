@@ -22,7 +22,8 @@ import {
     Calculator,
     Languages
 } from "lucide-react";
-import { USER_PROFILE, MENTOR_TASKS, DEFAULT_CATEGORIES } from "@/constants/common";
+import { USER_PROFILE, DEFAULT_CATEGORIES } from "@/constants/common";
+import { MENTOR_TASKS } from "@/constants/mentee";
 
 export default function MyPage() {
     const router = useRouter();

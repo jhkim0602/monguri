@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2 } from "lucide-react";
-import { MENTOR_TASKS } from "@/constants/common";
+import { MENTOR_TASKS } from "@/constants/mentee";
 
 interface HomeProgressProps {
     animatedProgress: number;

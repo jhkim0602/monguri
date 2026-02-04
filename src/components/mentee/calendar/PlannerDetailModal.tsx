@@ -53,28 +53,28 @@ export default function PlannerDetailModal({
                 </div>
 
                 {/* Body Content - Scaled Up Planner Layout */}
-                <div className="flex-1 p-6 flex flex-col gap-6 overflow-hidden">
+                <div className="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
 
                     {/* 1. Memo / Diary Area (Top) - Detailed View */}
-                    <div className="w-full bg-yellow-50/50 rounded-lg p-4 border border-yellow-100/50 min-h-[80px]">
-                        <span className="text-xs font-bold text-yellow-600 mb-1 block">Daily Memo</span>
+                    <div className="w-full bg-sky-50/50 rounded-lg p-3 border border-sky-100/50">
+                        <span className="text-xs font-bold text-sky-600 mb-1 block">Daily Memo</span>
                         <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
                             "{dailyRecord?.memo || '오늘의 메모가 없습니다.'}"
                         </p>
                     </div>
 
                     {/* 2. Main Content: To-Do (Left) vs TimeTable (Right) */}
-                    <div className="flex-1 flex gap-6 w-full overflow-hidden">
+                    <div className="flex-1 flex gap-3 w-full overflow-hidden">
                         {/* Left: To-Do List (Detailed) */}
-                        <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2">
+                        <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
                             {/* Mentor Tasks */}
                             {mentorDeadlines.map(task => (
-                                <div key={task.id} className="flex items-start gap-3">
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? 'bg-purple-500 border-purple-500' : 'border-purple-300 bg-purple-50'}`}>
+                                <div key={task.id} className="flex items-start gap-2">
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? 'bg-purple-500 border-purple-500' : 'border-purple-300 bg-purple-50'} shrink-0 mt-0.5`}>
                                         {task.completed && <Check size={12} className="text-white" />}
                                     </div>
-                                    <div className="flex-1">
-                                        <p className={`text-base font-bold ${task.completed ? 'text-gray-800' : 'text-gray-600'}`}>{task.title}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-base font-bold truncate ${task.completed ? 'text-gray-800' : 'text-gray-600'}`}>{task.title}</p>
                                         <p className="text-xs text-purple-500 font-medium">멘토 과제</p>
                                     </div>
                                 </div>
@@ -85,10 +85,10 @@ export default function PlannerDetailModal({
                                  const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
                                  const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
                                  return (
-                                    <div key={`evt-${idx}`} className="flex items-start gap-3">
-                                         <div className={`w-5 h-5 rounded-full border-2 ${colorClass} bg-white shrink-0`} />
-                                         <div className="flex-1">
-                                             <p className="text-base font-bold text-gray-800">{event.title}</p>
+                                    <div key={`evt-${idx}`} className="flex items-start gap-2">
+                                         <div className={`w-5 h-5 rounded-full border-2 ${colorClass} bg-white shrink-0 mt-0.5`} />
+                                         <div className="flex-1 min-w-0">
+                                             <p className="text-base font-bold text-gray-800 truncate">{event.title}</p>
                                              <p className="text-xs text-gray-400">{cat?.name}</p>
                                          </div>
                                     </div>
@@ -103,15 +103,15 @@ export default function PlannerDetailModal({
                         </div>
 
                         {/* Right: Time Table (Visual) - Detailed */}
-                        <div className="w-[35%] border-l border-gray-100 pl-4 flex flex-col gap-1 pt-2 overflow-y-auto custom-scrollbar">
-                           <span className="text-xs font-bold text-gray-400 mb-2 block text-right">Time Table</span>
+                        <div className="w-[30%] border-l border-gray-100 pl-3 flex flex-col gap-1 pt-2 overflow-y-auto custom-scrollbar">
+                           <span className="text-xs font-bold text-gray-400 mb-2 block text-right">Time</span>
                             {/* Real Time Blocks */}
                             {Array.from({ length: 14 }).map((_, idx) => { // 6am to 8pm roughly
                                 const hour = 6 + idx;
                                 return (
-                                    <div key={idx} className="flex gap-2 items-center h-8">
-                                        <div className="text-[10px] text-gray-400 w-4 text-right">{hour}</div>
-                                        <div className="flex-1 h-full relative">
+                                    <div key={idx} className="flex gap-1 items-center h-8">
+                                        <div className="text-[10px] text-gray-400 w-3 text-right shrink-0">{hour}</div>
+                                        <div className="flex-1 h-full relative min-w-0">
                                             <div className="absolute top-1/2 w-full h-[1px] bg-gray-100" />
                                             {/* Fake Activity Bar for Demo */}
                                             {hasActivity && idx % 3 !== 0 && (
@@ -125,16 +125,15 @@ export default function PlannerDetailModal({
                     </div>
 
                     {/* 3. Feedback Section (Bottom Overlay or Section) */}
-                    {/* 3. Feedback Section (Bottom Overlay or Section) */}
                     {tasksWithFeedback.length > 0 && (
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 shrink-0">
-                             <div className="flex items-center gap-2 mb-2">
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 shrink-0">
+                             <div className="flex items-center gap-2 mb-1">
                                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                                 <span className="text-sm font-bold text-gray-600">멘토 쌤의 피드백</span>
                              </div>
                              {tasksWithFeedback.map(task => (
-                                 <div key={task.id} className="text-sm text-gray-500 leading-relaxed">
-                                     <span className="font-bold text-gray-600 mr-1">To. {task.title}:</span>
+                                 <div key={task.id} className="text-sm text-gray-500 leading-relaxed truncate">
+                                     <span className="font-bold text-gray-600 mr-1">To. {task.title.slice(0, 8)}...:</span>
                                      "{task.mentorFeedback}"
                                  </div>
                              ))}

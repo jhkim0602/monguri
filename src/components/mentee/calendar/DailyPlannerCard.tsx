@@ -41,10 +41,10 @@ export default function DailyPlannerCard({
             {/* Body Content - High Density Miniature */}
             <div className="flex-1 p-1.5 flex flex-col gap-1.5 overflow-hidden">
 
-                {/* 1. Memo (Yellow Box) */}
-                <div className="w-full bg-yellow-50/50 rounded-[3px] p-1 border border-yellow-100/50 shrink-0">
-                    <span className="text-[5px] font-bold text-yellow-600 block leading-tight mb-0.5">Daily Memo</span>
-                    <div className="w-full h-[1px] bg-yellow-100/50 mb-0.5" />
+                {/* 1. Memo (Blue Box) */}
+                <div className="w-full bg-sky-50/50 rounded-[3px] p-1 border border-sky-100/50 shrink-0">
+                    <span className="text-[5px] font-bold text-sky-600 block leading-tight mb-0.5">Daily Memo</span>
+                    <div className="w-full h-[1px] bg-sky-100/50 mb-0.5" />
                     <p className="text-[5px] text-gray-400 italic leading-tight truncate">
                          {isToday ? "오늘도 힘차게!" : "기록된 메모가 없습니다."}
                     </p>

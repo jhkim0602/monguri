@@ -12,7 +12,7 @@ import {
     Camera
 } from "lucide-react";
 import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
-import { SCHEDULE_HOURS, MENTOR_TASKS } from "@/constants/mentee";
+import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import Header from "@/components/mentee/layout/Header";
 import PlannerTasks from "@/components/mentee/planner/PlannerTasks";
@@ -65,42 +65,12 @@ export default function PlannerPage() {
                 studyRecord: null
             }));
 
-        const initialUserTasks = [
-            {
-                // ✏️ 멘티 과제 1: 질문 없음 (초기 상태)
-                id: 'u1',
-                title: "국어 문학 3지문",
-                categoryId: "korean",
-                completed: false,
-                timeSpent: 0,
-                isRunning: false,
-                isMentorTask: false,
-                studyRecord: null,
-                description: "스스로 선택한 학습 과제",
-                status: "pending",
-                badgeColor: "bg-red-100 text-red-700",
-                userQuestion: undefined,  // 질문 없음
-                hasMentorResponse: false
-            },
-            {
-                // ✏️ 멘티 과제 2: 질문했고 멘토가 응답함
-                id: 'u2',
-                title: "수학 수1 등차수열",
-                categoryId: "math",
-                completed: true,
-                timeSpent: 3600,
-                isRunning: false,
-                isMentorTask: false,
-                studyRecord: { photo: "제출함", note: "생각보다 어려웠어요" },
-                description: "스스로 선택한 학습 과제",
-                status: "submitted",
-                badgeColor: "bg-green-100 text-green-700",
-                userQuestion: "선생님, 등차수열의 합 공식에서 n(n+1)/2가 왜 나오는지 이해가 안 가요",
-                hasMentorResponse: true,
-                mentorComment: "좋은 질문이네! 등차수열의 합은 첫 항과 마지막 항의 평균에 항의 개수를 곱한 것이야. Σk = n(n+1)/2는 1부터 n까지의 합이므로, 이를 증명하려면 가우스의 방법을 사용하면 돼. 1+2+...+n과 n+(n-1)+...+1을 더하면 모두 (n+1)이 n개 나오니까 n(n+1)/2가 되는 거야.",
-                feedbackFiles: []
-            }
-        ];
+        // ✏️ USER_TASKS를 constants에서 가져와서 사용
+        const initialUserTasks = USER_TASKS.map(t => ({
+            ...t,
+            timeSpent: 0,
+            isRunning: false
+        }));
 
         setTasks([...initialMentorTasks, ...initialUserTasks]);
     }, [currentDate]);

@@ -4,8 +4,7 @@ import { formatTime } from "@/utils/timeUtils";
 // Ideally, the page should fetch/filter and pass just what's needed.
 // For now, let's keep the isSameDay logic or utility here?
 // Better to pass utility or import it.
-import { WEEKLY_SCHEDULE, DAILY_RECORDS } from "@/constants/mentee";
-import { MENTOR_TASKS } from "@/constants/common";
+import { WEEKLY_SCHEDULE, DAILY_RECORDS, MENTOR_TASKS } from "@/constants/mentee";
 
 interface PlannerCollectionViewProps {
     currentDate: Date;

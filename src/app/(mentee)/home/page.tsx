@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { ChevronRight, Calendar } from "lucide-react";
-import { USER_PROFILE, MENTOR_TASKS } from "@/constants/common";
-import { SUBJECT_TIPS } from "@/constants/mentee";
+import { USER_PROFILE } from "@/constants/common";
+import { SUBJECT_TIPS, MENTOR_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";

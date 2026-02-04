@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
-import { MENTOR_TASKS, DEFAULT_CATEGORIES } from "@/constants/common";
-import { DAILY_RECORDS, WEEKLY_SCHEDULE } from "@/constants/mentee";
+import { DEFAULT_CATEGORIES } from "@/constants/common";
+import { DAILY_RECORDS, WEEKLY_SCHEDULE, MENTOR_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
 import MonguriSticker from "@/components/common/MonguriSticker";
