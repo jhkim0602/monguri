@@ -14,6 +14,7 @@ import {
 import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
 import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
+import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import Header from "@/components/mentee/layout/Header";
 import PlannerTasks from "@/components/mentee/planner/PlannerTasks";
 import StudyTimeline from "@/components/mentee/planner/StudyTimeline";
@@ -31,12 +32,8 @@ export default function PlannerPage() {
     const submissionFileInputRef = useRef<HTMLInputElement>(null);
 
     // Grid state
-    const [studyTimeBlocks, setStudyTimeBlocks] = useState<{ [key: string]: string }>({
-        "09:00": "korean", "09:10": "korean", "09:20": "korean",
-        "10:30": "english", "10:40": "english", "10:50": "english", "11:00": "english",
-        "14:10": "math", "14:20": "math", "14:30": "math", "14:40": "math", "14:50": "math",
-        "20:00": "explore", "20:10": "explore", "20:20": "explore"
-    });
+    // Grid state
+    const [studyTimeBlocks, setStudyTimeBlocks] = useState<{ [key: string]: string }>({});
 
     // Unified Tasks State
     const [tasks, setTasks] = useState<any[]>([]);
@@ -75,8 +72,10 @@ export default function PlannerPage() {
         setTasks([...initialMentorTasks, ...initialUserTasks]);
     }, [currentDate]);
 
-    // Timer implementation removed in favor of manual time entry
-    // useEffect(() => { ... }, [tasks]);
+    // Sync studyTimeBlocks with tasks
+    useEffect(() => {
+        setStudyTimeBlocks(generateTimeBlocksFromTasks(tasks));
+    }, [tasks]);
 
     const handlePrevDay = () => {
         const prev = new Date(currentDate);
@@ -130,29 +129,7 @@ export default function PlannerPage() {
             return task;
         }));
 
-        // Auto-fill time blocks
-        if (startTime && endTime && targetTask) {
-            setStudyTimeBlocks(prev => {
-                const newBlocks = { ...prev };
-                const [startH, startM] = startTime.split(':').map(Number);
-                const [endH, endM] = endTime.split(':').map(Number);
-
-                let currentH = startH;
-                let currentM = Math.floor(startM / 10) * 10; // Round down to nearest 10
-
-                while (currentH < endH || (currentH === endH && currentM < endM)) {
-                    const timeKey = `${String(currentH).padStart(2, '0')}:${String(currentM).padStart(2, '0')}`;
-                    newBlocks[timeKey] = targetTask.categoryId;
-
-                    currentM += 10;
-                    if (currentM >= 60) {
-                        currentM = 0;
-                        currentH += 1;
-                    }
-                }
-                return newBlocks;
-            });
-        }
+        // Auto-fill time blocks is now handled by useEffect on tasks change
     };
 
     const deleteTask = (taskId: number | string) => {

@@ -1,7 +1,6 @@
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { formatTime } from "@/utils/timeUtils";
 import { Check } from "lucide-react";
-import Link from "next/link";
 
 interface DailyPlannerCardProps {
     date: Date;
@@ -34,7 +33,7 @@ export default function DailyPlannerCard({
     return (
         <div
             onClick={onClick}
-            className="aspect-[9/16] relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm rounded-sm flex flex-col"
+            className="aspect-[3/4] relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm rounded-sm flex flex-col"
         >
             {/* Header (Scaled down Modal Header) */}
             <div className="w-full h-5 border-b border-gray-100 bg-gray-50 px-2 flex items-center justify-between shrink-0">
@@ -61,42 +60,61 @@ export default function DailyPlannerCard({
                 {/* 2. Main Split View */}
                 <div className="flex-1 flex gap-1.5 w-full min-h-0">
                     {/* Left: To-Do List (Detailed Miniature) */}
-                    <div className="flex-1 flex flex-col gap-1 overflow-hidden">
+                    <div className="w-[65%] flex flex-col gap-1 overflow-hidden">
                         {/* Mentor Tasks */}
-                        {mentorDeadlines.map(task => (
-                            <Link
-                                key={task.id}
-                                href={`/planner/${task.id}`}
-                                className="flex items-start gap-1 hover:bg-purple-50/50 rounded-[2px] p-0.5 -m-0.5 transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? 'bg-purple-500 border-purple-500' : 'border-purple-300 bg-purple-50'} shrink-0 mt-[1px]`}>
-                                    {task.completed && <Check size={4} className="text-white" />}
+                        {mentorDeadlines.map(task => {
+                            const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
+                            const colorClass = cat?.color || 'bg-purple-500';
+                            const borderClass = colorClass.replace('bg-', 'border-');
+
+                            return (
+                                <div
+                                    key={task.id}
+                                    className="flex items-start gap-1"
+                                >
+                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
+                                        {task.completed && <Check size={4} className="text-white" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-[2px] mb-[1px]">
+                                            <span className="bg-primary/10 text-primary text-[4px] font-black px-[2px] py-[1px] rounded-[1px] leading-none uppercase tracking-tighter">
+                                                Mentor
+                                            </span>
+                                            {task.studyRecord && (
+                                                <span className="text-[4px] text-emerald-500 font-black bg-emerald-50 px-[2px] py-[1px] rounded-[1px] leading-none">제출</span>
+                                            )}
+                                        </div>
+                                        <p className={`text-[5px] font-bold leading-tight truncate ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
+                                    </div>
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className={`text-[5px] font-bold leading-tight truncate ${task.completed ? 'text-gray-800' : 'text-gray-600'}`}>{task.title}</p>
-                                    <p className="text-[4px] text-purple-400 font-bold leading-none mt-[1px]">📚 멘토 과제</p>
-                                </div>
-                            </Link>
-                        ))}
+                            );
+                        })}
 
                         {/* User Tasks */}
-                        {userTasks.map(task => (
-                            <Link
-                                key={task.id}
-                                href={`/planner/${task.id}`}
-                                className="flex items-start gap-1 hover:bg-blue-50/50 rounded-[2px] p-0.5 -m-0.5 transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? 'bg-blue-500 border-blue-500' : 'border-blue-300 bg-blue-50'} shrink-0 mt-[1px]`}>
-                                    {task.completed && <Check size={4} className="text-white" />}
+                        {userTasks.map(task => {
+                            const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
+                            const colorClass = cat?.color || 'bg-blue-500';
+                            const borderClass = colorClass.replace('bg-', 'border-');
+
+                            return (
+                                <div
+                                    key={task.id}
+                                    className="flex items-start gap-1"
+                                >
+                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
+                                        {task.completed && <Check size={4} className="text-white" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-[2px] mb-[1px]">
+                                            {task.studyRecord && (
+                                                <span className="text-[4px] text-emerald-500 font-black bg-emerald-50 px-[2px] py-[1px] rounded-[1px] leading-none">제출</span>
+                                            )}
+                                        </div>
+                                        <p className={`text-[5px] font-bold leading-tight truncate ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
+                                    </div>
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className={`text-[5px] font-bold leading-tight truncate ${task.completed ? 'text-gray-800' : 'text-gray-600'}`}>{task.title}</p>
-                                    <p className="text-[4px] text-blue-400 font-bold leading-none mt-[1px]">✏️ 나의 과제</p>
-                                </div>
-                            </Link>
-                        ))}
+                            );
+                        })}
 
                         {/* Self Studies from WEEKLY_SCHEDULE */}
                         {dailyEvents.filter(e => e.taskType === 'plan').map((event, idx) => {
@@ -121,31 +139,34 @@ export default function DailyPlannerCard({
                     </div>
 
                     {/* Right: Time Table (Visual Miniature) */}
-                    <div className="w-[30%] border-l border-gray-100 pl-1 flex flex-col pt-0.5">
-                       <span className="text-[4px] font-bold text-gray-300 mb-0.5 block text-right">Time</span>
-                        <div className="flex-1 flex flex-col justify-between">
-                            {Array.from({ length: 15 }).map((_, idx) => {
-                                const hour = 6 + idx; // 6am to 8pm
-                                const timeKey = `${String(hour).padStart(2, '0')}:00`;
-                                const hasBlock = studyTimeBlocks[timeKey] ||
-                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:10`] ||
-                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:20`] ||
-                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:30`] ||
-                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:40`] ||
-                                                studyTimeBlocks[`${String(hour).padStart(2, '0')}:50`];
-
-                                const categoryId = hasBlock;
-                                const category = categoryId ? DEFAULT_CATEGORIES.find(c => c.id === categoryId) : null;
-                                const bgColor = category?.color?.replace('bg-', 'bg-') + '/60' || 'bg-gray-100';
+                    <div className="w-[35%] border-l border-gray-100 pl-0.5 flex flex-col">
+                        <div className="bg-white rounded-[2px] border border-gray-100 overflow-hidden flex-1">
+                            {Array.from({ length: 19 }).map((_, idx) => {
+                                const hour = 6 + idx;
+                                const hourStr = String(hour).padStart(2, '0');
 
                                 return (
-                                    <div key={idx} className="flex gap-0.5 items-center h-1">
-                                        <div className="text-[4px] text-gray-300 w-1.5 text-right leading-none">{hour}</div>
-                                        <div className="flex-1 h-full relative">
-                                            <div className="absolute top-1/2 w-full h-[0.5px] bg-gray-100" />
-                                            {hasBlock && (
-                                                <div className={`absolute top-0 bottom-0 left-0 right-0 ${bgColor} rounded-[0.5px]`} />
-                                            )}
+                                    <div key={hour} className="flex h-1 border-b border-gray-50 last:border-none group">
+                                        <div className="w-2 flex items-center justify-center bg-gray-50/50 border-r border-gray-100">
+                                            <span className="text-[4px] font-bold text-gray-400 font-mono leading-none">{hourStr}</span>
+                                        </div>
+
+                                        <div className="flex-1 grid grid-cols-6">
+                                            {[0, 1, 2, 3, 4, 5].map((slot) => {
+                                                const minute = slot * 10;
+                                                const timeKey = `${hourStr}:${minute < 10 ? '0' + minute : minute}`;
+                                                const blockCategoryId = studyTimeBlocks[timeKey];
+                                                const category = blockCategoryId ? DEFAULT_CATEGORIES.find(c => c.id === blockCategoryId) : null;
+
+                                                return (
+                                                    <div
+                                                        key={slot}
+                                                        className={`border-r border-gray-50 last:border-none
+                                                            ${category?.color || 'bg-white'}
+                                                        `}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 );
