@@ -1,14 +1,104 @@
 "use client";
 
-import { CheckCircle2, Camera, Pause, Play, Trash2, Plus } from "lucide-react";
+import { CheckCircle2, Camera, Trash2, Plus, Clock, X } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/utils/timeUtils";
+import { useState } from "react";
+
+const calculateDuration = (start: string, end: string) => {
+    if (!start || !end) return "시간 설정";
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+
+    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    if (diffMinutes < 0) diffMinutes += 24 * 60; // Handle over midnight if needed, though simple subtraction usually suffices for same day
+
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+
+    if (hours === 0 && minutes === 0) return "시간 설정";
+    return `${hours}시간 ${minutes}분`;
+};
+
+const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, endTime?: string, onSave: (s: string, e: string) => void }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [start, setStart] = useState(startTime || "");
+    const [end, setEnd] = useState(endTime || "");
+
+    if (isEditing) {
+        return (
+            <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
+                <div className="fixed bg-white p-3 rounded-xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 min-w-[220px]"
+                     style={{ top: 'auto', left: 'auto', right: 'auto', bottom: 'auto' }}
+                     onClick={e => e.stopPropagation()}>
+                    <div className="flex flex-col gap-3">
+                        <div className="flex gap-2 items-center">
+                            <input
+                                type="time"
+                                step="600"
+                                value={start}
+                                onChange={(e) => setStart(e.target.value)}
+                                className="bg-gray-50 flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-bold text-gray-700"
+                            />
+                            <span className="text-gray-300 text-xs font-bold">→</span>
+                            <input
+                                type="time"
+                                step="600"
+                                value={end}
+                                onChange={(e) => setEnd(e.target.value)}
+                                className="bg-gray-50 flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-bold text-gray-700"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="text-gray-400 hover:text-gray-600 px-4 py-2 rounded-lg text-xs font-bold transition-colors bg-gray-50 hover:bg-gray-100"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onSave(start, end);
+                                    setIsEditing(false);
+                                }}
+                                className="bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                저장
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
+    }
+
+    const duration = calculateDuration(startTime || "", endTime || "");
+
+    return (
+        <button
+            onClick={(e) => {
+                e.stopPropagation();
+                setIsEditing(true);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all border ${startTime && endTime
+                ? 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
+                : 'bg-white text-gray-400 border-dashed border-gray-300 hover:border-primary hover:text-primary'
+                }`}
+        >
+            <Clock size={14} className={startTime && endTime ? "text-gray-400" : "text-current"} />
+            <span className="text-[11px] font-bold font-mono tracking-tight">
+                {duration}
+            </span>
+        </button>
+    );
+};
 
 interface PlannerTasksProps {
     tasks: any[];
     onToggleCompletion: (id: string | number) => void;
-    onToggleTimer: (id: string | number) => void;
+    onUpdateTaskTimeRange: (id: string | number, startTime: string, endTime: string) => void;
     onDelete: (id: string | number) => void;
     onOpenSubmission: (task: any) => void;
     newTaskTitle: string;
@@ -21,7 +111,7 @@ interface PlannerTasksProps {
 export default function PlannerTasks({
     tasks,
     onToggleCompletion,
-    onToggleTimer,
+    onUpdateTaskTimeRange,
     onDelete,
     onOpenSubmission,
     newTaskTitle,
@@ -104,7 +194,13 @@ export default function PlannerTasks({
                                             }`}
                                     >
                                         <div className="flex items-start gap-3">
-                                            <button onClick={() => onToggleCompletion(task.id)} className="mt-0.5">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onToggleCompletion(task.id);
+                                                }}
+                                                className="mt-0.5 relative z-10"
+                                            >
                                                 <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed
                                                     ? `${category.color} ${category.color.replace('bg-', 'border-')} shadow-sm`
                                                     : 'border-gray-200 hover:border-gray-300'
@@ -113,7 +209,16 @@ export default function PlannerTasks({
                                                 </div>
                                             </button>
 
-                                            <div className="flex-1 min-w-0" onClick={() => router.push(`/planner/${task.id}`)}>
+                                            <button
+                                                className="flex-1 min-w-0 cursor-pointer select-none py-1 text-left hover:opacity-75 transition-opacity active:scale-95 border-none bg-transparent p-0"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const taskId = String(task.id);
+                                                    router.push(`/planner/${taskId}`);
+                                                }}
+                                                type="button"
+                                            >
                                                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
                                                     {task.isMentorTask && (
                                                         <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
@@ -132,22 +237,14 @@ export default function PlannerTasks({
                                                         <span className="text-[9px] text-emerald-500 font-black bg-emerald-50 px-1.5 py-0.5 rounded">기록 제출됨</span>
                                                     )}
                                                 </div>
-                                            </div>
+                                            </button>
 
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onOpenSubmission(task); }}
-                                                    className={`p-2 rounded-xl transition-all ${task.studyRecord ? 'text-emerald-500 bg-emerald-50' : 'text-gray-400 hover:text-primary hover:bg-blue-50'}`}
-                                                    title="기록 제출"
-                                                >
-                                                    <Camera size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onToggleTimer(task.id); }}
-                                                    className={`p-2 rounded-xl transition-all ${task.isRunning ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-primary hover:bg-blue-50'}`}
-                                                >
-                                                    {task.isRunning ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
-                                                </button>
+                                            <div className="flex items-center gap-1 relative">
+                                                <TimeRangeInput
+                                                    startTime={task.startTime}
+                                                    endTime={task.endTime}
+                                                    onSave={(start, end) => onUpdateTaskTimeRange(task.id, start, end)}
+                                                />
                                             </div>
                                         </div>
 
