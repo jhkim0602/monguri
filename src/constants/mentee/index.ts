@@ -22,7 +22,9 @@ export const MENTOR_TASKS = [
     isMentorTask: true,
     completed: true,
     studyRecord: { photo: "제출함", note: "현대시 분석 완료" },
-    hasMentorResponse: true
+    hasMentorResponse: true,
+    startTime: "09:00",
+    endTime: "10:00"
   },
   {
     // 📚 멘토 과제 2: 제출 완료, 피드백 대기 (1/30)
@@ -44,9 +46,10 @@ export const MENTOR_TASKS = [
     mentorComment: "",
     feedbackFiles: [],
     isMentorTask: true,
-    completed: true,
     studyRecord: { photo: "제출함", note: "연결어 찾기 연습" },
-    hasMentorResponse: false
+    hasMentorResponse: false,
+    startTime: "10:30",
+    endTime: "11:30"
   },
   {
     // 📚 멘토 과제 3: 제출 완료, 피드백 대기 (2/1)
@@ -68,9 +71,10 @@ export const MENTOR_TASKS = [
     mentorComment: "",
     feedbackFiles: [],
     isMentorTask: true,
-    completed: true,
     studyRecord: { photo: "제출함", note: "벡터 내적 개념 복습" },
-    hasMentorResponse: false
+    hasMentorResponse: false,
+    startTime: "14:00",
+    endTime: "15:00"
   },
   {
     // 📚 멘토 과제 4: 오늘 마감 - 제출 완료 (2/2)
@@ -93,9 +97,10 @@ export const MENTOR_TASKS = [
     mentorComment: "",
     feedbackFiles: [],
     isMentorTask: true,
-    completed: true,
     studyRecord: { photo: "제출함", note: "빈칸 근거 찾기 연습" },
-    hasMentorResponse: false
+    hasMentorResponse: false,
+    startTime: "16:00",
+    endTime: "17:00"
   },
   {
     // 📚 멘토 과제 5: 오늘 마감 - 아직 미제출 (2/2)
@@ -186,7 +191,9 @@ export const USER_TASKS = [
     mentorComment: "좋은 질문이네! 등차수열의 합은 첫 항과 마지막 항의 평균에 항의 개수를 곱한 것이야. Σk = n(n+1)/2는 1부터 n까지의 합이므로, 이를 증명하려면 가우스의 방법을 사용하면 돼. 1+2+...+n과 n+(n-1)+...+1을 더하면 모두 (n+1)이 n개 나오니까 n(n+1)/2가 되는 거야.",
     attachments: [],
     submissions: [],
-    feedbackFiles: []
+    feedbackFiles: [],
+    startTime: "11:30",
+    endTime: "12:30"
   },
   {
     // ✏️ 멘티 과제 2: 완료, 질문 없음 (1/30)
@@ -270,7 +277,9 @@ export const USER_TASKS = [
     attachments: [],
     submissions: [],
     mentorComment: "",
-    feedbackFiles: []
+    feedbackFiles: [],
+    startTime: "13:00",
+    endTime: "14:00"
   },
   {
     // ✏️ 멘티 과제 6: 오늘 진행 예정 (2/2)
@@ -291,8 +300,10 @@ export const USER_TASKS = [
     attachments: [],
     submissions: [],
     mentorComment: "",
-    feedbackFiles: []
-  }
+    feedbackFiles: [],
+    startTime: "14:10",
+    endTime: "15:00"
+  },
 ];
 
 export const SUBJECT_TIPS = [
