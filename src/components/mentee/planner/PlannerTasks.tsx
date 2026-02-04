@@ -1,14 +1,190 @@
 "use client";
 
-import { CheckCircle2, Camera, Pause, Play, Trash2, Plus } from "lucide-react";
+import { CheckCircle2, Camera, Trash2, Plus, Clock, X, ChevronUp, ChevronDown, ArrowRight } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/utils/timeUtils";
+import { useState } from "react";
+
+const calculateDuration = (start: string, end: string) => {
+    if (!start || !end) return "시간 설정";
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+
+    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    if (diffMinutes < 0) diffMinutes += 24 * 60; // Handle over midnight if needed, though simple subtraction usually suffices for same day
+
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+
+    if (hours === 0 && minutes === 0) return "시간 설정";
+    return `${hours}시간 ${minutes}분`;
+};
+
+// 10분 단위 시간 선택기
+const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: string) => void }) => {
+    const [hours, minutes] = time ? time.split(':').map(Number) : [0, 0];
+
+    const handleHourChange = (delta: number) => {
+        let newHour = hours + delta;
+        if (newHour < 0) newHour = 23;
+        if (newHour > 23) newHour = 0;
+        onTimeChange(`${String(newHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+    };
+
+    const handleMinuteChange = (delta: number) => {
+        let newMinute = minutes + (delta * 10);
+        let newHour = hours;
+
+        if (newMinute < 0) {
+            newMinute = 50;
+            newHour = newHour - 1 < 0 ? 23 : newHour - 1;
+        }
+        if (newMinute > 50) {
+            newMinute = 0;
+            newHour = newHour + 1 > 23 ? 0 : newHour + 1;
+        }
+
+        onTimeChange(`${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`);
+    };
+
+    return (
+        <div className="flex items-center justify-center gap-1.5 bg-gray-50/80 rounded-xl p-2 border border-gray-100 w-full shadow-inner">
+            {/* 시간 스피너 */}
+            <div className="flex flex-col items-center gap-0.5">
+                <button
+                    onClick={() => handleHourChange(1)}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
+                    type="button"
+                >
+                    <ChevronUp size={12} />
+                </button>
+                <div className="text-sm font-black text-gray-900 w-8 text-center font-mono bg-white rounded-md border border-gray-100 py-1 shadow-sm">
+                    {String(hours).padStart(2, '0')}
+                </div>
+                <button
+                    onClick={() => handleHourChange(-1)}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
+                    type="button"
+                >
+                    <ChevronDown size={12} />
+                </button>
+            </div>
+
+            <span className="text-xs text-gray-300 font-bold pb-1">:</span>
+
+            {/* 분 스피너 (10분 단위) */}
+            <div className="flex flex-col items-center gap-0.5">
+                <button
+                    onClick={() => handleMinuteChange(1)}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
+                    type="button"
+                >
+                    <ChevronUp size={12} />
+                </button>
+                <div className="text-sm font-black text-gray-900 w-8 text-center font-mono bg-white rounded-md border border-gray-100 py-1 shadow-sm">
+                    {String(minutes).padStart(2, '0')}
+                </div>
+                <button
+                    onClick={() => handleMinuteChange(-1)}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
+                    type="button"
+                >
+                    <ChevronDown size={12} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, endTime?: string, onSave: (s: string, e: string) => void }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [start, setStart] = useState(startTime || "06:00");
+    const [end, setEnd] = useState(endTime || "07:00");
+
+    if (isEditing) {
+        return (
+            <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
+                <div className="fixed bg-white rounded-[24px] shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-5 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-[320px]"
+                     onClick={e => e.stopPropagation()}>
+                    <div className="flex flex-col gap-4">
+                        {/* 헤더 */}
+                        <div className="text-center border-b border-gray-50 pb-3">
+                            <h3 className="text-sm font-black text-gray-900">시간 설정</h3>
+                            <p className="text-[10px] text-gray-400 font-bold mt-0.5">10분 단위로 설정</p>
+                        </div>
+
+                        {/* 시간 선택 영역 */}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 flex flex-col items-center gap-1.5">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-tight">Start</label>
+                                <TimeSpinner time={start} onTimeChange={setStart} />
+                            </div>
+                            <div className="h-full pt-4 text-gray-300">
+                                <ArrowRight size={14} />
+                            </div>
+                            <div className="flex-1 flex flex-col items-center gap-1.5">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-tight">End</label>
+                                <TimeSpinner time={end} onTimeChange={setEnd} />
+                            </div>
+                        </div>
+
+                        {/* 예상 시간 */}
+                        <div className="bg-blue-50/50 rounded-xl px-3 py-2.5 border border-blue-100 flex items-center justify-between">
+                            <p className="text-[10px] text-blue-600 font-bold">총 학습량</p>
+                            <p className="text-xs font-black text-blue-700">{calculateDuration(start, end)}</p>
+                        </div>
+
+                        {/* 버튼 */}
+                        <div className="flex gap-2 pt-1">
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="flex-1 text-gray-500 hover:text-gray-900 hover:bg-gray-50 px-3 py-2.5 rounded-xl text-xs font-bold transition-all"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onSave(start, end);
+                                    setIsEditing(false);
+                                }}
+                                className="flex-1 bg-gray-900 hover:bg-black text-white px-3 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-gray-200"
+                            >
+                                저장
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
+    }
+
+    const duration = calculateDuration(startTime || "", endTime || "");
+
+    return (
+        <button
+            onClick={(e) => {
+                e.stopPropagation();
+                setIsEditing(true);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all border ${startTime && endTime
+                ? 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
+                : 'bg-white text-gray-400 border-dashed border-gray-300 hover:border-primary hover:text-primary'
+                }`}
+        >
+            <Clock size={14} className={startTime && endTime ? "text-gray-400" : "text-current"} />
+            <span className="text-[11px] font-bold font-mono tracking-tight">
+                {duration}
+            </span>
+        </button>
+    );
+};
 
 interface PlannerTasksProps {
     tasks: any[];
     onToggleCompletion: (id: string | number) => void;
-    onToggleTimer: (id: string | number) => void;
+    onUpdateTaskTimeRange: (id: string | number, startTime: string, endTime: string) => void;
     onDelete: (id: string | number) => void;
     onOpenSubmission: (task: any) => void;
     newTaskTitle: string;
@@ -21,7 +197,7 @@ interface PlannerTasksProps {
 export default function PlannerTasks({
     tasks,
     onToggleCompletion,
-    onToggleTimer,
+    onUpdateTaskTimeRange,
     onDelete,
     onOpenSubmission,
     newTaskTitle,
@@ -104,7 +280,13 @@ export default function PlannerTasks({
                                             }`}
                                     >
                                         <div className="flex items-start gap-3">
-                                            <button onClick={() => onToggleCompletion(task.id)} className="mt-0.5">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onToggleCompletion(task.id);
+                                                }}
+                                                className="mt-0.5 relative z-10"
+                                            >
                                                 <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed
                                                     ? `${category.color} ${category.color.replace('bg-', 'border-')} shadow-sm`
                                                     : 'border-gray-200 hover:border-gray-300'
@@ -113,7 +295,16 @@ export default function PlannerTasks({
                                                 </div>
                                             </button>
 
-                                            <div className="flex-1 min-w-0" onClick={() => router.push(`/planner/${task.id}`)}>
+                                            <button
+                                                className="flex-1 min-w-0 cursor-pointer select-none py-1 text-left hover:opacity-75 transition-opacity active:scale-95 border-none bg-transparent p-0"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const taskId = String(task.id);
+                                                    router.push(`/planner/${taskId}`);
+                                                }}
+                                                type="button"
+                                            >
                                                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
                                                     {task.isMentorTask && (
                                                         <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
@@ -132,22 +323,14 @@ export default function PlannerTasks({
                                                         <span className="text-[9px] text-emerald-500 font-black bg-emerald-50 px-1.5 py-0.5 rounded">기록 제출됨</span>
                                                     )}
                                                 </div>
-                                            </div>
+                                            </button>
 
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onOpenSubmission(task); }}
-                                                    className={`p-2 rounded-xl transition-all ${task.studyRecord ? 'text-emerald-500 bg-emerald-50' : 'text-gray-400 hover:text-primary hover:bg-blue-50'}`}
-                                                    title="기록 제출"
-                                                >
-                                                    <Camera size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onToggleTimer(task.id); }}
-                                                    className={`p-2 rounded-xl transition-all ${task.isRunning ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-primary hover:bg-blue-50'}`}
-                                                >
-                                                    {task.isRunning ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
-                                                </button>
+                                            <div className="flex items-center gap-1 relative">
+                                                <TimeRangeInput
+                                                    startTime={task.startTime}
+                                                    endTime={task.endTime}
+                                                    onSave={(start, end) => onUpdateTaskTimeRange(task.id, start, end)}
+                                                />
                                             </div>
                                         </div>
 

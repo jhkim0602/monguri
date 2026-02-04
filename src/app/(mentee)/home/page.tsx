@@ -2,17 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { ChevronRight, Calendar } from "lucide-react";
-import { USER_PROFILE, MENTOR_TASKS } from "@/constants/common";
-import { SUBJECT_TIPS } from "@/constants/mentee";
-import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
+import { USER_PROFILE } from "@/constants/common";
+import { SUBJECT_TIPS, MENTOR_TASKS } from "@/constants/mentee";
 import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
 import HomeTasks from "@/components/mentee/home/HomeTasks";
 
 export default function Home() {
-    const [selectedTask, setSelectedTask] = useState<any>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [animatedProgress, setAnimatedProgress] = useState(0);
 
     const targetProgress = Math.round((MENTOR_TASKS.filter(t => t.status !== 'pending').length / MENTOR_TASKS.length) * 100);
@@ -33,11 +30,6 @@ export default function Home() {
         const animationFrame = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(animationFrame);
     }, [targetProgress]);
-
-    const openTask = (task: any) => {
-        setSelectedTask(task);
-        setIsModalOpen(true);
-    };
 
     return (
         <div className="bg-white">
@@ -83,7 +75,7 @@ export default function Home() {
                 </div>
             </section>
 
-            <HomeTasks onOpenTask={openTask} />
+            <HomeTasks />
 
             {/* Subject Tips */}
             <section className="px-6 pb-8">
@@ -108,12 +100,6 @@ export default function Home() {
                     ))}
                 </div>
             </section>
-
-            <TaskDetailModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                task={selectedTask}
-            />
         </div>
     );
 }

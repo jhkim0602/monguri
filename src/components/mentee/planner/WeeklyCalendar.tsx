@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { DEFAULT_CATEGORIES, MENTOR_TASKS } from "@/constants/common";
+import { DEFAULT_CATEGORIES } from "@/constants/common";
+import { MENTOR_TASKS } from "@/constants/mentee";
 import { WEEKLY_SCHEDULE } from "@/constants/mentee";
 
 interface WeeklyCalendarProps {

@@ -11,8 +11,8 @@ import {
     ArrowRight,
     Camera
 } from "lucide-react";
-import { DEFAULT_CATEGORIES, MENTOR_TASKS, USER_PROFILE } from "@/constants/common";
-import { SCHEDULE_HOURS } from "@/constants/mentee";
+import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
+import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import Header from "@/components/mentee/layout/Header";
 import PlannerTasks from "@/components/mentee/planner/PlannerTasks";
@@ -21,7 +21,7 @@ import StudyTimeline from "@/components/mentee/planner/StudyTimeline";
 export default function PlannerPage() {
     const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 2)); // Feb 2, 2026
     const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
-    const [selectedGridCategoryId, setSelectedGridCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
+
 
     // Submission Modal State
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
@@ -55,45 +55,28 @@ export default function PlannerPage() {
     useEffect(() => {
         const initialMentorTasks = MENTOR_TASKS
             .filter(t => t.deadline && isSameDay(t.deadline, currentDate))
-            .map(t => ({ ...t, isMentorTask: true, completed: t.status === 'feedback_completed', timeSpent: 0, isRunning: false, studyRecord: null }));
+            .map(t => ({
+                ...t,
+                id: String(t.id), // 🔧 ID를 string으로 표준화
+                isMentorTask: true,
+                completed: t.status === 'feedback_completed',
+                timeSpent: 0,
+                isRunning: false,
+                studyRecord: null
+            }));
 
-        const initialUserTasks = [
-            { id: 'u1', title: "국어 문학 3지문", categoryId: "korean", completed: false, timeSpent: 0, isRunning: false, isMentorTask: false, studyRecord: null },
-            { id: 'u2', title: "수학 수1 등차수열", categoryId: "math", completed: false, timeSpent: 0, isRunning: false, isMentorTask: false, studyRecord: null }
-        ];
+        // ✏️ USER_TASKS를 constants에서 가져와서 사용
+        const initialUserTasks = USER_TASKS.map(t => ({
+            ...t,
+            timeSpent: 0,
+            isRunning: false
+        }));
 
         setTasks([...initialMentorTasks, ...initialUserTasks]);
     }, [currentDate]);
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        const runningTask = tasks.find(task => task.isRunning);
-
-        if (runningTask) {
-            interval = setInterval(() => {
-                setTasks(prevTasks =>
-                    prevTasks.map(task =>
-                        task.isRunning
-                            ? { ...task, timeSpent: task.timeSpent + 1 }
-                            : task
-                    )
-                );
-
-                const now = new Date();
-                const hh = String(now.getHours()).padStart(2, '0');
-                const mm = String(Math.floor(now.getMinutes() / 10) * 10).padStart(2, '0');
-                const timeKey = `${hh}:${mm}`;
-
-                setStudyTimeBlocks(prev => {
-                    if (prev[timeKey] !== runningTask.categoryId) {
-                        return { ...prev, [timeKey]: runningTask.categoryId };
-                    }
-                    return prev;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [tasks]);
+    // Timer implementation removed in favor of manual time entry
+    // useEffect(() => { ... }, [tasks]);
 
     const handlePrevDay = () => {
         const prev = new Date(currentDate);
@@ -107,25 +90,12 @@ export default function PlannerPage() {
         setCurrentDate(next);
     };
 
-    const toggleTimeBlock = (hour: string, slotIndex: number) => {
-        const minute = slotIndex * 10;
-        const timeKey = `${hour}:${minute < 10 ? '0' + minute : minute}`;
 
-        setStudyTimeBlocks(prev => {
-            const newBlocks = { ...prev };
-            if (newBlocks[timeKey] === selectedGridCategoryId) {
-                delete newBlocks[timeKey];
-            } else {
-                newBlocks[timeKey] = selectedGridCategoryId;
-            }
-            return newBlocks;
-        });
-    };
 
     const addTask = () => {
         if (!newTaskTitle.trim()) return;
         const newTask = {
-            id: Date.now(),
+            id: String(Date.now()), // 🔧 ID를 string으로 생성
             title: newTaskTitle,
             categoryId: selectedCategoryId,
             completed: false,
@@ -139,20 +109,55 @@ export default function PlannerPage() {
     };
 
     const toggleTaskCompletion = (taskId: number | string) => {
-        setTasks(prev => prev.map(task =>
-            task.id === taskId ? { ...task, completed: !task.completed } : task
-        ));
-    };
-
-    const toggleTaskTimer = (taskId: number | string) => {
+        const taskIdStr = String(taskId);
         setTasks(prev => prev.map(task => {
-            if (task.id === taskId) return { ...task, isRunning: !task.isRunning };
-            return { ...task, isRunning: false };
+            if (String(task.id) === taskIdStr) {
+                return { ...task, completed: !task.completed };
+            }
+            return task;
         }));
     };
 
+    const updateTaskTimeRange = (taskId: number | string, startTime: string, endTime: string) => {
+        const taskIdStr = String(taskId);
+        let targetTask: any = null;
+
+        setTasks(prev => prev.map(task => {
+            if (String(task.id) === taskIdStr) {
+                targetTask = { ...task, startTime, endTime };
+                return targetTask;
+            }
+            return task;
+        }));
+
+        // Auto-fill time blocks
+        if (startTime && endTime && targetTask) {
+            setStudyTimeBlocks(prev => {
+                const newBlocks = { ...prev };
+                const [startH, startM] = startTime.split(':').map(Number);
+                const [endH, endM] = endTime.split(':').map(Number);
+
+                let currentH = startH;
+                let currentM = Math.floor(startM / 10) * 10; // Round down to nearest 10
+
+                while (currentH < endH || (currentH === endH && currentM < endM)) {
+                    const timeKey = `${String(currentH).padStart(2, '0')}:${String(currentM).padStart(2, '0')}`;
+                    newBlocks[timeKey] = targetTask.categoryId;
+
+                    currentM += 10;
+                    if (currentM >= 60) {
+                        currentM = 0;
+                        currentH += 1;
+                    }
+                }
+                return newBlocks;
+            });
+        }
+    };
+
     const deleteTask = (taskId: number | string) => {
-        setTasks(prev => prev.filter(task => task.id !== taskId));
+        const taskIdStr = String(taskId);
+        setTasks(prev => prev.filter(task => String(task.id) !== taskIdStr));
     };
 
     const handleOpenSubmission = (task: any) => {
@@ -171,8 +176,9 @@ export default function PlannerPage() {
     };
 
     const saveSubmission = () => {
+        const submittingTaskIdStr = String(submittingTask?.id);
         setTasks(prev => prev.map(task => {
-            if (task.id === submittingTask.id) {
+            if (String(task.id) === submittingTaskIdStr) {
                 return {
                     ...task,
                     studyRecord: { photo: studyPhoto, note: studyNote },
@@ -182,6 +188,7 @@ export default function PlannerPage() {
             return task;
         }));
         setIsSubmissionOpen(false);
+        setSubmittingTask(null);
     };
 
     return (
@@ -228,7 +235,7 @@ export default function PlannerPage() {
                 <PlannerTasks
                     tasks={tasks}
                     onToggleCompletion={toggleTaskCompletion}
-                    onToggleTimer={toggleTaskTimer}
+                    onUpdateTaskTimeRange={updateTaskTimeRange}
                     onDelete={deleteTask}
                     onOpenSubmission={handleOpenSubmission}
                     newTaskTitle={newTaskTitle}
@@ -239,10 +246,7 @@ export default function PlannerPage() {
                 />
 
                 <StudyTimeline
-                    selectedGridCategoryId={selectedGridCategoryId}
-                    onSetSelectedGridCategoryId={setSelectedGridCategoryId}
                     studyTimeBlocks={studyTimeBlocks}
-                    onToggleTimeBlock={toggleTimeBlock}
                 />
             </div>
 

@@ -1,13 +1,12 @@
 "use client";
 
 import { ChevronRight, CheckCircle2 } from "lucide-react";
-import { MENTOR_TASKS } from "@/constants/common";
+import Link from "next/link";
+import { MENTOR_TASKS } from "@/constants/mentee";
 
-interface HomeTasksProps {
-    onOpenTask: (task: any) => void;
-}
+interface HomeTasksProps {}
 
-export default function HomeTasks({ onOpenTask }: HomeTasksProps) {
+export default function HomeTasks() {
     const pendingCount = MENTOR_TASKS.filter(t => t.status === 'pending').length;
 
     const sortedTasks = [...MENTOR_TASKS].sort((a, b) => {
@@ -35,10 +34,10 @@ export default function HomeTasks({ onOpenTask }: HomeTasksProps) {
                     const isSubmitted = task.status === 'submitted';
 
                     return (
-                        <div
+                        <Link
                             key={task.id}
+                            href={`/planner/${task.id}`}
                             className="p-4 rounded-2xl bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => onOpenTask(task)}
                         >
                             <div className="flex items-center gap-4">
                                 {isFeedbackCompleted ? (
@@ -75,14 +74,17 @@ export default function HomeTasks({ onOpenTask }: HomeTasksProps) {
                                 </div>
                             </div>
                             <ChevronRight size={18} className="text-gray-300" />
-                        </div>
+                        </Link>
                     );
                 })}
             </div>
 
-            <button className="w-full mt-6 py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-blue-200">
+            <Link
+                href="/planner"
+                className="block w-full mt-6 py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-blue-200 text-center"
+            >
                 플래너에서 확인하기
-            </button>
+            </Link>
         </section>
     );
 }
