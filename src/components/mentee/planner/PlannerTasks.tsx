@@ -3,7 +3,8 @@
 import { CheckCircle2, Camera, Trash2, Plus, Clock, X, ChevronUp, ChevronDown, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/utils/timeUtils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 const calculateDuration = (start: string, end: string) => {
     if (!start || !end) return "시간 설정";
@@ -20,15 +21,23 @@ const calculateDuration = (start: string, end: string) => {
     return `${hours}시간 ${minutes}분`;
 };
 
-// 10분 단위 시간 선택기
+// 10분 단위 시간 선택기 + 키보드 입력 지원
 const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: string) => void }) => {
     const [hours, minutes] = time ? time.split(':').map(Number) : [0, 0];
+    const [hInput, setHInput] = useState(String(hours).padStart(2, '0'));
+    const [mInput, setMInput] = useState(String(minutes).padStart(2, '0'));
+
+    useEffect(() => {
+        const [h, m] = time ? time.split(':').map(Number) : [0, 0];
+        setHInput(String(h).padStart(2, '0'));
+        setMInput(String(m).padStart(2, '0'));
+    }, [time]);
 
     const handleHourChange = (delta: number) => {
         let newHour = hours + delta;
         if (newHour < 0) newHour = 23;
         if (newHour > 23) newHour = 0;
-        onTimeChange(`${String(newHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+        updateTime(newHour, minutes);
     };
 
     const handleMinuteChange = (delta: number) => {
@@ -44,7 +53,40 @@ const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: s
             newHour = newHour + 1 > 23 ? 0 : newHour + 1;
         }
 
-        onTimeChange(`${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`);
+        updateTime(newHour, newMinute);
+    };
+
+    const updateTime = (h: number, m: number) => {
+        const hStr = String(h).padStart(2, '0');
+        const mStr = String(m).padStart(2, '0');
+        onTimeChange(`${hStr}:${mStr}`);
+    };
+
+    const handleHourBlur = () => {
+        let val = parseInt(hInput, 10);
+        if (isNaN(val)) val = 0;
+        if (val < 0) val = 0;
+        if (val > 23) val = 23;
+        updateTime(val, minutes);
+        setHInput(String(val).padStart(2, '0'));
+    };
+
+    const handleMinuteBlur = () => {
+        let val = parseInt(mInput, 10);
+        if (isNaN(val)) val = 0;
+
+        // Round to nearest 10
+        let rounded = Math.round(val / 10) * 10;
+        let nextHour = hours;
+
+        if (rounded === 60) {
+            rounded = 0;
+            nextHour = nextHour + 1 > 23 ? 0 : nextHour + 1;
+        }
+
+        updateTime(nextHour, rounded);
+        setHInput(String(nextHour).padStart(2, '0'));
+        setMInput(String(rounded).padStart(2, '0'));
     };
 
     return (
@@ -55,16 +97,24 @@ const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: s
                     onClick={() => handleHourChange(1)}
                     className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
                     type="button"
+                    tabIndex={-1}
                 >
                     <ChevronUp size={12} />
                 </button>
-                <div className="text-sm font-black text-gray-900 w-8 text-center tabular-nums bg-white rounded-md border border-gray-100 py-1 shadow-sm">
-                    {String(hours).padStart(2, '0')}
-                </div>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={hInput}
+                    onChange={(e) => setHInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                    onBlur={handleHourBlur}
+                    className="text-sm font-black text-gray-900 w-8 text-center tabular-nums bg-white rounded-md border border-gray-100 py-1 shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                />
                 <button
                     onClick={() => handleHourChange(-1)}
                     className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
                     type="button"
+                    tabIndex={-1}
                 >
                     <ChevronDown size={12} />
                 </button>
@@ -72,22 +122,30 @@ const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: s
 
             <span className="text-xs text-gray-300 font-bold pb-1">:</span>
 
-            {/* 분 스피너 (10분 단위) */}
+            {/* 분 스피너 */}
             <div className="flex flex-col items-center gap-0.5">
                 <button
                     onClick={() => handleMinuteChange(1)}
                     className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
                     type="button"
+                    tabIndex={-1}
                 >
                     <ChevronUp size={12} />
                 </button>
-                <div className="text-sm font-black text-gray-900 w-8 text-center tabular-nums bg-white rounded-md border border-gray-100 py-1 shadow-sm">
-                    {String(minutes).padStart(2, '0')}
-                </div>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={mInput}
+                    onChange={(e) => setMInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                    onBlur={handleMinuteBlur}
+                    className="text-sm font-black text-gray-900 w-8 text-center tabular-nums bg-white rounded-md border border-gray-100 py-1 shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                />
                 <button
                     onClick={() => handleMinuteChange(-1)}
                     className="text-gray-400 hover:text-gray-600 hover:bg-white rounded transition-all p-0.5"
                     type="button"
+                    tabIndex={-1}
                 >
                     <ChevronDown size={12} />
                 </button>
@@ -98,20 +156,63 @@ const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: s
 
 const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, endTime?: string, onSave: (s: string, e: string) => void }) => {
     const [isEditing, setIsEditing] = useState(false);
+
+    // Helper to get current time string
+    const getCurrentTimeStr = () => {
+        const now = new Date();
+        const h = now.getHours();
+        const m = Math.floor(now.getMinutes() / 10) * 10;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    // Helper to add 1 hour
+    const addOneHour = (timeStr: string) => {
+        const [h, m] = timeStr.split(':').map(Number);
+        const newH = (h + 1) % 24;
+        return `${String(newH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
     const [start, setStart] = useState(startTime || "06:00");
     const [end, setEnd] = useState(endTime || "07:00");
 
+    // Initialize with smart defaults when opening
+    useEffect(() => {
+        if (isEditing && !startTime && !endTime) {
+            const nowStr = getCurrentTimeStr();
+            setStart(nowStr);
+            setEnd(addOneHour(nowStr));
+        } else if (isEditing) {
+            // Reset to props if existing
+            if (startTime) setStart(startTime);
+            if (endTime) setEnd(endTime);
+        }
+    }, [isEditing, startTime, endTime]);
+
+    const handleSetToNow = () => {
+        const nowStr = getCurrentTimeStr();
+        setStart(nowStr);
+        setEnd(addOneHour(nowStr));
+    };
+
     if (isEditing) {
-        return (
+        return createPortal(
             <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
-                <div className="fixed bg-white rounded-[24px] shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-5 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-[320px]"
+                <div className="fixed inset-0 z-[9999] bg-black/20 backdrop-blur-sm" onClick={() => setIsEditing(false)} />
+                <div className="fixed z-[10000] bg-white rounded-[24px] shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200 p-5 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-[320px]"
                     onClick={e => e.stopPropagation()}>
                     <div className="flex flex-col gap-4">
                         {/* 헤더 */}
-                        <div className="text-center border-b border-gray-50 pb-3">
-                            <h3 className="text-sm font-black text-gray-900">시간 설정</h3>
-                            <p className="text-[10px] text-gray-400 font-bold mt-0.5">10분 단위로 설정</p>
+                        <div className="text-center border-b border-gray-50 pb-3 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-black text-gray-900">시간 설정</h3>
+                                <p className="text-[10px] text-gray-400 font-bold mt-0.5">10분 단위로 설정</p>
+                            </div>
+                            <button
+                                onClick={handleSetToNow}
+                                className="px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold rounded-lg transition-colors"
+                            >
+                                현재 시간
+                            </button>
                         </div>
 
                         {/* 시간 선택 영역 */}
@@ -155,7 +256,9 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
                         </div>
                     </div>
                 </div>
-            </>
+
+            </>,
+            document.body
         );
     }
 

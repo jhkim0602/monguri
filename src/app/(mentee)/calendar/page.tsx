@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame, CheckCircle2, MessageCircle } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { DAILY_RECORDS, WEEKLY_SCHEDULE, MENTOR_TASKS } from "@/constants/mentee";
+import { DAILY_RECORDS, WEEKLY_SCHEDULE, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
-import MonguriSticker from "@/components/common/MonguriSticker";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import Header from "@/components/mentee/layout/Header";
@@ -106,12 +105,7 @@ export default function CalendarPage() {
             <Header
                 title="인사이트 캘린더"
                 variant="clean"
-                rightElement={
-                    <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100">
-                        <Flame size={16} className="text-orange-500 fill-orange-500" />
-                        <span className="text-xs font-bold text-orange-600">{currentStreak}일 연속 학습 중!</span>
-                    </div>
-                }
+
             />
 
             <div className="px-6 py-4">
@@ -150,7 +144,7 @@ export default function CalendarPage() {
                 </div>
 
                 {viewMode === 'month' ? (
-                    /* Monthly Grid (Sticker Book) */
+                    /* Monthly Grid (Keywords) */
                     <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                         <div className="grid grid-cols-7 gap-2 mb-4">
                             {dayNames.map((day, index) => (
@@ -170,17 +164,39 @@ export default function CalendarPage() {
                                 const isTodayDate = isToday(targetDate);
                                 const isSelected = selectedDate && isSameDay(selectedDate, targetDate);
 
-                                const dailyEvents = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate))?.events || [];
-                                const mentorDeadlines = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, targetDate));
-                                const hasActivity = dailyEvents.length > 0 || mentorDeadlines.length > 0;
-                                const randomOpacity = hasActivity ? Math.random() * 0.7 + 0.3 : 0;
-                                const randomRotate = (index % 3 - 1) * 10;
+                                // Get keywords for the day
+                                const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate));
+                                let keywords: { text: string; color: string }[] = [];
+
+                                if (schedule) {
+                                    // Mentor tasks
+                                    const mentorEvents = schedule.events.filter(e => e.taskType === 'mentor');
+                                    mentorEvents.forEach(e => {
+                                        const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                                        keywords.push({
+                                            text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''),
+                                            color: `${category.color} ${category.textColor}`
+                                        });
+                                    });
+
+                                    // User tasks
+                                    if (keywords.length < 3) {
+                                        const userEvents = schedule.events.filter(e => e.taskType !== 'mentor');
+                                        userEvents.forEach(e => {
+                                            const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                                            keywords.push({
+                                                text: e.title.split(' ')[0],
+                                                color: `${category.color} ${category.textColor}` // Unified colors
+                                            });
+                                        });
+                                    }
+                                }
 
                                 return (
                                     <button
                                         key={day}
                                         onClick={() => handleDateClick(day)}
-                                        className={`rounded-xl flex flex-col items-center justify-start p-1.5 min-h-[90px] transition-all relative border overflow-hidden
+                                        className={`rounded-xl flex flex-col items-center justify-start p-1 min-h-[90px] transition-all relative border overflow-hidden
                                             ${isSelected ? 'border-primary bg-blue-50/10 ring-1 ring-primary' : 'border-transparent hover:bg-gray-50'}
                                             ${isTodayDate ? 'bg-gray-50' : ''}
                                         `}
@@ -192,21 +208,20 @@ export default function CalendarPage() {
                                             {day}
                                         </div>
 
-                                        {hasActivity && (
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-80 mt-2">
-                                                <MonguriSticker
-                                                    opacity={randomOpacity}
-                                                    className="w-12 h-12"
-                                                    rotate={randomRotate}
-                                                />
-                                            </div>
-                                        )}
-
-                                        {!hasActivity && (
-                                            <div className="w-full h-full flex items-center justify-center opacity-10">
-                                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300" />
-                                            </div>
-                                        )}
+                                        {/* Keywords List */}
+                                        <div className="flex flex-col gap-1 w-full flex-1">
+                                            {keywords.slice(0, 3).map((k, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`${k.color} rounded px-1 py-0.5 text-[8px] font-bold w-full text-center truncate leading-tight tracking-tight`}
+                                                >
+                                                    {k.text}
+                                                </div>
+                                            ))}
+                                            {keywords.length > 3 && (
+                                                <div className="text-[8px] text-gray-300 font-bold w-full text-center leading-none">...</div>
+                                            )}
+                                        </div>
                                     </button>
                                 );
                             })}
@@ -229,7 +244,7 @@ export default function CalendarPage() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between items-baseline mb-2">
                                 <h3 className="text-lg font-bold text-gray-800">
-                                    {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 기록
+                                    {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 자세히보기
                                 </h3>
                                 <div className="flex items-center gap-1.5 text-primary">
                                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Study Time</span>
@@ -256,13 +271,69 @@ export default function CalendarPage() {
                                                     <span className={`text-[10px] font-bold ${category.textColor}`}>{category.name}</span>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    {eventsInCategory.map((event, idx) => (
-                                                        <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 bg-gray-50/50">
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-bold text-gray-800 truncate">{event.title}</p>
+                                                    {eventsInCategory.map((event, idx) => {
+                                                        // 🔍 Resolve full task details
+                                                        let fullTask: any = null;
+                                                        if (event.taskType === 'mentor') {
+                                                            fullTask = MENTOR_TASKS.find(t => t.id === event.id);
+                                                        } else if (event.taskType === 'user') {
+                                                            fullTask = USER_TASKS.find(t => t.id === event.id);
+                                                        }
+
+                                                        // Default checks if fullTask is found, otherwise fallback to basic event data
+                                                        const isMentorTask = event.taskType === 'mentor';
+                                                        const isCompleted = fullTask?.completed || fullTask?.status === 'submitted' || fullTask?.status === 'feedback_completed';
+                                                        const hasFeedback = fullTask?.hasMentorResponse || (fullTask?.mentorFeedback && fullTask?.mentorFeedback.length > 0);
+
+                                                        return (
+                                                            <div
+                                                                key={idx}
+                                                                onClick={() => fullTask && openTaskDetail(fullTask)}
+                                                                className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group
+                                                                    ${isCompleted
+                                                                        ? 'bg-gray-50/50 border-gray-50 text-gray-400'
+                                                                        : 'bg-white border-gray-100 hover:border-primary/30 hover:shadow-sm text-gray-900'
+                                                                    }`}
+                                                            >
+                                                                {/* Status Icon */}
+                                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors
+                                                                    ${isCompleted
+                                                                        ? `${category.color.replace('bg-', 'border-')} ${category.color}`
+                                                                        : 'border-gray-200'
+                                                                    }`}>
+                                                                    {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-0">
+                                                                    {/* Badges Row */}
+                                                                    <div className="flex items-center gap-1.5 mb-1">
+                                                                        {isMentorTask && (
+                                                                            <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
+                                                                                MENTOR
+                                                                            </span>
+                                                                        )}
+                                                                        {hasFeedback && (
+                                                                            <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
+                                                                                <MessageCircle size={8} className="fill-current" />
+                                                                                FEEDBACK
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <p className={`text-sm font-bold truncate transition-colors ${isCompleted ? 'line-through opacity-80' : ''}`}>
+                                                                        {event.title}
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Right Arrow (Visual Cue) */}
+                                                                {!isCompleted && fullTask && (
+                                                                    <div className="text-gray-300 group-hover:text-primary transition-colors">
+                                                                        <ChevronRight size={16} />
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         );
