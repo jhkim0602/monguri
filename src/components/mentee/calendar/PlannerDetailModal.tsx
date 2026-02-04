@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { X, Check } from "lucide-react";
 import Link from "next/link";
 import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
@@ -11,6 +12,7 @@ interface PlannerDetailModalProps {
     dailyRecord: any;
     mentorDeadlines: any[];
     dailyEvents: any[];
+    userTasks?: any[];
 }
 
 export default function PlannerDetailModal({
@@ -19,7 +21,8 @@ export default function PlannerDetailModal({
     date,
     dailyRecord,
     mentorDeadlines,
-    dailyEvents
+    dailyEvents,
+    userTasks: userTasksProp
 }: PlannerDetailModalProps) {
     if (!isOpen || !date) return null;
 
@@ -34,10 +37,19 @@ export default function PlannerDetailModal({
             date1.getFullYear() === date2.getFullYear();
     };
 
-    const userTasks = USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
+    const userTasks = userTasksProp ?? USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
     const allTasks = [...mentorDeadlines, ...userTasks];
     const hasActivity = dailyEvents.length > 0 || allTasks.length > 0;
     const tasksWithFeedback = mentorDeadlines.filter(t => t.mentorFeedback && t.mentorComment);
+    const [showMentorRule, setShowMentorRule] = useState(false);
+    const [ruleTargetTitle, setRuleTargetTitle] = useState<string | null>(null);
+
+    const isTaskCompleted = (task: any) => {
+        const isMentorTask = task.isMentorTask ?? task.taskType === "mentor";
+        const isSubmitted = task.status === "submitted" || task.status === "feedback_completed" || !!task.studyRecord;
+        if (isMentorTask) return isSubmitted;
+        return !!task.completed || !!task.studyRecord;
+    };
 
     // Generate timeline blocks from tasks directly
     const studyTimeBlocks = generateTimeBlocksFromTasks(allTasks);
@@ -78,15 +90,34 @@ export default function PlannerDetailModal({
                         </p>
                     </div>
 
+                    {showMentorRule && (
+                        <div className="w-full bg-orange-50/60 rounded-lg p-3 border border-orange-100 flex items-start justify-between gap-3">
+                            <div>
+                                <span className="text-xs font-bold text-orange-600 mb-1 block">멘토 과제 완료 규칙</span>
+                                <p className="text-xs text-orange-700/90 font-medium">
+                                    {ruleTargetTitle ? `"${ruleTargetTitle}"` : "멘토 과제"}는 제출을 완료해야 체크됩니다. 상세 페이지에서 제출해 주세요.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowMentorRule(false)}
+                                className="text-[10px] font-bold text-orange-500 hover:text-orange-700"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    )}
+
                     {/* 2. Main Content: To-Do (Left) vs TimeTable (Right) */}
-                    <div className="flex-1 flex gap-3 w-full overflow-hidden">
+                    <div className="flex-1 flex gap-3 w-full overflow-hidden min-h-0">
                         {/* Left: To-Do List (Detailed) */}
-                        <div className="w-[65%] flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+                        <div className="w-[65%] flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 min-h-0">
                             {/* Mentor Tasks */}
                             {mentorDeadlines.map(task => {
                                 const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
                                 const colorClass = cat?.color || 'bg-purple-500';
                                 const borderClass = colorClass.replace('bg-', 'border-');
+                                const completed = isTaskCompleted(task);
 
                                 return (
                                     <Link
@@ -95,19 +126,34 @@ export default function PlannerDetailModal({
                                         className="flex items-start gap-2 hover:bg-purple-50/50 rounded-lg p-2 -m-2 transition-colors"
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-0.5`}>
-                                            {task.completed && <Check size={12} className="text-white" />}
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                if (!completed) {
+                                                    setRuleTargetTitle(task.title);
+                                                    setShowMentorRule(true);
+                                                }
+                                            }}
+                                            className={`w-5 h-5 rounded flex items-center justify-center border ${completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-0.5`}
+                                            aria-label="멘토 과제 완료 규칙"
+                                        >
+                                            {completed && <Check size={12} className="text-white" />}
+                                        </button>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5 mb-0.5">
                                                 <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
                                                     Mentor
                                                 </span>
+                                                {!completed && (
+                                                    <span className="text-[9px] text-orange-600 font-black bg-orange-50 px-1.5 py-0.5 rounded">제출 필요</span>
+                                                )}
                                                 {task.studyRecord && (
                                                     <span className="text-[9px] text-emerald-500 font-black bg-emerald-50 px-1.5 py-0.5 rounded">제출</span>
                                                 )}
                                             </div>
-                                            <p className={`text-base font-bold truncate ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
+                                            <p className={`text-base font-bold truncate ${completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
                                         </div>
                                     </Link>
                                 );
@@ -118,6 +164,7 @@ export default function PlannerDetailModal({
                                 const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
                                 const colorClass = cat?.color || 'bg-blue-500';
                                 const borderClass = colorClass.replace('bg-', 'border-');
+                                const completed = isTaskCompleted(task);
 
                                 return (
                                     <Link
@@ -126,8 +173,8 @@ export default function PlannerDetailModal({
                                         className="flex items-start gap-2 hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors"
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-0.5`}>
-                                            {task.completed && <Check size={12} className="text-white" />}
+                                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-0.5`}>
+                                            {completed && <Check size={12} className="text-white" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5 mb-0.5">
@@ -135,7 +182,7 @@ export default function PlannerDetailModal({
                                                     <span className="text-[9px] text-emerald-500 font-black bg-emerald-50 px-1.5 py-0.5 rounded">제출</span>
                                                 )}
                                             </div>
-                                            <p className={`text-base font-bold truncate ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
+                                            <p className={`text-base font-bold truncate ${completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
                                         </div>
                                     </Link>
                                 );
@@ -164,7 +211,7 @@ export default function PlannerDetailModal({
                         </div>
 
                         {/* Right: Time Table (Visual) - Detailed */}
-                        <div className="w-[35%] border-l border-gray-100 pl-1.5 flex flex-col overflow-y-auto custom-scrollbar">
+                        <div className="w-[35%] border-l border-gray-100 pl-1.5 flex flex-col overflow-y-auto custom-scrollbar min-h-0">
                             <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
                                 {Array.from({ length: 19 }).map((_, idx) => {
                                     const hour = 6 + idx;

@@ -2,8 +2,9 @@
 
 import { ChevronLeft, ChevronDown, ChevronUp, Download, Eye, FileText, Image as ImageIcon, MessageCircle, Upload, CheckCircle2, Book, PenTool, FolderOpen, BookOpen, Edit3, HelpCircle, Folder } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
+import { useSearchParams } from "next/navigation";
 
 interface Attachment {
     name: string;
@@ -39,8 +40,20 @@ interface TaskDetailViewProps {
 export default function TaskDetailView({ task }: TaskDetailViewProps) {
     const category = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId) || DEFAULT_CATEGORIES[0];
     const isMentorTask = task.isMentorTask ?? true;  // 기본값: 멘토 과제
-    const isCompleted = task.completed || !!task.studyRecord;
+    const isSubmitted = task.status === "submitted" || task.status === "feedback_completed" || !!task.studyRecord;
+    const isCompleted = isMentorTask ? isSubmitted : (!!task.completed || !!task.studyRecord);
     const [memo, setMemo] = useState("");
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const focus = searchParams?.get("focus");
+        if (focus === "submit") {
+            const target = document.getElementById("submission-section");
+            if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
@@ -94,7 +107,7 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                 )}
 
                 {/* Section 2: Study Record / Submission (Unified) */}
-                <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-5">
+                <section id="submission-section" className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-5">
                     <div className="flex items-center gap-2 mb-5">
                         <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-tight ${task.studyRecord ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-600'
                             }`}>
@@ -104,6 +117,15 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                             {task.studyRecord ? '기록 완료' : '기록 대기'}
                         </span>
                     </div>
+
+                    {isMentorTask && !task.studyRecord && (
+                        <div className="bg-orange-50/70 border border-orange-100 rounded-2xl p-4">
+                            <p className="text-[11px] font-black text-orange-600 mb-1">멘토 과제 완료 규칙</p>
+                            <p className="text-[12px] text-orange-700/90 font-medium">
+                                멘토가 만든 과제는 제출을 완료해야 체크됩니다. 제출 후 완료로 처리돼요.
+                            </p>
+                        </div>
+                    )}
 
                     <div className="space-y-4">
                         {task.studyRecord ? (
@@ -192,7 +214,13 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                     {/* Action buttons (only when not completed) */}
                     {!task.studyRecord && (
                         <div className="space-y-3 pt-2">
-                            <button className="w-full py-4 rounded-2xl bg-gray-900 text-white text-[13px] font-black flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200">
+                            <button
+                                className={`w-full py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2 active:scale-95 transition-all ${
+                                    isMentorTask
+                                        ? "bg-primary text-white shadow-xl shadow-blue-200 hover:bg-blue-600"
+                                        : "bg-gray-900 text-white shadow-xl shadow-gray-200 hover:bg-black"
+                                }`}
+                            >
                                 {isMentorTask ? '과제 제출 완료하기' : '학습 기록 저장하기'}
                             </button>
                         </div>

@@ -289,7 +289,6 @@ interface PlannerTasksProps {
     onToggleCompletion: (id: string | number) => void;
     onUpdateTaskTimeRange: (id: string | number, startTime: string, endTime: string) => void;
     onDelete: (id: string | number) => void;
-    onOpenSubmission: (task: any) => void;
     newTaskTitle: string;
     setNewTaskTitle: (val: string) => void;
     selectedCategoryId: string;
@@ -304,7 +303,6 @@ export default function PlannerTasks({
     onToggleCompletion,
     onUpdateTaskTimeRange,
     onDelete,
-    onOpenSubmission,
     newTaskTitle,
     setNewTaskTitle,
     selectedCategoryId,
@@ -315,6 +313,13 @@ export default function PlannerTasks({
     const router = useRouter();
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState("");
+
+    const isTaskCompleted = (task: any) => {
+        const isMentorTask = task.isMentorTask;
+        const isSubmitted = task.status === "submitted" || task.status === "feedback_completed" || !!task.studyRecord;
+        if (isMentorTask) return isSubmitted;
+        return !!task.completed || !!task.studyRecord;
+    };
 
     const handleAddCategorySubmit = () => {
         if (!newCategoryName.trim()) return;
@@ -335,7 +340,7 @@ export default function PlannerTasks({
                 </div>
                 <div className="flex gap-2">
                     <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
-                        {tasks.filter(t => t.completed).length}/{tasks.length} 완료
+                        {tasks.filter(t => isTaskCompleted(t)).length}/{tasks.length} 완료
                     </span>
                 </div>
             </div>
@@ -432,15 +437,21 @@ export default function PlannerTasks({
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    if (task.isMentorTask) {
+                                                        const taskId = String(task.id);
+                                                        router.push(`/planner/${taskId}?focus=submit`);
+                                                        return;
+                                                    }
                                                     onToggleCompletion(task.id);
                                                 }}
                                                 className="mt-0.5 relative z-10"
+                                                title={task.isMentorTask ? "멘토 과제는 제출 완료 시 체크됩니다." : "완료 체크"}
                                             >
-                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed
+                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${isTaskCompleted(task)
                                                     ? `${category.color} ${category.color.replace('bg-', 'border-')} shadow-sm`
                                                     : 'border-gray-200 hover:border-gray-300'
                                                     }`}>
-                                                    {task.completed && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
+                                                    {isTaskCompleted(task) && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
                                                 </div>
                                             </button>
 
@@ -460,7 +471,17 @@ export default function PlannerTasks({
                                                             Mentor
                                                         </span>
                                                     )}
-                                                    <p className={`text-[14px] font-bold truncate ${task.completed ? 'text-gray-300 line-through' : 'text-gray-900 font-bold'}`}>
+                                                    {task.isMentorTask && !isTaskCompleted(task) && (
+                                                        <span className="text-[9px] text-orange-600 font-black bg-orange-50 px-1.5 py-0.5 rounded">
+                                                            제출 필요
+                                                        </span>
+                                                    )}
+                                                    {task.isMentorTask && isTaskCompleted(task) && (
+                                                        <span className="text-[9px] text-emerald-600 font-black bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                            제출 완료
+                                                        </span>
+                                                    )}
+                                                    <p className={`text-[14px] font-bold truncate ${isTaskCompleted(task) ? 'text-gray-300 line-through' : 'text-gray-900 font-bold'}`}>
                                                         {task.title}
                                                     </p>
                                                 </div>

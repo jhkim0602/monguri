@@ -29,6 +29,12 @@ export default function DailyPlannerCard({
     const allTasks = [...mentorDeadlines, ...userTasks];
     const hasActivity = dailyEvents.length > 0 || allTasks.length > 0;
     const tasksWithFeedback = mentorDeadlines.filter(t => t.mentorFeedback && t.mentorComment);
+    const isTaskCompleted = (task: any) => {
+        const isMentorTask = task.isMentorTask ?? task.taskType === 'mentor';
+        const isSubmitted = task.status === 'submitted' || task.status === 'feedback_completed' || !!task.studyRecord;
+        if (isMentorTask) return isSubmitted;
+        return !!task.completed || !!task.studyRecord;
+    };
 
     return (
         <div
@@ -66,14 +72,15 @@ export default function DailyPlannerCard({
                             const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
                             const colorClass = cat?.color || 'bg-purple-500';
                             const borderClass = colorClass.replace('bg-', 'border-');
+                            const isCompleted = isTaskCompleted(task);
 
                             return (
                                 <div
                                     key={task.id}
                                     className="flex items-start gap-1"
                                 >
-                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
-                                        {task.completed && <Check size={4} className="text-white" />}
+                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${isCompleted ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
+                                        {isCompleted && <Check size={4} className="text-white" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-[2px] mb-[1px]">
@@ -84,7 +91,7 @@ export default function DailyPlannerCard({
                                                 <span className="text-[4px] text-emerald-500 font-black bg-emerald-50 px-[2px] py-[1px] rounded-[1px] leading-none">제출</span>
                                             )}
                                         </div>
-                                        <p className={`text-[5px] font-bold leading-tight truncate ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
+                                        <p className={`text-[5px] font-bold leading-tight truncate ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
                                     </div>
                                 </div>
                             );
@@ -95,14 +102,15 @@ export default function DailyPlannerCard({
                             const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
                             const colorClass = cat?.color || 'bg-blue-500';
                             const borderClass = colorClass.replace('bg-', 'border-');
+                            const isCompleted = isTaskCompleted(task);
 
                             return (
                                 <div
                                     key={task.id}
                                     className="flex items-start gap-1"
                                 >
-                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
-                                        {task.completed && <Check size={4} className="text-white" />}
+                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${isCompleted ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
+                                        {isCompleted && <Check size={4} className="text-white" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-[2px] mb-[1px]">
@@ -110,7 +118,7 @@ export default function DailyPlannerCard({
                                                 <span className="text-[4px] text-emerald-500 font-black bg-emerald-50 px-[2px] py-[1px] rounded-[1px] leading-none">제출</span>
                                             )}
                                         </div>
-                                        <p className={`text-[5px] font-bold leading-tight truncate ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
+                                        <p className={`text-[5px] font-bold leading-tight truncate ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
                                     </div>
                                 </div>
                             );

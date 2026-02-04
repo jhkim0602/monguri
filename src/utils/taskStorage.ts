@@ -30,7 +30,16 @@ export const TaskStorage = {
   getAllDynamicTasks(): Task[] {
     if (typeof window === 'undefined') return [];
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    try {
+      const parsed = JSON.parse(data) as Task[];
+      return parsed.map(task => ({
+        ...task,
+        deadline: task.deadline ? new Date(task.deadline) : undefined,
+      }));
+    } catch {
+      return [];
+    }
   },
 
   // 특정 task 조회

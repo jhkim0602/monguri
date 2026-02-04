@@ -167,6 +167,32 @@ export const MENTOR_TASKS = [
     completed: false,
     studyRecord: null,
     hasMentorResponse: false
+  },
+  {
+    // 📚 멘토 과제 8: 2/4 마감 - 피드백 완료 (성취 리포트 확인용)
+    id: 8,
+    subject: "수학",
+    title: "미적분 실전 모의 1회",
+    status: "feedback_completed",
+    badgeColor: "bg-blue-100 text-blue-700",
+    description: "실전 모의 1회분 풀이 및 오답 원인 분석. 시간 배분을 체크하면서 풀이.",
+    categoryId: "math",
+    mentorFeedback: "시간 배분이 좋아졌고, 21번 실수가 줄었어요. 30번은 풀이 전 조건 정리부터 하세요.",
+    deadline: new Date(2026, 1, 4),
+    attachments: [
+      { name: "모의_1회_문제.pdf", type: "pdf", url: "#", previewUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80" }
+    ],
+    submissions: [
+      { name: "모의1회_제출.pdf", type: "pdf", url: "#", previewUrl: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80" }
+    ],
+    mentorComment: "풀이 과정이 안정적이야. 실전에서 시간 체크하면서 그대로 유지해보자.",
+    feedbackFiles: [],
+    isMentorTask: true,
+    completed: true,
+    studyRecord: { photo: "제출함", note: "모의고사 1회 제출 완료" },
+    hasMentorResponse: true,
+    startTime: "18:00",
+    endTime: "19:30"
   }
 ];
 
@@ -408,6 +434,7 @@ export const WEEKLY_SCHEDULE = [
     date: new Date(2026, 1, 4), // Feb 4, 2026 (화요일)
     events: [
       { id: 7, title: "언어와 매체 개념 정리", categoryId: "korean", taskType: "mentor" }, // MENTOR_TASKS id:7
+      { id: 8, title: "미적분 실전 모의 1회", categoryId: "math", taskType: "mentor" }, // MENTOR_TASKS id:8
       { id: 307, title: "수학 미분 챕터 복습", categoryId: "math", taskType: "plan" },
       { id: 308, title: "영어 독해 3지문", categoryId: "english", taskType: "plan" },
     ],
