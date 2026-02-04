@@ -49,48 +49,48 @@ const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: s
     };
 
     return (
-        <div className="flex items-center justify-center gap-1 bg-gray-50 rounded-lg p-2 border border-gray-100">
+        <div className="flex items-center justify-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100 w-full">
             {/* 시간 스피너 */}
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex flex-col items-center gap-2">
                 <button
                     onClick={() => handleHourChange(1)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1.5"
                     type="button"
                 >
-                    <ChevronUp size={14} />
+                    <ChevronUp size={18} />
                 </button>
-                <div className="text-sm font-bold text-gray-900 w-8 text-center font-mono bg-white rounded border border-gray-200 py-1.5">
+                <div className="text-base font-black text-gray-900 w-14 text-center font-mono bg-white rounded-lg border border-gray-200 py-2">
                     {String(hours).padStart(2, '0')}
                 </div>
                 <button
                     onClick={() => handleHourChange(-1)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1.5"
                     type="button"
                 >
-                    <ChevronDown size={14} />
+                    <ChevronDown size={18} />
                 </button>
             </div>
 
-            <span className="text-gray-400 font-bold">:</span>
+            <span className="text-xl text-gray-400 font-bold">:</span>
 
             {/* 분 스피너 (10분 단위) */}
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex flex-col items-center gap-2">
                 <button
                     onClick={() => handleMinuteChange(1)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1.5"
                     type="button"
                 >
-                    <ChevronUp size={14} />
+                    <ChevronUp size={18} />
                 </button>
-                <div className="text-sm font-bold text-gray-900 w-8 text-center font-mono bg-white rounded border border-gray-200 py-1.5">
+                <div className="text-base font-black text-gray-900 w-14 text-center font-mono bg-white rounded-lg border border-gray-200 py-2">
                     {String(minutes).padStart(2, '0')}
                 </div>
                 <button
                     onClick={() => handleMinuteChange(-1)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1.5"
                     type="button"
                 >
-                    <ChevronDown size={14} />
+                    <ChevronDown size={18} />
                 </button>
             </div>
         </div>
@@ -106,7 +106,7 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
         return (
             <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
-                <div className="fixed bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-6 max-w-sm left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                <div className="fixed bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-6 max-w-lg left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 mx-4"
                      onClick={e => e.stopPropagation()}>
                     <div className="flex flex-col gap-6">
                         {/* 헤더 */}
@@ -128,9 +128,9 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
                         </div>
 
                         {/* 예상 시간 */}
-                        <div className="bg-blue-50 rounded-2xl p-3 border border-blue-100">
-                            <p className="text-[10px] text-blue-600 font-bold">예상 학습 시간</p>
-                            <p className="text-lg font-black text-blue-700 mt-1">{calculateDuration(start, end)}</p>
+                        <div className="bg-blue-50 rounded-2xl px-4 py-3 border border-blue-100 flex items-center justify-between">
+                            <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">예상 학습 시간</p>
+                            <p className="text-sm font-black text-blue-700">{calculateDuration(start, end)}</p>
                         </div>
 
                         {/* 버튼 */}
