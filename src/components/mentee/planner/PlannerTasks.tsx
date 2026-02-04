@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Camera, Trash2, Plus, Clock, X } from "lucide-react";
+import { CheckCircle2, Camera, Trash2, Plus, Clock, X, ChevronUp, ChevronDown } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/utils/timeUtils";
@@ -21,40 +21,123 @@ const calculateDuration = (start: string, end: string) => {
     return `${hours}시간 ${minutes}분`;
 };
 
+// 10분 단위 시간 선택기
+const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: string) => void }) => {
+    const [hours, minutes] = time ? time.split(':').map(Number) : [0, 0];
+
+    const handleHourChange = (delta: number) => {
+        let newHour = hours + delta;
+        if (newHour < 0) newHour = 23;
+        if (newHour > 23) newHour = 0;
+        onTimeChange(`${String(newHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+    };
+
+    const handleMinuteChange = (delta: number) => {
+        let newMinute = minutes + (delta * 10);
+        let newHour = hours;
+
+        if (newMinute < 0) {
+            newMinute = 50;
+            newHour = newHour - 1 < 0 ? 23 : newHour - 1;
+        }
+        if (newMinute > 50) {
+            newMinute = 0;
+            newHour = newHour + 1 > 23 ? 0 : newHour + 1;
+        }
+
+        onTimeChange(`${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`);
+    };
+
+    return (
+        <div className="flex items-center justify-center gap-1 bg-gray-50 rounded-lg p-2 border border-gray-100">
+            {/* 시간 스피너 */}
+            <div className="flex flex-col items-center gap-1">
+                <button
+                    onClick={() => handleHourChange(1)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    type="button"
+                >
+                    <ChevronUp size={14} />
+                </button>
+                <div className="text-sm font-bold text-gray-900 w-8 text-center font-mono bg-white rounded border border-gray-200 py-1.5">
+                    {String(hours).padStart(2, '0')}
+                </div>
+                <button
+                    onClick={() => handleHourChange(-1)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    type="button"
+                >
+                    <ChevronDown size={14} />
+                </button>
+            </div>
+
+            <span className="text-gray-400 font-bold">:</span>
+
+            {/* 분 스피너 (10분 단위) */}
+            <div className="flex flex-col items-center gap-1">
+                <button
+                    onClick={() => handleMinuteChange(1)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    type="button"
+                >
+                    <ChevronUp size={14} />
+                </button>
+                <div className="text-sm font-bold text-gray-900 w-8 text-center font-mono bg-white rounded border border-gray-200 py-1.5">
+                    {String(minutes).padStart(2, '0')}
+                </div>
+                <button
+                    onClick={() => handleMinuteChange(-1)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    type="button"
+                >
+                    <ChevronDown size={14} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, endTime?: string, onSave: (s: string, e: string) => void }) => {
     const [isEditing, setIsEditing] = useState(false);
-    const [start, setStart] = useState(startTime || "");
-    const [end, setEnd] = useState(endTime || "");
+    const [start, setStart] = useState(startTime || "06:00");
+    const [end, setEnd] = useState(endTime || "07:00");
 
     if (isEditing) {
         return (
             <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
-                <div className="fixed bg-white p-3 rounded-xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 min-w-[220px]"
-                     style={{ top: 'auto', left: 'auto', right: 'auto', bottom: 'auto' }}
+                <div className="fixed bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-6 max-w-sm left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                      onClick={e => e.stopPropagation()}>
-                    <div className="flex flex-col gap-3">
-                        <div className="flex gap-2 items-center">
-                            <input
-                                type="time"
-                                step="600"
-                                value={start}
-                                onChange={(e) => setStart(e.target.value)}
-                                className="bg-gray-50 flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-bold text-gray-700"
-                            />
-                            <span className="text-gray-300 text-xs font-bold">→</span>
-                            <input
-                                type="time"
-                                step="600"
-                                value={end}
-                                onChange={(e) => setEnd(e.target.value)}
-                                className="bg-gray-50 flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-bold text-gray-700"
-                            />
+                    <div className="flex flex-col gap-6">
+                        {/* 헤더 */}
+                        <div>
+                            <h3 className="text-base font-black text-gray-900">학습 시간 설정</h3>
+                            <p className="text-[11px] text-gray-400 font-bold mt-1">10분 단위로 설정하세요</p>
                         </div>
-                        <div className="flex justify-end gap-2">
+
+                        {/* 시작 시간 */}
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black text-gray-500 uppercase tracking-wider">시작 시간</label>
+                            <TimeSpinner time={start} onTimeChange={setStart} />
+                        </div>
+
+                        {/* 종료 시간 */}
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black text-gray-500 uppercase tracking-wider">종료 시간</label>
+                            <TimeSpinner time={end} onTimeChange={setEnd} />
+                        </div>
+
+                        {/* 예상 시간 */}
+                        <div className="bg-blue-50 rounded-2xl p-3 border border-blue-100">
+                            <p className="text-[10px] text-blue-600 font-bold">예상 학습 시간</p>
+                            <p className="text-lg font-black text-blue-700 mt-1">{calculateDuration(start, end)}</p>
+                        </div>
+
+                        {/* 버튼 */}
+                        <div className="flex gap-2 pt-2">
                             <button
                                 onClick={() => setIsEditing(false)}
-                                className="text-gray-400 hover:text-gray-600 px-4 py-2 rounded-lg text-xs font-bold transition-colors bg-gray-50 hover:bg-gray-100"
+                                className="flex-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-4 py-3 rounded-xl text-sm font-bold transition-colors bg-gray-50"
                             >
                                 취소
                             </button>
@@ -63,7 +146,7 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
                                     onSave(start, end);
                                     setIsEditing(false);
                                 }}
-                                className="bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-xl text-sm font-bold transition-colors"
                             >
                                 저장
                             </button>
