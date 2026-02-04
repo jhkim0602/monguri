@@ -23,9 +23,11 @@ interface TaskDetailViewProps {
         submissions?: Attachment[];
         mentorComment?: string;
         feedbackFiles?: Attachment[];
-        isMentorTask?: boolean;  // 🔧 멘토가 설정한 과제인지 여부
+        isMentorTask?: boolean;  // 멘토가 설정한 과제인지 여부
         completed?: boolean;
         studyRecord?: { photo?: string; note?: string };
+        userQuestion?: string;  // 🔧 멘티가 한 질문
+        hasMentorResponse?: boolean;  // 🔧 멘토 응답 여부
     };
 }
 
@@ -118,7 +120,64 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                     </div>
                 </section>
 
-                {/* Section 3: 선생님 피드백 (멘토 과제일 때만) */}
+                {/* Section 3: 질문하기 (멘티 과제일 때만) */}
+                {!isMentorTask && (
+                <>
+                    {!task.hasMentorResponse ? (
+                        <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-[32px] p-6 border border-blue-100 shadow-sm space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                                    <MessageCircle size={18} />
+                                </div>
+                                <h3 className="text-[15px] font-black text-gray-900">질문하기</h3>
+                            </div>
+                            <p className="text-[12px] text-gray-600 font-medium">
+                                이 과제에 대해 멘토에게 질문이 있으신가요?
+                            </p>
+                            <button className="w-full py-4 rounded-2xl bg-white border-2 border-blue-300 text-blue-600 text-[13px] font-black flex items-center justify-center gap-2 hover:bg-blue-50 active:scale-95 transition-all">
+                                <MessageCircle size={16} />
+                                질문 남기기
+                            </button>
+                        </section>
+                    ) : (
+                        <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-[15px] font-black text-gray-900">멘토 응답</h3>
+                                <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                                    답변 완료
+                                </span>
+                            </div>
+
+                            <div>
+                                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">멘토 코멘트</p>
+                                <div className="min-h-[100px] bg-blue-50/50 rounded-[24px] p-4 border border-blue-100">
+                                    <p className="text-[13px] text-gray-700 font-medium leading-relaxed italic">
+                                        "{task.mentorComment || '멘토가 확인 중입니다.'}"
+                                    </p>
+                                </div>
+                            </div>
+
+                            {task.feedbackFiles && task.feedbackFiles.length > 0 && (
+                                <div>
+                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">첨부 자료</p>
+                                    <div className="space-y-3">
+                                        {task.feedbackFiles.map((file, idx) => (
+                                            <FileCard key={idx} file={file} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button className="w-full py-3 rounded-2xl bg-gray-100 text-gray-600 text-[12px] font-bold flex items-center justify-center gap-2 hover:bg-gray-200 active:scale-95 transition-all">
+                                <MessageCircle size={14} />
+                                추가 질문하기
+                            </button>
+                        </section>
+                    )}
+                </>
+                )}
+
+                {/* Section 4: 선생님 피드백 (멘토 과제일 때만) */}
                 {isMentorTask && (
                 <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-4">
                     <div className="flex items-center justify-between">
