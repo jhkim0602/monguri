@@ -41,7 +41,7 @@ export default function DailyPlannerCard({
                     {date.getDate()} ({dayNames[date.getDay()]})
                 </span>
                 {studyTime > 0 && (
-                    <span className="text-[7px] font-mono text-gray-500 font-bold">{formatTime(studyTime)}</span>
+                    <span className="text-[7px] tabular-nums text-gray-500 font-bold">{formatTime(studyTime)}</span>
                 )}
             </div>
 
@@ -53,7 +53,7 @@ export default function DailyPlannerCard({
                     <span className="text-[5px] font-bold text-sky-600 block leading-tight mb-0.5">Daily Memo</span>
                     <div className="w-full h-[1px] bg-sky-100/50 mb-0.5" />
                     <p className="text-[5px] text-gray-400 italic leading-tight truncate">
-                         {memo || "기록된 메모가 없습니다."}
+                        {memo || "기록된 메모가 없습니다."}
                     </p>
                 </div>
 
@@ -118,17 +118,17 @@ export default function DailyPlannerCard({
 
                         {/* Self Studies from WEEKLY_SCHEDULE */}
                         {dailyEvents.filter(e => e.taskType === 'plan').map((event, idx) => {
-                             const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
-                             const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
-                             return (
+                            const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
+                            const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
+                            return (
                                 <div key={`evt-${idx}`} className="flex items-start gap-1">
-                                     <div className={`w-2 h-2 rounded-full border-[0.5px] ${colorClass} bg-white shrink-0 mt-[1px]`} />
-                                     <div className="min-w-0 flex-1">
-                                         <p className="text-[5px] font-bold text-gray-800 leading-tight truncate">{event.title}</p>
-                                         <p className="text-[4px] text-gray-400 leading-none mt-[1px]">{cat?.name}</p>
-                                     </div>
+                                    <div className={`w-2 h-2 rounded-full border-[0.5px] ${colorClass} bg-white shrink-0 mt-[1px]`} />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[5px] font-bold text-gray-800 leading-tight truncate">{event.title}</p>
+                                        <p className="text-[4px] text-gray-400 leading-none mt-[1px]">{cat?.name}</p>
+                                    </div>
                                 </div>
-                             );
+                            );
                         })}
 
                         {!hasActivity && (
@@ -148,7 +148,7 @@ export default function DailyPlannerCard({
                                 return (
                                     <div key={hour} className="flex h-1 border-b border-gray-50 last:border-none group">
                                         <div className="w-2 flex items-center justify-center bg-gray-50/50 border-r border-gray-100">
-                                            <span className="text-[4px] font-bold text-gray-400 font-mono leading-none">{hourStr}</span>
+                                            <span className="text-[4px] font-bold text-gray-400 tabular-nums leading-none">{hourStr}</span>
                                         </div>
 
                                         <div className="flex-1 grid grid-cols-6">
@@ -178,21 +178,21 @@ export default function DailyPlannerCard({
                 {/* 3. Mentor Feedback (Bottom Box) - Neutral Style */}
                 {tasksWithFeedback.length > 0 && (
                     <div className="bg-gray-50 border border-gray-100 rounded-[3px] p-1 shrink-0 mt-auto">
-                         <div className="flex items-center gap-0.5 mb-0.5">
+                        <div className="flex items-center gap-0.5 mb-0.5">
                             <div className="w-1 h-1 rounded-full bg-gray-400" />
                             <span className="text-[5px] font-bold text-gray-500">멘토 쌤의 피드백</span>
-                         </div>
-                         {tasksWithFeedback.slice(0, 1).map(task => (
-                             <div key={task.id} className="text-[4px] text-gray-400 leading-tight truncate">
-                                 <span className="font-bold text-gray-500 mr-0.5">To. {task.title.slice(0, 5)}...:</span>
-                                 "{task.mentorFeedback?.slice(0, 15)}..."
-                             </div>
-                         ))}
-                         {tasksWithFeedback.length > 1 && (
-                             <div className="text-[4px] text-gray-300 mt-[1px] text-right">
-                                 +{tasksWithFeedback.length - 1} more
-                             </div>
-                         )}
+                        </div>
+                        {tasksWithFeedback.slice(0, 1).map(task => (
+                            <div key={task.id} className="text-[4px] text-gray-400 leading-tight truncate">
+                                <span className="font-bold text-gray-500 mr-0.5">To. {task.title.slice(0, 5)}...:</span>
+                                "{task.mentorFeedback?.slice(0, 15)}..."
+                            </div>
+                        ))}
+                        {tasksWithFeedback.length > 1 && (
+                            <div className="text-[4px] text-gray-300 mt-[1px] text-right">
+                                +{tasksWithFeedback.length - 1} more
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

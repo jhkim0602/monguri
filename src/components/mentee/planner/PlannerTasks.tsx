@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckCircle2, Camera, Trash2, Plus, Clock, X, ChevronUp, ChevronDown, ArrowRight } from "lucide-react";
-import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/utils/timeUtils";
 import { useState } from "react";
@@ -59,7 +58,7 @@ const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: s
                 >
                     <ChevronUp size={12} />
                 </button>
-                <div className="text-sm font-black text-gray-900 w-8 text-center font-mono bg-white rounded-md border border-gray-100 py-1 shadow-sm">
+                <div className="text-sm font-black text-gray-900 w-8 text-center tabular-nums bg-white rounded-md border border-gray-100 py-1 shadow-sm">
                     {String(hours).padStart(2, '0')}
                 </div>
                 <button
@@ -82,7 +81,7 @@ const TimeSpinner = ({ time, onTimeChange }: { time: string; onTimeChange: (t: s
                 >
                     <ChevronUp size={12} />
                 </button>
-                <div className="text-sm font-black text-gray-900 w-8 text-center font-mono bg-white rounded-md border border-gray-100 py-1 shadow-sm">
+                <div className="text-sm font-black text-gray-900 w-8 text-center tabular-nums bg-white rounded-md border border-gray-100 py-1 shadow-sm">
                     {String(minutes).padStart(2, '0')}
                 </div>
                 <button
@@ -107,7 +106,7 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
             <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
                 <div className="fixed bg-white rounded-[24px] shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-5 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-[320px]"
-                     onClick={e => e.stopPropagation()}>
+                    onClick={e => e.stopPropagation()}>
                     <div className="flex flex-col gap-4">
                         {/* 헤더 */}
                         <div className="text-center border-b border-gray-50 pb-3">
@@ -174,7 +173,7 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
                 }`}
         >
             <Clock size={14} className={startTime && endTime ? "text-gray-400" : "text-current"} />
-            <span className="text-[11px] font-bold font-mono tracking-tight">
+            <span className="text-[11px] font-bold tabular-nums tracking-tight">
                 {duration}
             </span>
         </button>
@@ -183,6 +182,7 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
 
 interface PlannerTasksProps {
     tasks: any[];
+    categories: any[];
     onToggleCompletion: (id: string | number) => void;
     onUpdateTaskTimeRange: (id: string | number, startTime: string, endTime: string) => void;
     onDelete: (id: string | number) => void;
@@ -192,10 +192,12 @@ interface PlannerTasksProps {
     selectedCategoryId: string;
     setSelectedCategoryId: (val: string) => void;
     onAddTask: () => void;
+    onAddCategory: (name: string) => any;
 }
 
 export default function PlannerTasks({
     tasks,
+    categories,
     onToggleCompletion,
     onUpdateTaskTimeRange,
     onDelete,
@@ -204,10 +206,22 @@ export default function PlannerTasks({
     setNewTaskTitle,
     selectedCategoryId,
     setSelectedCategoryId,
-    onAddTask
+    onAddTask,
+    onAddCategory
 }: PlannerTasksProps) {
     const router = useRouter();
-    const getCategoryById = (id: string) => DEFAULT_CATEGORIES.find(c => c.id === id) || DEFAULT_CATEGORIES[0];
+    const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState("");
+
+    const handleAddCategorySubmit = () => {
+        if (!newCategoryName.trim()) return;
+        const newCat = onAddCategory(newCategoryName);
+        setSelectedCategoryId(newCat.id);
+        setNewCategoryName("");
+        setIsAddingCategory(false);
+    };
+
+    const getCategoryById = (id: string) => categories.find(c => c.id === id) || categories[0];
 
     return (
         <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm">
@@ -217,17 +231,16 @@ export default function PlannerTasks({
                     <p className="text-[10px] text-gray-400 font-bold mt-0.5">UNIFIED STUDY PLAN</p>
                 </div>
                 <div className="flex gap-2">
-                    <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-lg">
+                    <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
                         {tasks.filter(t => t.completed).length}/{tasks.length} 완료
                     </span>
                 </div>
             </div>
 
             {/* Add Task Input Section - Left Aligned */}
-            <div className="mb-10 bg-gray-50/50 p-5 rounded-[24px] border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 mb-3 px-1 uppercase tracking-widest text-left">나의 열공 과목 추가</p>
+            <div className="mb-10 bg-gray-50/50 p-5 rounded-[24px] border border-gray-100 animate-slide-up">
                 <div className="flex flex-wrap justify-start gap-2 mb-4">
-                    {DEFAULT_CATEGORIES.map(cat => (
+                    {categories.map(cat => (
                         <button
                             key={cat.id}
                             onClick={() => setSelectedCategoryId(cat.id)}
@@ -239,6 +252,39 @@ export default function PlannerTasks({
                             {cat.name}
                         </button>
                     ))}
+                    {isAddingCategory ? (
+                        <div className="flex items-center gap-1 animate-slide-in-right duration-200">
+                            <input
+                                autoFocus
+                                type="text"
+                                value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                placeholder="과목명"
+                                className="w-24 px-3 py-2 rounded-xl text-[11px] font-black border border-primary outline-none"
+                                onKeyPress={(e) => e.key === 'Enter' && handleAddCategorySubmit()}
+                            />
+                            <button
+                                onClick={handleAddCategorySubmit}
+                                className="p-2 bg-primary text-white rounded-xl hover:bg-blue-600 transition-all"
+                            >
+                                <Plus size={14} strokeWidth={3} />
+                            </button>
+                            <button
+                                onClick={() => setIsAddingCategory(false)}
+                                className="p-2 bg-gray-100 text-gray-400 rounded-xl hover:bg-gray-200 transition-all"
+                            >
+                                <X size={14} strokeWidth={3} />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => setIsAddingCategory(true)}
+                            className="px-4 py-2 rounded-xl text-[11px] font-black transition-all border border-dashed border-gray-300 text-gray-400 hover:border-primary hover:text-primary flex items-center gap-1.5"
+                        >
+                            <Plus size={12} />
+                            과목 추가
+                        </button>
+                    )}
                 </div>
                 <div className="flex gap-3">
                     <input
@@ -259,7 +305,7 @@ export default function PlannerTasks({
             </div>
 
             <div className="space-y-6">
-                {DEFAULT_CATEGORIES.map(category => {
+                {categories.map(category => {
                     const tasksInCategory = tasks.filter(t => t.categoryId === category.id);
                     if (tasksInCategory.length === 0) return null;
 
@@ -274,7 +320,7 @@ export default function PlannerTasks({
                                 {tasksInCategory.map(task => (
                                     <div
                                         key={task.id}
-                                        className={`group relative p-4 rounded-[24px] transition-all duration-300 border ${task.isRunning
+                                        className={`group relative p-4 rounded-[24px] transition-all duration-300 border animate-slide-up ${task.isRunning
                                             ? 'bg-white border-blue-200 shadow-xl shadow-blue-100/50 ring-1 ring-blue-100'
                                             : 'bg-white border-gray-50 shadow-sm hover:border-gray-200'
                                             }`}
@@ -316,7 +362,7 @@ export default function PlannerTasks({
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`text-[10px] font-mono font-bold ${task.isRunning ? 'text-red-500' : 'text-gray-400'}`}>
+                                                    <span className={`text-[10px] tabular-nums font-bold ${task.isRunning ? 'text-red-500' : 'text-gray-400'}`}>
                                                         {formatTime(task.timeSpent)}
                                                     </span>
                                                     {task.studyRecord && (
@@ -334,12 +380,14 @@ export default function PlannerTasks({
                                             </div>
                                         </div>
 
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                                            className="absolute -right-2 -top-2 w-6 h-6 bg-white rounded-full shadow-lg border border-gray-100 text-gray-300 opacity-0 group-hover:opacity-100 transition-all hover:text-red-500 flex items-center justify-center z-10"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
+                                        {!task.isMentorTask && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                                                className="absolute -right-2 -top-2 w-6 h-6 bg-white rounded-full shadow-lg border border-gray-100 text-gray-300 opacity-0 group-hover:opacity-100 transition-all hover:text-red-500 flex items-center justify-center z-10"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>

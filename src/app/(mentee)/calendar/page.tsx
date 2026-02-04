@@ -9,6 +9,7 @@ import { formatTime } from "@/utils/timeUtils";
 import MonguriSticker from "@/components/common/MonguriSticker";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
+import Header from "@/components/mentee/layout/Header";
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -65,7 +66,7 @@ export default function CalendarPage() {
         if (viewMode === 'month') {
             setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
         } else {
-             setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
         }
         setSelectedDate(null);
     };
@@ -100,17 +101,20 @@ export default function CalendarPage() {
     }
 
     return (
-        <div className="h-full overflow-y-auto bg-white">
+        <div className="min-h-screen bg-gray-50 pb-32">
             {/* Header */}
-            <header className="px-6 py-4 border-b border-gray-50 flex flex-col gap-4">
-                <div className="flex justify-between items-center">
-                    <h1 className="text-xl font-bold">인사이트 캘린더 📅</h1>
+            <Header
+                title="인사이트 캘린더"
+                variant="clean"
+                rightElement={
                     <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100">
                         <Flame size={16} className="text-orange-500 fill-orange-500" />
                         <span className="text-xs font-bold text-orange-600">{currentStreak}일 연속 학습 중!</span>
                     </div>
-                </div>
+                }
+            />
 
+            <div className="px-6 py-4">
                 {/* View Toggle */}
                 <div className="flex bg-gray-100 p-1 rounded-xl w-full">
                     <button
@@ -126,10 +130,10 @@ export default function CalendarPage() {
                         플래너 모아보기
                     </button>
                 </div>
-            </header>
+            </div>
 
             {/* Content */}
-            <section className="px-6 py-6">
+            <section className="px-6 py-2">
                 <div className="flex items-center justify-between mb-6">
                     <button onClick={previousPeriod} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
                         <ChevronLeft size={24} className="text-gray-600" />
@@ -229,7 +233,7 @@ export default function CalendarPage() {
                                 </h3>
                                 <div className="flex items-center gap-1.5 text-primary">
                                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Study Time</span>
-                                    <span className="text-lg font-mono font-bold">
+                                    <span className="text-lg tabular-nums font-bold">
                                         {formatTime(getDailyRecord(selectedDate)?.studyTime || 0)}
                                     </span>
                                 </div>
@@ -242,7 +246,7 @@ export default function CalendarPage() {
                                 </h4>
                                 <div className="space-y-4">
                                     {DEFAULT_CATEGORIES.map(category => {
-                                        const eventsInCategory = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, selectedDate))?.events.filter(e => e.categoryId === category.id) || [];
+                                        const eventsInCategory = WEEKLY_SCHEDULE.find(s => selectedDate && isSameDay(s.date, selectedDate))?.events.filter(e => e.categoryId === category.id) || [];
                                         if (eventsInCategory.length === 0) return null;
 
                                         return (
@@ -263,7 +267,7 @@ export default function CalendarPage() {
                                             </div>
                                         );
                                     })}
-                                    {!WEEKLY_SCHEDULE.find(s => isSameDay(s.date, selectedDate))?.events.length && (
+                                    {!WEEKLY_SCHEDULE.find(s => selectedDate && isSameDay(s.date, selectedDate))?.events.length && (
                                         <p className="text-center text-xs text-gray-400 py-4">등록된 학습 계획이 없습니다.</p>
                                     )}
                                 </div>
@@ -276,7 +280,7 @@ export default function CalendarPage() {
                                 </h4>
                                 <div className="space-y-6">
                                     {DEFAULT_CATEGORIES.map(category => {
-                                        const feedbackInCategory = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate) && t.categoryId === category.id);
+                                        const feedbackInCategory = MENTOR_TASKS.filter(t => t.deadline && selectedDate && isSameDay(t.deadline, selectedDate) && t.categoryId === category.id);
                                         if (feedbackInCategory.length === 0) return null;
 
                                         return (
@@ -307,7 +311,7 @@ export default function CalendarPage() {
                                             </div>
                                         );
                                     })}
-                                    {MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate)).length === 0 && (
+                                    {MENTOR_TASKS.filter(t => t.deadline && selectedDate && isSameDay(t.deadline, selectedDate)).length === 0 && (
                                         <p className="text-center text-xs text-gray-400 py-4">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
                                     )}
                                 </div>
@@ -330,7 +334,7 @@ export default function CalendarPage() {
                 date={selectedDate}
                 dailyRecord={selectedDate ? getDailyRecord(selectedDate) : null}
                 mentorDeadlines={selectedDate ? MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate)) : []}
-                dailyEvents={selectedDate ? WEEKLY_SCHEDULE.find(s => isSameDay(s.date, selectedDate))?.events || [] : []}
+                dailyEvents={(selectedDate) ? (WEEKLY_SCHEDULE.find(s => selectedDate && isSameDay(s.date, selectedDate))?.events || []) : []}
             />
 
         </div>

@@ -196,19 +196,25 @@ export const USER_TASKS = [
     endTime: "12:30"
   },
   {
-    // ✏️ 멘티 과제 2: 완료, 질문 없음 (1/30)
+    // ✏️ 멘티 과제 2: 완료, 질문 없음 (2/2)
     id: 'u2',
     title: "영어 단어 50개 암기",
     categoryId: "english",
     description: "스스로 선택한 학습 과제",
     status: "submitted",
     badgeColor: "bg-blue-100 text-blue-700",
-    deadline: new Date(2026, 0, 30),
+    deadline: new Date(2026, 1, 2),
     completed: true,
     timeSpent: 1800,
     isRunning: false,
     isMentorTask: false,
-    studyRecord: { photo: "제출함", note: "어휘 암기 완료" },
+    studyRecord: {
+      photos: [
+        "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=400",
+        "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=400"
+      ],
+      note: "오늘 외운 단어들입니다. 어려운 단어 위주로 정리했어요."
+    },
     userQuestion: undefined,
     hasMentorResponse: false,
     attachments: [],
@@ -362,7 +368,6 @@ export const WEEKLY_SCHEDULE = [
     date: new Date(2026, 0, 30), // Jan 30, 2026 (목요일)
     events: [
       { id: 2, title: "영어 순서배열 15문항", categoryId: "english", taskType: "mentor" }, // MENTOR_TASKS id:2
-      { id: 'u2', title: "영어 단어 50개 암기", categoryId: "english", taskType: "user" }, // USER_TASKS id:u2
       { id: 302, title: "국어 현대시 복습", categoryId: "korean", taskType: "plan" },
     ],
   },
@@ -388,6 +393,7 @@ export const WEEKLY_SCHEDULE = [
       { id: 5, title: "미적분 킬러문항 3개년 기출 분석", categoryId: "math", taskType: "mentor" }, // MENTOR_TASKS id:5
       { id: 'u5', title: "국어 비문학 독해 3지문", categoryId: "korean", taskType: "user" }, // USER_TASKS id:u5
       { id: 'u6', title: "영어 듣기 평가 10문항", categoryId: "english", taskType: "user" }, // USER_TASKS id:u6
+      { id: 'u2', title: "영어 단어 50개 암기", categoryId: "english", taskType: "user" }, // USER_TASKS id:u2
     ],
   },
   {
