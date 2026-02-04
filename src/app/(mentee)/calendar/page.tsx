@@ -6,7 +6,6 @@ import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { DAILY_RECORDS, WEEKLY_SCHEDULE, MENTOR_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
-import MonguriSticker from "@/components/common/MonguriSticker";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import Header from "@/components/mentee/layout/Header";
@@ -150,7 +149,7 @@ export default function CalendarPage() {
                 </div>
 
                 {viewMode === 'month' ? (
-                    /* Monthly Grid (Sticker Book) */
+                    /* Monthly Grid (Keywords) */
                     <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                         <div className="grid grid-cols-7 gap-2 mb-4">
                             {dayNames.map((day, index) => (
@@ -170,17 +169,39 @@ export default function CalendarPage() {
                                 const isTodayDate = isToday(targetDate);
                                 const isSelected = selectedDate && isSameDay(selectedDate, targetDate);
 
-                                const dailyEvents = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate))?.events || [];
-                                const mentorDeadlines = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, targetDate));
-                                const hasActivity = dailyEvents.length > 0 || mentorDeadlines.length > 0;
-                                const randomOpacity = hasActivity ? Math.random() * 0.7 + 0.3 : 0;
-                                const randomRotate = (index % 3 - 1) * 10;
+                                // Get keywords for the day
+                                const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate));
+                                let keywords: { text: string; color: string }[] = [];
+
+                                if (schedule) {
+                                    // Mentor tasks
+                                    const mentorEvents = schedule.events.filter(e => e.taskType === 'mentor');
+                                    mentorEvents.forEach(e => {
+                                        const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                                        keywords.push({
+                                            text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''),
+                                            color: `${category.color} ${category.textColor}`
+                                        });
+                                    });
+
+                                    // User tasks
+                                    if (keywords.length < 3) {
+                                        const userEvents = schedule.events.filter(e => e.taskType !== 'mentor');
+                                        userEvents.forEach(e => {
+                                            const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                                            keywords.push({
+                                                text: e.title.split(' ')[0],
+                                                color: `${category.color} ${category.textColor}` // Unified colors
+                                            });
+                                        });
+                                    }
+                                }
 
                                 return (
                                     <button
                                         key={day}
                                         onClick={() => handleDateClick(day)}
-                                        className={`rounded-xl flex flex-col items-center justify-start p-1.5 min-h-[90px] transition-all relative border overflow-hidden
+                                        className={`rounded-xl flex flex-col items-center justify-start p-1 min-h-[90px] transition-all relative border overflow-hidden
                                             ${isSelected ? 'border-primary bg-blue-50/10 ring-1 ring-primary' : 'border-transparent hover:bg-gray-50'}
                                             ${isTodayDate ? 'bg-gray-50' : ''}
                                         `}
@@ -192,21 +213,20 @@ export default function CalendarPage() {
                                             {day}
                                         </div>
 
-                                        {hasActivity && (
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-80 mt-2">
-                                                <MonguriSticker
-                                                    opacity={randomOpacity}
-                                                    className="w-12 h-12"
-                                                    rotate={randomRotate}
-                                                />
-                                            </div>
-                                        )}
-
-                                        {!hasActivity && (
-                                            <div className="w-full h-full flex items-center justify-center opacity-10">
-                                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300" />
-                                            </div>
-                                        )}
+                                        {/* Keywords List */}
+                                        <div className="flex flex-col gap-1 w-full flex-1">
+                                            {keywords.slice(0, 3).map((k, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`${k.color} rounded px-1 py-0.5 text-[8px] font-bold w-full text-center truncate leading-tight tracking-tight`}
+                                                >
+                                                    {k.text}
+                                                </div>
+                                            ))}
+                                            {keywords.length > 3 && (
+                                                <div className="text-[8px] text-gray-300 font-bold w-full text-center leading-none">...</div>
+                                            )}
+                                        </div>
                                     </button>
                                 );
                             })}
@@ -229,7 +249,7 @@ export default function CalendarPage() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between items-baseline mb-2">
                                 <h3 className="text-lg font-bold text-gray-800">
-                                    {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 기록
+                                    {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 자세히보기
                                 </h3>
                                 <div className="flex items-center gap-1.5 text-primary">
                                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Study Time</span>

@@ -7,7 +7,7 @@ export const USER_PROFILE = {
 };
 
 export const DEFAULT_CATEGORIES = [
-  { id: "korean", name: "국어", color: "bg-green-200", textColor: "text-green-700" },
-  { id: "english", name: "영어", color: "bg-pink-200", textColor: "text-pink-700" },
-  { id: "math", name: "수학", color: "bg-sky-200", textColor: "text-sky-700" },
+  { id: "korean", name: "국어", color: "bg-green-100", textColor: "text-green-700" },
+  { id: "english", name: "영어", color: "bg-pink-100", textColor: "text-pink-700" },
+  { id: "math", name: "수학", color: "bg-blue-100", textColor: "text-blue-700" },
 ];
