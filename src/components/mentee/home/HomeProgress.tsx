@@ -2,14 +2,21 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import { MENTOR_TASKS, WEEKLY_SCHEDULE } from "@/constants/mentee";
+import type { MentorTaskLike } from "@/lib/menteeAdapters";
 
 interface HomeProgressProps {
     animatedProgress: number;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
+    mentorTasks?: MentorTaskLike[];
 }
 
-export default function HomeProgress({ animatedProgress, selectedDate, onDateChange }: HomeProgressProps) {
+export default function HomeProgress({
+    animatedProgress,
+    selectedDate,
+    onDateChange,
+    mentorTasks = MENTOR_TASKS as MentorTaskLike[]
+}: HomeProgressProps) {
     const [dailyTasks, setDailyTasks] = useState<any[]>([]);
 
     useEffect(() => {
@@ -26,7 +33,13 @@ export default function HomeProgress({ animatedProgress, selectedDate, onDateCha
 
             // Enrich with full task details from MENTOR_TASKS
             const tasks = mentorEvents.map(event => {
-                const fullTask = MENTOR_TASKS.find(t => t.id === event.id);
+                const fullTask =
+                    mentorTasks.find(t => String(t.id) === String(event.id)) ||
+                    mentorTasks.find(t =>
+                        t.title === event.title &&
+                        t.deadline &&
+                        isSameDay(t.deadline, schedule.date)
+                    );
                 return fullTask || {
                     id: event.id,
                     title: event.title,

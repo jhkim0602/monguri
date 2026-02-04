@@ -8,13 +8,24 @@ import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
 import HomeTasks from "@/components/mentee/home/HomeTasks";
+import { supabase } from "@/lib/supabaseClient";
+import {
+    adaptMentorTasksToUi,
+    adaptProfileToUi,
+    type MentorTaskLike,
+    type UiProfile
+} from "@/lib/menteeAdapters";
 
 export default function Home() {
     // Default to Feb 2 2026 for demo context
     const [selectedDate, setSelectedDate] = useState(new Date(2026, 1, 2));
     const [animatedProgress, setAnimatedProgress] = useState(0);
+    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>(MENTOR_TASKS as MentorTaskLike[]);
+    const [profile, setProfile] = useState<UiProfile>(USER_PROFILE);
 
-    const targetProgress = Math.round((MENTOR_TASKS.filter(t => t.status !== 'pending').length / MENTOR_TASKS.length) * 100);
+    const targetProgress = mentorTasks.length
+        ? Math.round((mentorTasks.filter(t => t.status !== 'pending').length / mentorTasks.length) * 100)
+        : 0;
 
     useEffect(() => {
         let startTime: number | null = null;
@@ -33,6 +44,41 @@ export default function Home() {
         return () => cancelAnimationFrame(animationFrame);
     }, [targetProgress]);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        const load = async () => {
+            const { data } = await supabase.auth.getUser();
+            const user = data?.user;
+            if (!user) return;
+
+            const [tasksRes, profileRes] = await Promise.all([
+                fetch(`/api/mentee/tasks?menteeId=${user.id}`),
+                fetch(`/api/mentee/profile?profileId=${user.id}`)
+            ]);
+
+            if (tasksRes.ok) {
+                const tasksJson = await tasksRes.json();
+                if (isMounted && Array.isArray(tasksJson.tasks)) {
+                    setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
+                }
+            }
+
+            if (profileRes.ok) {
+                const profileJson = await profileRes.json();
+                if (isMounted) {
+                    setProfile(adaptProfileToUi(profileJson.profile ?? null, USER_PROFILE));
+                }
+            }
+        };
+
+        load();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
     return (
         <div className="bg-white">
             <Header title="설스터디" />
@@ -41,15 +87,15 @@ export default function Home() {
             <section className="px-6 flex justify-between items-start mb-6">
                 <div>
                     <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-semibold mb-2">
-                        {USER_PROFILE.role} <span className="ml-1 text-primary">D-{USER_PROFILE.dDay}</span>
+                        {profile.role} <span className="ml-1 text-primary">D-{profile.dDay}</span>
                     </span>
                     <h2 className="text-xl font-bold leading-tight">
-                        {USER_PROFILE.name}님, <br />
+                        {profile.name}님, <br />
                         오늘도 화이팅! 🔥
                     </h2>
                 </div>
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                    <img src={USER_PROFILE.avatar} alt="avatar" className="w-full h-full object-cover" />
+                    <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
                 </div>
             </section>
 
@@ -68,7 +114,7 @@ export default function Home() {
 
 
 
-            <HomeTasks />
+            <HomeTasks tasks={mentorTasks} />
 
 
         </div>

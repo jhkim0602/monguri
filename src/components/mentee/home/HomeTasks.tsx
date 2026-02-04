@@ -3,12 +3,15 @@
 import { ChevronRight, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { MENTOR_TASKS } from "@/constants/mentee";
+import type { MentorTaskLike } from "@/lib/menteeAdapters";
 
-interface HomeTasksProps {}
+interface HomeTasksProps {
+    tasks?: MentorTaskLike[];
+}
 
-export default function HomeTasks() {
+export default function HomeTasks({ tasks = MENTOR_TASKS as MentorTaskLike[] }: HomeTasksProps) {
     // Filter tasks that have feedback
-    const feedbackTasks = MENTOR_TASKS.filter(t => t.status === 'feedback_completed' || t.hasMentorResponse);
+    const feedbackTasks = tasks.filter(t => t.status === 'feedback_completed' || t.hasMentorResponse);
 
     return (
         <section className="px-6 mb-10">

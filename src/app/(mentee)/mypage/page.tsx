@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     Settings,
@@ -23,6 +23,13 @@ import {
 import { USER_PROFILE } from "@/constants/common";
 import { MENTOR_TASKS } from "@/constants/mentee";
 import Header from "@/components/mentee/layout/Header";
+import { supabase } from "@/lib/supabaseClient";
+import {
+    adaptMentorTasksToUi,
+    adaptProfileToUi,
+    type MentorTaskLike,
+    type UiProfile
+} from "@/lib/menteeAdapters";
 
 export default function MyPage() {
     const router = useRouter();
@@ -32,6 +39,7 @@ export default function MyPage() {
     const [profileName, setProfileName] = useState(USER_PROFILE.name);
     const [profileIntro, setProfileIntro] = useState("서울대학교 입학을 목표로 열공 중 ✨");
     const [profileAvatar, setProfileAvatar] = useState(USER_PROFILE.avatar);
+    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>(MENTOR_TASKS as MentorTaskLike[]);
 
     // Achievement Detail State
     const [selectedStatSubject, setSelectedStatSubject] = useState<string>('korean');
@@ -40,6 +48,48 @@ export default function MyPage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        const load = async () => {
+            const { data } = await supabase.auth.getUser();
+            const user = data?.user;
+            if (!user) return;
+
+            const [tasksRes, profileRes] = await Promise.all([
+                fetch(`/api/mentee/tasks?menteeId=${user.id}`),
+                fetch(`/api/mentee/profile?profileId=${user.id}`)
+            ]);
+
+            if (tasksRes.ok) {
+                const tasksJson = await tasksRes.json();
+                if (isMounted && Array.isArray(tasksJson.tasks)) {
+                    setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
+                }
+            }
+
+            if (profileRes.ok) {
+                const profileJson = await profileRes.json();
+                const fallbackProfile: UiProfile = USER_PROFILE;
+                const nextProfile = adaptProfileToUi(profileJson.profile ?? null, fallbackProfile);
+                if (isMounted) {
+                    setProfileName(nextProfile.name);
+                    setProfileAvatar(nextProfile.avatar);
+                    if (!isEditModalOpen) {
+                        setTempName(nextProfile.name);
+                        setTempAvatar(nextProfile.avatar);
+                    }
+                }
+            }
+        };
+
+        load();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isEditModalOpen]);
+
     // Filter Tasks based on period
     const getFilteredTasks = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
         const today = new Date(2026, 1, 2); // Standard "today" for the app
@@ -47,7 +97,7 @@ export default function MyPage() {
         startOfWeek.setDate(today.getDate() - today.getDay());
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-        return MENTOR_TASKS.filter(t => {
+        return mentorTasks.filter(t => {
             if (t.categoryId !== categoryId) return false;
             if (!t.deadline) return false;
 
