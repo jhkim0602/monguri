@@ -63,7 +63,7 @@ export default function PlannerDetailModal({
                         {date.getDate()} ({dayNames[date.getDay()]})
                     </span>
                     {studyTime > 0 && (
-                        <span className="text-sm font-mono text-gray-500 font-bold">{formatTime(studyTime)}</span>
+                        <span className="text-sm tabular-nums text-gray-500 font-bold">{formatTime(studyTime)}</span>
                     )}
                 </div>
 
@@ -143,17 +143,17 @@ export default function PlannerDetailModal({
 
                             {/* Self Studies from WEEKLY_SCHEDULE */}
                             {dailyEvents.filter(e => e.taskType === 'plan').map((event, idx) => {
-                                 const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
-                                 const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
-                                 return (
+                                const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
+                                const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
+                                return (
                                     <div key={`evt-${idx}`} className="flex items-start gap-2">
-                                         <div className={`w-5 h-5 rounded-full border-2 ${colorClass} bg-white shrink-0 mt-0.5`} />
-                                         <div className="flex-1 min-w-0">
-                                             <p className="text-base font-bold text-gray-800 truncate">{event.title}</p>
-                                             <p className="text-xs text-gray-400">{cat?.name}</p>
-                                         </div>
+                                        <div className={`w-5 h-5 rounded-full border-2 ${colorClass} bg-white shrink-0 mt-0.5`} />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-base font-bold text-gray-800 truncate">{event.title}</p>
+                                            <p className="text-xs text-gray-400">{cat?.name}</p>
+                                        </div>
                                     </div>
-                                 );
+                                );
                             })}
 
                             {!hasActivity && (
@@ -173,7 +173,7 @@ export default function PlannerDetailModal({
                                     return (
                                         <div key={hour} className="flex h-6 border-b border-gray-50 last:border-none group">
                                             <div className="w-8 flex items-center justify-center bg-gray-50/50 border-r border-gray-100 transition-colors group-hover:bg-gray-100">
-                                                <span className="text-[8px] font-bold text-gray-400 font-mono">{hourStr}</span>
+                                                <span className="text-[8px] font-bold text-gray-400 tabular-nums">{hourStr}</span>
                                             </div>
 
                                             <div className="flex-1 grid grid-cols-6 relative">
@@ -204,16 +204,16 @@ export default function PlannerDetailModal({
                     {/* 3. Feedback Section (Bottom Overlay or Section) */}
                     {tasksWithFeedback.length > 0 && (
                         <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 shrink-0">
-                             <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1">
                                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                                 <span className="text-sm font-bold text-gray-600">멘토 쌤의 피드백</span>
-                             </div>
-                             {tasksWithFeedback.map(task => (
-                                 <div key={task.id} className="text-sm text-gray-500 leading-relaxed truncate">
-                                     <span className="font-bold text-gray-600 mr-1">To. {task.title.slice(0, 8)}...:</span>
-                                     "{task.mentorFeedback}"
-                                 </div>
-                             ))}
+                            </div>
+                            {tasksWithFeedback.map(task => (
+                                <div key={task.id} className="text-sm text-gray-500 leading-relaxed truncate">
+                                    <span className="font-bold text-gray-600 mr-1">To. {task.title.slice(0, 8)}...:</span>
+                                    "{task.mentorFeedback}"
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
