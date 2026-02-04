@@ -23,11 +23,16 @@ interface TaskDetailViewProps {
         submissions?: Attachment[];
         mentorComment?: string;
         feedbackFiles?: Attachment[];
+        isMentorTask?: boolean;  // 🔧 멘토가 설정한 과제인지 여부
+        completed?: boolean;
+        studyRecord?: { photo?: string; note?: string };
     };
 }
 
 export default function TaskDetailView({ task }: TaskDetailViewProps) {
     const category = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId) || DEFAULT_CATEGORIES[0];
+    const isMentorTask = task.isMentorTask ?? true;  // 기본값: 멘토 과제
+    const isCompleted = task.completed || !!task.studyRecord;
 
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
@@ -36,11 +41,18 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                 <Link href="/planner" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
                     <ChevronLeft size={24} />
                 </Link>
-                <h1 className="text-[17px] font-black text-gray-900 tracking-tight truncate">{task.title}</h1>
+                <div className="flex-1">
+                    <h1 className="text-[17px] font-black text-gray-900 tracking-tight truncate">{task.title}</h1>
+                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                        {isMentorTask ? '📚 멘토 과제' : '✏️ 나의 과제'}
+                        {isCompleted && ' • 완수됨'}
+                    </p>
+                </div>
             </header>
 
             <div className="max-w-[430px] mx-auto px-6 py-8 space-y-6">
-                {/* Section 1: 과제 정보 (Mentor's Library) */}
+                {/* Section 1: 과제 정보 (Mentor's Library) - 멘토 과제일 때만 표시 */}
+                {isMentorTask && (
                 <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-4">
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2 mb-1">
@@ -67,12 +79,17 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                         </div>
                     </div>
                 </section>
+                )}
 
-                {/* Section 2: 제출 파일 (My Library) */}
+                {/* Section 2: 제출 파일 또는 학습 기록 */}
                 <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-5">
                     <div className="flex items-center gap-2">
-                        <h3 className="text-[15px] font-black text-gray-900">제출 파일</h3>
-                        <span className="text-[10px] text-gray-400 font-bold">내 자료실 (My Library)</span>
+                        <h3 className="text-[15px] font-black text-gray-900">
+                            {isMentorTask ? '제출 파일' : '학습 기록'}
+                        </h3>
+                        <span className="text-[10px] text-gray-400 font-bold">
+                            {isMentorTask ? '내 자료실 (My Library)' : '나의 학습'}
+                        </span>
                     </div>
 
                     <div className="space-y-4">
@@ -101,7 +118,8 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                     </div>
                 </section>
 
-                {/* Section 3: 선생님 피드백 */}
+                {/* Section 3: 선생님 피드백 (멘토 과제일 때만) */}
+                {isMentorTask && (
                 <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-[15px] font-black text-gray-900">선생님 피드백</h3>
@@ -140,6 +158,7 @@ export default function TaskDetailView({ task }: TaskDetailViewProps) {
                         )}
                     </div>
                 </section>
+                )}
             </div>
         </div>
     );
