@@ -3,11 +3,9 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-    User,
     Settings,
     ChevronRight,
     ChevronRight as ArrowRight,
-    BookOpen,
     CheckCircle2,
     MessageCircle,
     Lock,
@@ -22,8 +20,9 @@ import {
     Calculator,
     Languages
 } from "lucide-react";
-import { USER_PROFILE, DEFAULT_CATEGORIES } from "@/constants/common";
+import { USER_PROFILE } from "@/constants/common";
 import { MENTOR_TASKS } from "@/constants/mentee";
+import Header from "@/components/mentee/layout/Header";
 
 export default function MyPage() {
     const router = useRouter();
@@ -34,10 +33,44 @@ export default function MyPage() {
     const [profileIntro, setProfileIntro] = useState("서울대학교 입학을 목표로 열공 중 ✨");
     const [profileAvatar, setProfileAvatar] = useState(USER_PROFILE.avatar);
 
-    // Achievement Detail State (Default to Korean)
+    // Achievement Detail State
     const [selectedStatSubject, setSelectedStatSubject] = useState<string>('korean');
+    const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Filter Tasks based on period
+    const getFilteredTasks = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
+        const today = new Date(2026, 1, 2); // Standard "today" for the app
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        return MENTOR_TASKS.filter(t => {
+            if (t.categoryId !== categoryId) return false;
+            if (!t.deadline) return false;
+
+            const taskDate = new Date(t.deadline);
+            if (period === 'daily') {
+                return taskDate.getDate() === today.getDate() &&
+                    taskDate.getMonth() === today.getMonth() &&
+                    taskDate.getFullYear() === today.getFullYear();
+            } else if (period === 'weekly') {
+                return taskDate >= startOfWeek && taskDate <= today;
+            } else {
+                return taskDate >= startOfMonth && taskDate <= today;
+            }
+        });
+    };
+
+    // Calculate subject-wise achievement
+    const getSubjectStats = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
+        const subjectTasks = getFilteredTasks(categoryId, period);
+        if (subjectTasks.length === 0) return 0;
+        const completed = subjectTasks.filter(t => t.status !== 'pending').length;
+        return Math.round((completed / subjectTasks.length) * 100);
+    };
 
     // Temp states for modal
     const [tempName, setTempName] = useState(profileName);
@@ -50,14 +83,6 @@ export default function MyPage() {
             const imageUrl = URL.createObjectURL(file);
             setTempAvatar(imageUrl);
         }
-    };
-
-    // Calculate subject-wise achievement
-    const getSubjectStats = (categoryId: string) => {
-        const subjectTasks = MENTOR_TASKS.filter(t => t.categoryId === categoryId);
-        if (subjectTasks.length === 0) return 0;
-        const completed = subjectTasks.filter(t => t.status !== 'pending').length;
-        return Math.round((completed / subjectTasks.length) * 100);
     };
 
     const subjects = [
@@ -74,14 +99,17 @@ export default function MyPage() {
     ];
 
     return (
-        <div className="h-full overflow-y-auto bg-gray-50 pb-32">
+        <div className="min-h-screen bg-gray-50 pb-32">
             {/* Header */}
-            <header className="px-6 pt-8 pb-6 flex justify-between items-center bg-white sticky top-0 z-20 border-b border-gray-50">
-                <h1 className="text-xl font-bold text-gray-900 border-l-4 border-primary pl-3">마이페이지</h1>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
-                    <Settings size={22} />
-                </button>
-            </header>
+            <Header
+                title="마이페이지"
+                variant="clean"
+                rightElement={
+                    <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
+                        <Settings size={22} />
+                    </button>
+                }
+            />
 
             {/* Profile Section */}
             <section className="px-6 py-8 bg-white mb-4">
@@ -121,8 +149,17 @@ export default function MyPage() {
             <section className="px-6 mb-8">
                 <div className="flex items-center justify-between mb-5">
                     <h3 className="text-[17px] font-black text-gray-900 tracking-tight">과목별 성취도</h3>
-                    <div className="bg-primary/5 px-3 py-1 rounded-full">
-                        <span className="text-[10px] text-primary font-black uppercase tracking-widest">Growth Tracking</span>
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                        {(['daily', 'weekly', 'monthly'] as const).map((period) => (
+                            <button
+                                key={period}
+                                onClick={() => setSelectedPeriod(period)}
+                                className={`px-3 py-1 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all ${selectedPeriod === period ? 'bg-white text-primary shadow-sm' : 'text-gray-400'
+                                    }`}
+                            >
+                                {period === 'daily' ? '오늘' : period === 'weekly' ? '주간' : '월간'}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -131,100 +168,198 @@ export default function MyPage() {
                     {subjects.map(subject => {
                         const isSelected = selectedStatSubject === subject.id;
                         const Icon = subject.icon;
+                        const stat = getSubjectStats(subject.id, selectedPeriod);
                         return (
                             <button
                                 key={subject.id}
                                 onClick={() => setSelectedStatSubject(subject.id)}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[16px] transition-all duration-300 ${isSelected
+                                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-[16px] transition-all duration-300 relative ${isSelected
                                     ? 'bg-white shadow-md text-gray-900'
                                     : 'text-gray-400 hover:text-gray-600'
                                     }`}
                             >
-                                <Icon size={16} className={isSelected ? `text-${subject.color}-500` : ''} />
-                                <span className="text-sm font-bold">{subject.name}</span>
+                                <div className="flex items-center gap-1.5">
+                                    <Icon size={14} className={isSelected ? `text-${subject.color}-500` : ''} />
+                                    <span className="text-[13px] font-bold">{subject.name}</span>
+                                </div>
+                                <span className={`text-[10px] font-black ${isSelected ? `text-${subject.color}-500` : 'text-gray-300'}`}>{stat}%</span>
                             </button>
                         );
                     })}
                 </div>
 
-                {/* Tab Content: Achievement Detail */}
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-xl shadow-gray-200/50 relative overflow-hidden">
+                {/* Compact Achievement Card */}
+                <div
+                    onClick={() => setIsDetailModalOpen(true)}
+                    className="cursor-pointer group animate-in fade-in slide-in-from-bottom-4 duration-500"
+                >
+                    <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-xl shadow-gray-200/50 relative overflow-hidden active:scale-[0.98] transition-all">
                         {/* Background Decor */}
                         <div className={`absolute -top-10 -right-10 w-32 h-32 bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-50 rounded-full blur-3xl opacity-60`} />
 
-                        <div className="relative z-10 flex items-center justify-between mb-8">
+                        <div className="relative z-10 flex items-center justify-between mb-6">
                             <div>
-                                <h4 className="text-[20px] font-black text-gray-900 mb-1">
-                                    {subjects.find(s => s.id === selectedStatSubject)?.name} 마스터리
+                                <h4 className="text-[18px] font-black text-gray-900 mb-1">
+                                    {subjects.find(s => s.id === selectedStatSubject)?.name} 성취 리포트
                                 </h4>
-                                <p className="text-xs text-gray-400 font-medium">멘토가 지정한 핵심 과제 위주 요약</p>
+                                <p className="text-xs text-gray-400 font-medium">터치하여 상세 리스트 확인</p>
                             </div>
                             <div className="text-right">
-                                <span className={`text-[32px] font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 leading-none`}>
-                                    {getSubjectStats(selectedStatSubject)}%
+                                <span className={`text-[28px] font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 leading-none`}>
+                                    {getSubjectStats(selectedStatSubject, selectedPeriod)}%
                                 </span>
                             </div>
                         </div>
 
-                        {/* Progress Bar Container */}
-                        <div className="h-4 w-full bg-gray-50 rounded-full mb-8 overflow-hidden p-1 border border-gray-100">
+                        {/* Progress Bar */}
+                        <div className="h-3 w-full bg-gray-50 rounded-full mb-6 overflow-hidden p-0.5 border border-gray-100">
                             <div
                                 className={`h-full bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 rounded-full transition-all duration-1000 ease-out shadow-sm`}
-                                style={{ width: `${getSubjectStats(selectedStatSubject)}%` }}
+                                style={{ width: `${getSubjectStats(selectedStatSubject, selectedPeriod)}%` }}
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Remaining Tasks */}
-                            <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
-                                <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                                    Todo
+                        <div className="flex items-center justify-between px-2">
+                            <div className="flex items-center gap-4">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Todo</span>
+                                    <span className="text-lg font-black text-gray-700">
+                                        {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length}
+                                    </span>
+                                </div>
+                                <div className="w-[1px] h-8 bg-gray-100" />
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Done</span>
+                                    <span className="text-lg font-black text-blue-500">
+                                        {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className={`w-10 h-10 rounded-2xl bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-50 flex items-center justify-center text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 group-hover:bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 group-hover:text-white transition-all`}>
+                                <ArrowRight size={18} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Achievement Detail Overlay Modal (Centered Popup) */}
+            {isDetailModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+                    {/* Dark Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={() => setIsDetailModalOpen(false)}
+                    />
+
+                    {/* Centered Modal Content */}
+                    <div className="relative w-full max-w-sm bg-white rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[85vh]">
+                        <header className="px-6 pt-8 pb-4 flex justify-between items-center border-b border-gray-50 flex-shrink-0">
+                            <div>
+                                <h2 className="text-lg font-black text-gray-900">
+                                    {subjects.find(s => s.id === selectedStatSubject)?.name} 상세 내역
+                                </h2>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">
+                                    {selectedPeriod === 'daily' ? 'Today' : selectedPeriod === 'weekly' ? 'Weekly' : 'Monthly'} Breakdown
                                 </p>
-                                <div className="space-y-2">
-                                    {MENTOR_TASKS.filter(t => t.categoryId === selectedStatSubject && t.status === 'pending').slice(0, 2).map(task => (
-                                        <div key={task.id} className="text-[11px] font-bold text-gray-600 line-clamp-1">{task.title}</div>
+                            </div>
+                            <button
+                                onClick={() => setIsDetailModalOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+                            >
+                                <X size={20} />
+                            </button>
+                        </header>
+
+                        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+                            {/* Summary Card in Modal */}
+                            <div className={`bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-50/50 rounded-[28px] p-6 border border-${subjects.find(s => s.id === selectedStatSubject)?.color}-100 flex flex-col items-center text-center`}>
+                                <div className={`w-16 h-16 rounded-full bg-white flex items-center justify-center mb-3 shadow-sm border border-${subjects.find(s => s.id === selectedStatSubject)?.color}-100`}>
+                                    <span className={`text-xl font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500`}>
+                                        {getSubjectStats(selectedStatSubject, selectedPeriod)}%
+                                    </span>
+                                </div>
+                                <h3 className="font-black text-gray-900 mb-1">성취도 리포트</h3>
+                                <p className="text-xs text-gray-500 font-medium">
+                                    총 {getFilteredTasks(selectedStatSubject, selectedPeriod).length}개 중 {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}개 완료
+                                </p>
+                            </div>
+
+                            {/* Todo List */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3 px-1">
+                                    <h4 className="text-[13px] font-black text-gray-900 flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                                        미완료 과제
+                                    </h4>
+                                    <span className="text-[10px] font-black text-gray-400">
+                                        {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length}개
+                                    </span>
+                                </div>
+                                <div className="space-y-2.5">
+                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').map(task => (
+                                        <div key={task.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                            <p className="text-[13px] font-bold text-gray-800 leading-snug">{task.title}</p>
+                                        </div>
                                     ))}
-                                    {MENTOR_TASKS.filter(t => t.categoryId === selectedStatSubject && t.status === 'pending').length === 0 && (
-                                        <div className="text-[11px] font-bold text-gray-300">남은 과제 없음 ✨</div>
+                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length === 0 && (
+                                        <div className="py-6 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                                            <p className="text-xs font-bold text-gray-300">
+                                                {getFilteredTasks(selectedStatSubject, selectedPeriod).length === 0
+                                                    ? "아직 등록된 과제가 없습니다."
+                                                    : "모두 완료했습니다! ✨"}
+                                            </p>
+                                        </div>
                                     )}
-                                    <div className="text-[10px] text-gray-400 mt-1 font-medium">
-                                        총 {MENTOR_TASKS.filter(t => t.categoryId === selectedStatSubject && t.status === 'pending').length}개 남음
-                                    </div>
                                 </div>
                             </div>
 
-                            {/* Completed Tasks */}
-                            <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
-                                <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                    Done
-                                </p>
-                                <div className="space-y-2">
-                                    {MENTOR_TASKS.filter(t => t.categoryId === selectedStatSubject && t.status !== 'pending').slice(0, 2).map(task => (
-                                        <div key={task.id} className="text-[11px] font-medium text-gray-400 line-through line-clamp-1">{task.title}</div>
+                            {/* Done List */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3 px-1">
+                                    <h4 className="text-[13px] font-black text-gray-900 flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                                        완료된 과제
+                                    </h4>
+                                    <span className="text-[10px] font-black text-gray-400">
+                                        {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}개
+                                    </span>
+                                </div>
+                                <div className="space-y-2.5">
+                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').map(task => (
+                                        <div key={task.id} className="bg-white border border-gray-50 rounded-2xl p-4 flex items-center gap-3">
+                                            <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-500">
+                                                <Check size={12} />
+                                            </div>
+                                            <p className="text-[13px] font-medium text-gray-400 line-through line-clamp-1">{task.title}</p>
+                                        </div>
                                     ))}
-                                    {MENTOR_TASKS.filter(t => t.categoryId === selectedStatSubject && t.status !== 'pending').length === 0 && (
-                                        <div className="text-[11px] font-bold text-gray-300">완료된 과제 없음</div>
+                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length === 0 && (
+                                        <div className="py-6 text-center text-xs font-bold text-gray-300">
+                                            {getFilteredTasks(selectedStatSubject, selectedPeriod).length === 0
+                                                ? ""
+                                                : "아직 완료된 과제가 없습니다."}
+                                        </div>
                                     )}
-                                    <div className="text-[10px] text-gray-400 mt-1 font-medium">
-                                        총 {MENTOR_TASKS.filter(t => t.categoryId === selectedStatSubject && t.status !== 'pending').length}개 완료
-                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => router.push('/planner')}
-                            className="w-full mt-6 py-4 rounded-2xl bg-gray-900 text-white text-[12px] font-black flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-gray-200"
-                        >
-                            플래너에서 관리하기
-                            <ArrowRight size={14} />
-                        </button>
+                        <div className="px-6 pb-8 pt-4 border-t border-gray-50 flex-shrink-0">
+                            <button
+                                onClick={() => {
+                                    setIsDetailModalOpen(false);
+                                    router.push('/planner');
+                                }}
+                                className="w-full h-14 bg-gray-900 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-xl shadow-gray-200"
+                            >
+                                플래너에서 수정하기
+                                <ArrowRight size={18} />
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </section>
+            )}
 
             {/* Menu List */}
             <section className="px-6 mb-8">
@@ -254,7 +389,7 @@ export default function MyPage() {
                 </div>
             </section>
 
-            {/* Floating Counseling Button - Positioned relative to the 430px container */}
+            {/* Floating Counseling Button */}
             <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] pointer-events-none z-40 px-6 flex justify-end">
                 <button className="pointer-events-auto bg-gray-900 text-white pl-4 pr-6 py-3.5 rounded-full shadow-2xl flex items-center gap-2 active:scale-95 transition-all hover:bg-black group">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center group-hover:animate-bounce">
@@ -339,7 +474,6 @@ export default function MyPage() {
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

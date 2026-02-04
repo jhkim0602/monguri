@@ -21,7 +21,29 @@ import StudyTimeline from "@/components/mentee/planner/StudyTimeline";
 
 export default function PlannerPage() {
     const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 2)); // Feb 2, 2026
+    const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
     const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
+
+    const handleAddCategory = (name: string) => {
+        const newId = name.toLowerCase().replace(/\s+/g, '-');
+        // Simple color rotation or random color
+        const colors = [
+            { color: "bg-purple-200", textColor: "text-purple-700" },
+            { color: "bg-orange-200", textColor: "text-orange-700" },
+            { color: "bg-yellow-200", textColor: "text-yellow-700" },
+            { color: "bg-indigo-200", textColor: "text-indigo-700" }
+        ];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+        const newCategory = {
+            id: newId,
+            name,
+            ...randomColor
+        };
+
+        setCategories([...categories, newCategory]);
+        return newCategory;
+    };
 
 
     // Submission Modal State
@@ -169,8 +191,11 @@ export default function PlannerPage() {
     };
 
     return (
-        <div className="bg-gray-50">
-            <Header title="학습 플래너 📝" showIcons={false} />
+        <div className="min-h-screen bg-gray-50 pb-32">
+            <Header
+                title="학습 플래너"
+                variant="clean"
+            />
 
             {/* Date Navigator */}
             <section className="bg-white border-b border-gray-100 px-4 py-3 mb-4">
@@ -182,7 +207,7 @@ export default function PlannerPage() {
                         <h2 className="text-lg font-bold text-gray-800">
                             {currentDate.getMonth() + 1}월 {currentDate.getDate()}일 ({['일', '월', '화', '수', '목', '금', '토'][currentDate.getDay()]})
                         </h2>
-                        <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
                             D-{USER_PROFILE.dDay}
                         </span>
                     </div>
@@ -211,6 +236,7 @@ export default function PlannerPage() {
 
                 <PlannerTasks
                     tasks={tasks}
+                    categories={categories}
                     onToggleCompletion={toggleTaskCompletion}
                     onUpdateTaskTimeRange={updateTaskTimeRange}
                     onDelete={deleteTask}
@@ -220,10 +246,12 @@ export default function PlannerPage() {
                     selectedCategoryId={selectedCategoryId}
                     setSelectedCategoryId={setSelectedCategoryId}
                     onAddTask={addTask}
+                    onAddCategory={handleAddCategory}
                 />
 
                 <StudyTimeline
                     studyTimeBlocks={studyTimeBlocks}
+                    categories={categories}
                 />
             </div>
 

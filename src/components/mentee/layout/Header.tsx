@@ -4,19 +4,34 @@ import { Search, Bell } from "lucide-react";
 
 interface HeaderProps {
     title: string;
-    showIcons?: boolean;
+    rightElement?: React.ReactNode;
+    variant?: 'default' | 'clean';
 }
 
-export default function Header({ title, showIcons = true }: HeaderProps) {
-    return (
-        <header className="px-6 pt-8 pb-4 flex justify-between items-center bg-white sticky top-0 z-20">
-            <h1 className="text-2xl font-bold text-blue-900">{title}</h1>
-            {showIcons && (
-                <div className="flex gap-4 text-gray-400">
-                    <Search size={24} />
-                    <Bell size={24} />
+export default function Header({ title, rightElement, variant = 'default' }: HeaderProps) {
+    if (variant === 'clean') {
+        return (
+            <header className="px-6 pt-12 pb-6 flex justify-between items-center bg-white border-b border-gray-50">
+                <h1 className="text-xl font-bold text-gray-900 border-l-4 border-primary pl-3">{title}</h1>
+                <div className="flex items-center h-10">
+                    {rightElement}
                 </div>
-            )}
+            </header>
+        );
+    }
+
+    // Default variant (Original style)
+    return (
+        <header className="px-6 pt-8 pb-4 flex justify-between items-center bg-white">
+            <h1 className="text-2xl font-bold text-blue-900">{title}</h1>
+            <div className="flex items-center">
+                {rightElement || (
+                    <div className="flex gap-4 text-gray-400">
+                        <Search size={24} />
+                        <Bell size={24} />
+                    </div>
+                )}
+            </div>
         </header>
     );
 }
