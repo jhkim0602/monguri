@@ -106,7 +106,8 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
         return (
             <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
-                <div className="fixed bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-6 max-w-lg left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 mx-4"
+                <div className="fixed bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 p-6 max-w-2xl left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                     style={{ width: 'calc(100% - 2rem)', maxWidth: '512px' }}
                      onClick={e => e.stopPropagation()}>
                     <div className="flex flex-col gap-6">
                         {/* 헤더 */}
@@ -116,13 +117,13 @@ const TimeRangeInput = ({ startTime, endTime, onSave }: { startTime?: string, en
                         </div>
 
                         {/* 시작 시간 */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 w-full">
                             <label className="text-[11px] font-black text-gray-500 uppercase tracking-wider">시작 시간</label>
                             <TimeSpinner time={start} onTimeChange={setStart} />
                         </div>
 
                         {/* 종료 시간 */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 w-full">
                             <label className="text-[11px] font-black text-gray-500 uppercase tracking-wider">종료 시간</label>
                             <TimeSpinner time={end} onTimeChange={setEnd} />
                         </div>
