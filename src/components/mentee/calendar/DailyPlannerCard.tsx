@@ -64,15 +64,21 @@ export default function DailyPlannerCard({
                         {/* Mentor Tasks */}
                         {mentorDeadlines.map(task => {
                             const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
-                            const colorClass = cat?.color || 'bg-purple-500';
-                            const borderClass = colorClass.replace('bg-', 'border-');
+                            const colorHex = cat?.colorHex || '#A855F7';
 
                             return (
                                 <div
                                     key={task.id}
                                     className="flex items-start gap-1"
                                 >
-                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
+                                    <div
+                                        className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] shrink-0 mt-[1px] ${task.completed ? 'shadow-sm' : 'border-gray-300 bg-white'}`}
+                                        style={
+                                            task.completed
+                                                ? { backgroundColor: colorHex, borderColor: colorHex }
+                                                : undefined
+                                        }
+                                    >
                                         {task.completed && <Check size={4} className="text-white" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -93,15 +99,21 @@ export default function DailyPlannerCard({
                         {/* User Tasks */}
                         {userTasks.map(task => {
                             const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
-                            const colorClass = cat?.color || 'bg-blue-500';
-                            const borderClass = colorClass.replace('bg-', 'border-');
+                            const colorHex = cat?.colorHex || '#3B82F6';
 
                             return (
                                 <div
                                     key={task.id}
                                     className="flex items-start gap-1"
                                 >
-                                    <div className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-[1px]`}>
+                                    <div
+                                        className={`w-2 h-2 rounded-[1px] flex items-center justify-center border-[0.5px] shrink-0 mt-[1px] ${task.completed ? 'shadow-sm' : 'border-gray-300 bg-white'}`}
+                                        style={
+                                            task.completed
+                                                ? { backgroundColor: colorHex, borderColor: colorHex }
+                                                : undefined
+                                        }
+                                    >
                                         {task.completed && <Check size={4} className="text-white" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -119,10 +131,13 @@ export default function DailyPlannerCard({
                         {/* Self Studies from WEEKLY_SCHEDULE */}
                         {dailyEvents.filter(e => e.taskType === 'plan').map((event, idx) => {
                             const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
-                            const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
+                            const borderColor = cat?.colorHex || '#E5E7EB';
                             return (
                                 <div key={`evt-${idx}`} className="flex items-start gap-1">
-                                    <div className={`w-2 h-2 rounded-full border-[0.5px] ${colorClass} bg-white shrink-0 mt-[1px]`} />
+                                    <div
+                                        className="w-2 h-2 rounded-full border-[0.5px] bg-white shrink-0 mt-[1px]"
+                                        style={{ borderColor }}
+                                    />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-[5px] font-bold text-gray-800 leading-tight truncate">{event.title}</p>
                                         <p className="text-[4px] text-gray-400 leading-none mt-[1px]">{cat?.name}</p>
@@ -161,9 +176,12 @@ export default function DailyPlannerCard({
                                                 return (
                                                     <div
                                                         key={slot}
-                                                        className={`border-r border-gray-50 last:border-none
-                                                            ${category?.color || 'bg-white'}
-                                                        `}
+                                                        className="border-r border-gray-50 last:border-none"
+                                                        style={
+                                                            category
+                                                                ? { backgroundColor: category.colorHex }
+                                                                : undefined
+                                                        }
                                                     />
                                                 );
                                             })}

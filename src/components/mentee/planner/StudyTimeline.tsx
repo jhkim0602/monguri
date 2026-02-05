@@ -26,7 +26,8 @@ export default function StudyTimeline({
                     {categories.map(cat => (
                         <div
                             key={cat.id}
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black ${cat.color} ${cat.textColor} ring-1 ring-inset ring-black/5`}
+                            className="flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black ring-1 ring-inset ring-black/5"
+                            style={{ backgroundColor: cat.colorHex, color: cat.textColorHex }}
                         >
                             {cat.name}
                         </div>
@@ -51,10 +52,12 @@ export default function StudyTimeline({
                                 return (
                                     <div
                                         key={slot}
-                                        className={`border-r border-gray-50 last:border-none relative
-                                                ${category?.color || 'bg-white'}
-                                                ${category ? 'shadow-inner' : ''}
-                                            `}
+                                        className={`border-r border-gray-50 last:border-none relative ${category ? 'shadow-inner' : ''}`}
+                                        style={
+                                            category
+                                                ? { backgroundColor: category.colorHex }
+                                                : undefined
+                                        }
                                     />
                                 );
                             })}

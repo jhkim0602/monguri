@@ -166,7 +166,7 @@ export default function CalendarPage() {
 
                                 // Get keywords for the day
                                 const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate));
-                                let keywords: { text: string; color: string }[] = [];
+                                let keywords: { text: string; color: { bg: string; text: string } }[] = [];
 
                                 if (schedule) {
                                     // Mentor tasks
@@ -175,7 +175,7 @@ export default function CalendarPage() {
                                         const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                                         keywords.push({
                                             text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''),
-                                            color: `${category.color} ${category.textColor}`
+                                            color: { bg: category.colorHex, text: category.textColorHex }
                                         });
                                     });
 
@@ -186,7 +186,7 @@ export default function CalendarPage() {
                                             const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                                             keywords.push({
                                                 text: e.title.split(' ')[0],
-                                                color: `${category.color} ${category.textColor}` // Unified colors
+                                                color: { bg: category.colorHex, text: category.textColorHex } // Unified colors
                                             });
                                         });
                                     }
@@ -213,7 +213,8 @@ export default function CalendarPage() {
                                             {keywords.slice(0, 3).map((k, idx) => (
                                                 <div
                                                     key={idx}
-                                                    className={`${k.color} rounded px-1 py-0.5 text-[8px] font-bold w-full text-center truncate leading-tight tracking-tight`}
+                                                    className="rounded px-1 py-0.5 text-[8px] font-bold w-full text-center truncate leading-tight tracking-tight"
+                                                    style={{ backgroundColor: k.color.bg, color: k.color.text }}
                                                 >
                                                     {k.text}
                                                 </div>
@@ -267,8 +268,16 @@ export default function CalendarPage() {
                                         return (
                                             <div key={category.id} className="space-y-2">
                                                 <div className="flex items-center gap-2 px-1">
-                                                    <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[10px] font-bold ${category.textColor}`}>{category.name}</span>
+                                                    <div
+                                                        className="w-1.5 h-3 rounded-full"
+                                                        style={{ backgroundColor: category.colorHex }}
+                                                    />
+                                                    <span
+                                                        className="text-[10px] font-bold"
+                                                        style={{ color: category.textColorHex }}
+                                                    >
+                                                        {category.name}
+                                                    </span>
                                                 </div>
                                                 <div className="space-y-2">
                                                     {eventsInCategory.map((event, idx) => {
@@ -296,11 +305,17 @@ export default function CalendarPage() {
                                                                     }`}
                                                             >
                                                                 {/* Status Icon */}
-                                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors
-                                                                    ${isCompleted
-                                                                        ? `${category.color.replace('bg-', 'border-')} ${category.color}`
+                                                                <div
+                                                                    className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isCompleted
+                                                                        ? 'shadow-sm'
                                                                         : 'border-gray-200'
-                                                                    }`}>
+                                                                        }`}
+                                                                    style={
+                                                                        isCompleted
+                                                                            ? { backgroundColor: category.colorHex, borderColor: category.colorHex }
+                                                                            : undefined
+                                                                    }
+                                                                >
                                                                     {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
                                                                 </div>
 
@@ -357,8 +372,16 @@ export default function CalendarPage() {
                                         return (
                                             <div key={category.id} className="space-y-3">
                                                 <div className="flex items-center gap-2 px-1">
-                                                    <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[10px] font-bold ${category.textColor}`}>{category.name}</span>
+                                                    <div
+                                                        className="w-1.5 h-3 rounded-full"
+                                                        style={{ backgroundColor: category.colorHex }}
+                                                    />
+                                                    <span
+                                                        className="text-[10px] font-bold"
+                                                        style={{ color: category.textColorHex }}
+                                                    >
+                                                        {category.name}
+                                                    </span>
                                                 </div>
                                                 <div className="space-y-3">
                                                     {feedbackInCategory.map(task => (
@@ -369,7 +392,10 @@ export default function CalendarPage() {
                                                         >
                                                             <div className="flex items-center justify-between mb-2">
                                                                 <p className="text-xs font-bold text-purple-600">{task.title}</p>
-                                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${task.badgeColor}`}>
+                                                                <span
+                                                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                                                                    style={{ backgroundColor: task.badgeColor?.bg, color: task.badgeColor?.text }}
+                                                                >
                                                                     {task.status === 'feedback_completed' ? '피드백 완료' : task.status === 'submitted' ? '제출 완료' : '진행 중'}
                                                                 </span>
                                                             </div>

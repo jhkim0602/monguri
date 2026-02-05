@@ -59,11 +59,11 @@
 - [ ] UI 연동 시뮬레이션
 
 ### Phase 2 — 과제 제출/피드백 사이클
-- [ ] MCP로 제출/피드백 테이블 확인
-- [ ] 제출 API(작성) 구현
-- [ ] 피드백 조회 API 구현
-- [ ] 상태 전이 로직 정리
-- [ ] 기본 에러 케이스 정의
+- [x] MCP로 제출/피드백 테이블 확인
+- [x] 제출 API(작성) 구현
+- [x] 피드백 조회 API 구현
+- [x] 상태 전이 로직 정리
+- [x] 기본 에러 케이스 정의
 
 ### Phase 3 — 멘티 자율 플래너 CRUD
 - [ ] MCP로 플래너/일정 테이블 확인
@@ -88,3 +88,5 @@
 - 2026-02-04: MCP로 `profiles`, `mentor_mentee`, `subjects`, `mentor_tasks`, `task_submissions`, `task_feedback` 테이블/필드 확인. `mentee_profiles` 테이블은 없음.
 - 2026-02-04: Supabase RLS가 모든 테이블에서 비활성 상태라 정책 설계 필요.
 - 2026-02-04: Phase 0/1 API 기본 구조(Route/Service/Repository/Validator) 구현 완료. (멘토-멘티 매칭 검증은 추후 강화)
+- 2026-02-04: Phase 2 제출/피드백 API 구현 및 상태 전이/에러 처리 정리 완료.
+- 2026-02-04: `subjects`를 `uuid + slug + color_hex/text_color_hex` 구조로 정규화하고, 관련 FK/응답 포맷을 갱신.

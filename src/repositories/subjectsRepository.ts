@@ -2,16 +2,17 @@ import { supabaseServer } from "@/lib/supabaseServer";
 
 export type SubjectRow = {
   id: string;
+  slug: string;
   name: string;
-  color: string | null;
-  text_color: string | null;
+  color_hex: string | null;
+  text_color_hex: string | null;
   sort_order: number | null;
 };
 
 export async function listSubjects() {
   const { data, error } = await supabaseServer
     .from("subjects")
-    .select("id, name, color, text_color, sort_order")
+    .select("id, slug, name, color_hex, text_color_hex, sort_order")
     .order("sort_order", { ascending: true, nullsFirst: true })
     .order("name", { ascending: true });
 

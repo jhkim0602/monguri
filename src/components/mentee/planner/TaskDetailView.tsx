@@ -18,7 +18,10 @@ interface TaskDetailViewProps {
         title: string;
         description: string;
         status: string;
-        badgeColor: string;
+        badgeColor: {
+            bg: string;
+            text: string;
+        };
         categoryId: string;
         attachments?: Attachment[];
         submissions?: Attachment[];

@@ -20,31 +20,23 @@ const getSubjectTheme = (categoryId: string) => {
   switch (categoryId) {
     case 'korean':
       return {
-        bg: 'bg-orange-50',
-        bar: 'bg-orange-400',
-        text: 'text-orange-600',
-        badge: 'bg-orange-100 text-orange-700'
+        bar: '#FB923C',
+        text: '#EA580C',
       };
     case 'math':
       return {
-        bg: 'bg-indigo-50',
-        bar: 'bg-indigo-500',
-        text: 'text-indigo-600',
-        badge: 'bg-indigo-100 text-indigo-700'
+        bar: '#6366F1',
+        text: '#4F46E5',
       };
     case 'english':
       return {
-        bg: 'bg-lime-50',
-        bar: 'bg-lime-500',
-        text: 'text-lime-700',
-        badge: 'bg-lime-100 text-lime-800'
+        bar: '#84CC16',
+        text: '#4D7C0F',
       };
     default:
       return {
-        bg: 'bg-gray-50',
-        bar: 'bg-gray-400',
-        text: 'text-gray-600',
-        badge: 'bg-gray-100 text-gray-700'
+        bar: '#9CA3AF',
+        text: '#4B5563',
       };
   }
 };
@@ -69,8 +61,10 @@ export default function TaskRowItem({
     >
       {/* Left: Subject Indicator */}
       <div className="flex-shrink-0 mr-4 flex flex-col items-center justify-center w-10">
-        <div className={`w-1 h-8 rounded-full mb-1 ${theme.bar}`} />
-        <span className={`text-[10px] font-extrabold ${theme.text}`}>{subject}</span>
+        <div className="w-1 h-8 rounded-full mb-1" style={{ backgroundColor: theme.bar }} />
+        <span className="text-[10px] font-extrabold" style={{ color: theme.text }}>
+          {subject}
+        </span>
       </div>
 
       {/* Center: Content */}

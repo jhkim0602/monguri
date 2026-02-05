@@ -28,10 +28,10 @@ export default function PlannerPage() {
         const newId = name.toLowerCase().replace(/\s+/g, '-');
         // Simple color rotation or random color
         const colors = [
-            { color: "bg-purple-200", textColor: "text-purple-700" },
-            { color: "bg-orange-200", textColor: "text-orange-700" },
-            { color: "bg-yellow-200", textColor: "text-yellow-700" },
-            { color: "bg-indigo-200", textColor: "text-indigo-700" }
+            { colorHex: "#E9D5FF", textColorHex: "#7E22CE" },
+            { colorHex: "#FED7AA", textColorHex: "#C2410C" },
+            { colorHex: "#FEF08A", textColorHex: "#A16207" },
+            { colorHex: "#C7D2FE", textColorHex: "#4338CA" }
         ];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
 

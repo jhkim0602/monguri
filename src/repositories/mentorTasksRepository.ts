@@ -13,9 +13,10 @@ export type MentorTaskRow = {
   created_at: string;
   subjects: {
     id: string;
+    slug: string;
     name: string;
-    color: string | null;
-    text_color: string | null;
+    color_hex: string | null;
+    text_color_hex: string | null;
   } | null;
   task_submissions: {
     id: string;
@@ -29,6 +30,15 @@ export type MentorTaskRow = {
     status: "pending" | "reviewed";
     created_at: string;
   }[] | null;
+};
+
+export type MentorTaskStatus = "pending" | "submitted" | "feedback_completed";
+
+export type MentorTaskCoreRow = {
+  id: string;
+  mentor_id: string;
+  mentee_id: string;
+  status: MentorTaskStatus;
 };
 
 export async function listMentorTasksByMenteeId(menteeId: string) {
@@ -48,9 +58,10 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
       created_at,
       subjects (
         id,
+        slug,
         name,
-        color,
-        text_color
+        color_hex,
+        text_color_hex
       ),
       task_submissions (
         id,
@@ -82,4 +93,36 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
   }
 
   return (data ?? []) as MentorTaskRow[];
+}
+
+export async function getMentorTaskById(taskId: string) {
+  const { data, error } = await supabaseServer
+    .from("mentor_tasks")
+    .select("id, mentor_id, mentee_id, status")
+    .eq("id", taskId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? null) as MentorTaskCoreRow | null;
+}
+
+export async function updateMentorTaskStatus(
+  taskId: string,
+  status: MentorTaskStatus
+) {
+  const { data, error } = await supabaseServer
+    .from("mentor_tasks")
+    .update({ status })
+    .eq("id", taskId)
+    .select("id, status")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? null) as { id: string; status: MentorTaskStatus } | null;
 }

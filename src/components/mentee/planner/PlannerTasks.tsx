@@ -343,18 +343,26 @@ export default function PlannerTasks({
             {/* Add Task Input Section - Left Aligned */}
             <div className="mb-10 bg-gray-50/50 p-5 rounded-[24px] border border-gray-100 animate-slide-up">
                 <div className="flex flex-wrap justify-start gap-2 mb-4">
-                    {categories.map(cat => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setSelectedCategoryId(cat.id)}
-                            className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all border ${selectedCategoryId === cat.id
-                                ? `${cat.color} ${cat.textColor} border-transparent shadow-lg scale-105`
-                                : `bg-white text-gray-400 border-gray-100 hover:border-gray-300`
-                                }`}
-                        >
-                            {cat.name}
-                        </button>
-                    ))}
+                    {categories.map(cat => {
+                        const isSelected = selectedCategoryId === cat.id;
+                        return (
+                            <button
+                                key={cat.id}
+                                onClick={() => setSelectedCategoryId(cat.id)}
+                                className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all border ${isSelected
+                                    ? "border-transparent shadow-lg scale-105"
+                                    : "bg-white text-gray-400 border-gray-100 hover:border-gray-300"
+                                    }`}
+                                style={
+                                    isSelected
+                                        ? { backgroundColor: cat.colorHex, color: cat.textColorHex }
+                                        : undefined
+                                }
+                            >
+                                {cat.name}
+                            </button>
+                        );
+                    })}
                     {isAddingCategory ? (
                         <div className="flex items-center gap-1 animate-slide-in-right duration-200">
                             <input
@@ -415,8 +423,16 @@ export default function PlannerTasks({
                     return (
                         <div key={category.id} className="relative">
                             <div className="flex items-center gap-2 mb-4 pl-1">
-                                <div className={`w-1.5 h-4 rounded-full ${category.color}`} />
-                                <span className={`text-[12px] font-black ${category.textColor} tracking-tight`}>{category.name}</span>
+                                <div
+                                    className="w-1.5 h-4 rounded-full"
+                                    style={{ backgroundColor: category.colorHex }}
+                                />
+                                <span
+                                    className="text-[12px] font-black tracking-tight"
+                                    style={{ color: category.textColorHex }}
+                                >
+                                    {category.name}
+                                </span>
                                 <span className="text-[10px] text-gray-300 font-bold ml-1">{tasksInCategory.length}</span>
                             </div>
                             <div className="space-y-3">
@@ -436,10 +452,20 @@ export default function PlannerTasks({
                                                 }}
                                                 className="mt-0.5 relative z-10"
                                             >
-                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed
-                                                    ? `${category.color} ${category.color.replace('bg-', 'border-')} shadow-sm`
-                                                    : 'border-gray-200 hover:border-gray-300'
-                                                    }`}>
+                                                <div
+                                                    className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed
+                                                        ? 'shadow-sm'
+                                                        : 'border-gray-200 hover:border-gray-300'
+                                                        }`}
+                                                    style={
+                                                        task.completed
+                                                            ? {
+                                                                backgroundColor: category.colorHex,
+                                                                borderColor: category.colorHex,
+                                                            }
+                                                            : undefined
+                                                    }
+                                                >
                                                     {task.completed && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
                                                 </div>
                                             </button>

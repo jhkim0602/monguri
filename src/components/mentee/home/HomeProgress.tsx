@@ -44,7 +44,7 @@ export default function HomeProgress({
                     id: event.id,
                     title: event.title,
                     subject: '과목', // Fallback
-                    badgeColor: 'bg-gray-100 text-gray-600',
+                    badgeColor: { bg: "#F3F4F6", text: "#4B5563" },
                     status: 'pending'
                 };
             });
@@ -113,7 +113,10 @@ export default function HomeProgress({
                                     key={task.id}
                                     className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
                                 >
-                                    <span className={`shrink-0 px-2 py-1 rounded text-[10px] font-bold ${task.badgeColor}`}>
+                                    <span
+                                        className="shrink-0 px-2 py-1 rounded text-[10px] font-bold"
+                                        style={{ backgroundColor: task.badgeColor?.bg, color: task.badgeColor?.text }}
+                                    >
                                         {task.subject}
                                     </span>
                                     <div className="flex-1 min-w-0">

@@ -85,8 +85,7 @@ export default function PlannerDetailModal({
                             {/* Mentor Tasks */}
                             {mentorDeadlines.map(task => {
                                 const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
-                                const colorClass = cat?.color || 'bg-purple-500';
-                                const borderClass = colorClass.replace('bg-', 'border-');
+                                const colorHex = cat?.colorHex || '#A855F7';
 
                                 return (
                                     <Link
@@ -95,7 +94,14 @@ export default function PlannerDetailModal({
                                         className="flex items-start gap-2 hover:bg-purple-50/50 rounded-lg p-2 -m-2 transition-colors"
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-0.5`}>
+                                        <div
+                                            className={`w-5 h-5 rounded flex items-center justify-center border shrink-0 mt-0.5 ${task.completed ? 'shadow-sm' : 'border-gray-300 bg-white'}`}
+                                            style={
+                                                task.completed
+                                                    ? { backgroundColor: colorHex, borderColor: colorHex }
+                                                    : undefined
+                                            }
+                                        >
                                             {task.completed && <Check size={12} className="text-white" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -116,8 +122,7 @@ export default function PlannerDetailModal({
                             {/* User Tasks */}
                             {userTasks.map(task => {
                                 const cat = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
-                                const colorClass = cat?.color || 'bg-blue-500';
-                                const borderClass = colorClass.replace('bg-', 'border-');
+                                const colorHex = cat?.colorHex || '#3B82F6';
 
                                 return (
                                     <Link
@@ -126,7 +131,14 @@ export default function PlannerDetailModal({
                                         className="flex items-start gap-2 hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors"
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${task.completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-0.5`}>
+                                        <div
+                                            className={`w-5 h-5 rounded flex items-center justify-center border shrink-0 mt-0.5 ${task.completed ? 'shadow-sm' : 'border-gray-300 bg-white'}`}
+                                            style={
+                                                task.completed
+                                                    ? { backgroundColor: colorHex, borderColor: colorHex }
+                                                    : undefined
+                                            }
+                                        >
                                             {task.completed && <Check size={12} className="text-white" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -144,10 +156,13 @@ export default function PlannerDetailModal({
                             {/* Self Studies from WEEKLY_SCHEDULE */}
                             {dailyEvents.filter(e => e.taskType === 'plan').map((event, idx) => {
                                 const cat = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId);
-                                const colorClass = cat?.color?.replace('bg-', 'border-') || 'border-gray-200';
+                                const borderColor = cat?.colorHex || '#E5E7EB';
                                 return (
                                     <div key={`evt-${idx}`} className="flex items-start gap-2">
-                                        <div className={`w-5 h-5 rounded-full border-2 ${colorClass} bg-white shrink-0 mt-0.5`} />
+                                        <div
+                                            className="w-5 h-5 rounded-full border-2 bg-white shrink-0 mt-0.5"
+                                            style={{ borderColor }}
+                                        />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-base font-bold text-gray-800 truncate">{event.title}</p>
                                             <p className="text-xs text-gray-400">{cat?.name}</p>
@@ -186,10 +201,12 @@ export default function PlannerDetailModal({
                                                     return (
                                                         <div
                                                             key={slot}
-                                                            className={`border-r border-gray-50 last:border-none relative
-                                                                ${category?.color || 'bg-white'}
-                                                                ${category ? 'shadow-inner' : ''}
-                                                            `}
+                                                            className={`border-r border-gray-50 last:border-none relative ${category ? 'shadow-inner' : ''}`}
+                                                            style={
+                                                                category
+                                                                    ? { backgroundColor: category.colorHex }
+                                                                    : undefined
+                                                            }
                                                         />
                                                     );
                                                 })}

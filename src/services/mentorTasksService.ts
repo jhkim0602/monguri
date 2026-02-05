@@ -43,16 +43,16 @@ export async function getMenteeMentorTasks(menteeId: string) {
       subject: task.subjects
         ? {
             id: task.subjects.id,
+            slug: task.subjects.slug,
             name: task.subjects.name,
-            color: task.subjects.color,
-            textColor: task.subjects.text_color,
+            colorHex: task.subjects.color_hex,
+            textColorHex: task.subjects.text_color_hex,
           }
         : null,
       title: task.title,
       description: task.description,
       status: task.status,
       deadline: task.deadline,
-      badgeColor: task.badge_color,
       createdAt: task.created_at,
       latestSubmission: latestSubmission
         ? {

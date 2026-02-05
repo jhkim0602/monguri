@@ -2,10 +2,10 @@ import { DEFAULT_CATEGORIES } from "@/constants/common";
 
 type ApiSubject = {
   id: string;
+  slug?: string | null;
   name: string;
-  color: string | null;
-  textColor?: string | null;
-  text_color?: string | null;
+  colorHex?: string | null;
+  textColorHex?: string | null;
 };
 
 type ApiMentorTask = {
@@ -17,7 +17,10 @@ type ApiMentorTask = {
   description: string | null;
   status: "pending" | "submitted" | "feedback_completed";
   deadline: string | null;
-  badgeColor: string | null;
+  badgeColor?: {
+    bg: string;
+    text: string;
+  } | null;
   latestSubmission?: {
     id: string;
     submittedAt: string;
@@ -38,7 +41,10 @@ export type MentorTaskLike = {
   subject: string;
   title: string;
   status: "pending" | "submitted" | "feedback_completed";
-  badgeColor: string;
+  badgeColor: {
+    bg: string;
+    text: string;
+  };
   description: string;
   categoryId: string;
   mentorFeedback: string;
@@ -55,9 +61,10 @@ export type MentorTaskLike = {
   endTime?: string;
 };
 
-const DEFAULT_BADGE = "bg-gray-100 text-gray-600";
-const isClassToken = (value: string | null | undefined, prefix: string) =>
-  Boolean(value && value.startsWith(prefix));
+const DEFAULT_BADGE = {
+  bg: "#F3F4F6",
+  text: "#4B5563",
+};
 const parseDateString = (value: string | null) => {
   if (!value) return null;
   const [year, month, day] = value.split("-").map(Number);
@@ -69,22 +76,16 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
   return tasks.map((task) => {
     const subject = task.subject;
     const fallbackCategory =
-      (subject?.id && DEFAULT_CATEGORIES.find((c) => c.id === subject.id)) ??
+      (subject?.slug && DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
       DEFAULT_CATEGORIES[0];
     const subjectName = subject?.name ?? fallbackCategory?.name ?? "과목";
-    const subjectColor = isClassToken(subject?.color, "bg-")
-      ? subject?.color ?? null
-      : fallbackCategory?.color ?? null;
-    const rawTextColor =
-      subject?.textColor ?? subject?.text_color ?? fallbackCategory?.textColor ?? null;
-    const subjectTextColor = isClassToken(rawTextColor, "text-")
-      ? rawTextColor
-      : fallbackCategory?.textColor ?? null;
-    const badgeColor =
-      task.badgeColor ||
-      (subjectColor && subjectTextColor
-        ? `${subjectColor} ${subjectTextColor}`
-        : DEFAULT_BADGE);
+    const subjectColor = subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
+    const subjectTextColor =
+      subject?.textColorHex ?? fallbackCategory?.textColorHex ?? null;
+    const badgeColor = task.badgeColor || {
+      bg: subjectColor ?? DEFAULT_BADGE.bg,
+      text: subjectTextColor ?? DEFAULT_BADGE.text,
+    };
     const mentorFeedback = task.latestFeedback?.comment ?? "";
 
     return {
@@ -94,7 +95,7 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
       status: task.status,
       badgeColor,
       description: task.description ?? "",
-      categoryId: subject?.id ?? fallbackCategory?.id ?? "unknown",
+      categoryId: subject?.slug ?? fallbackCategory?.id ?? "unknown",
       mentorFeedback,
       mentorComment: mentorFeedback,
       deadline: parseDateString(task.deadline),

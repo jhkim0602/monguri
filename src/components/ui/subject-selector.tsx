@@ -5,7 +5,8 @@ import { cn } from "./lib/utils";
 export interface Subject {
   id: string;
   name: string;
-  color: string; // Tailwind bg class
+  colorHex: string;
+  textColorHex: string;
 }
 
 interface SubjectSelectorProps {
@@ -23,7 +24,7 @@ export function SubjectSelector({
     <div className="flex flex-wrap gap-2">
       {subjects.map((subject) => {
         const isSelected = selectedId === subject.id;
-        return (
+          return (
           <button
             key={subject.id}
             onClick={() => onChange(subject.id)}
@@ -32,8 +33,15 @@ export function SubjectSelector({
               isSelected
                 ? "border-transparent text-white scale-105 shadow-md"
                 : "bg-white border-gray-200 text-gray-500 hover:border-gray-300",
-              isSelected ? subject.color : "",
             )}
+            style={
+              isSelected
+                ? {
+                    backgroundColor: subject.colorHex,
+                    color: subject.textColorHex,
+                  }
+                : undefined
+            }
           >
             {subject.name}
           </button>

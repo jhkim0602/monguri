@@ -45,7 +45,10 @@ export default function HomeTasks({ tasks = MENTOR_TASKS as MentorTaskLike[] }: 
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${task.badgeColor}`}>
+                                    <span
+                                        className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold"
+                                        style={{ backgroundColor: task.badgeColor?.bg, color: task.badgeColor?.text }}
+                                    >
                                         {task.subject}
                                     </span>
                                     <span className="text-[10px] text-gray-400">

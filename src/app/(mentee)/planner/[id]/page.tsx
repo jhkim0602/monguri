@@ -61,7 +61,7 @@ export default function TaskDetailPage() {
                     title: `할 일 #${idStr}`,
                     description: "상세 설명이 등록되어 있지 않은 할 일입니다.",
                     status: "pending",
-                    badgeColor: "bg-gray-100 text-gray-600",
+                    badgeColor: { bg: "#F3F4F6", text: "#4B5563" },
                     categoryId: "korean",
                     attachments: [],
                     submissions: [],

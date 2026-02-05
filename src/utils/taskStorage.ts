@@ -6,7 +6,7 @@ export interface Task {
   categoryId: string;
   description?: string;
   status?: string;
-  badgeColor?: string;
+  badgeColor?: { bg: string; text: string };
   completed: boolean;
   timeSpent: number;
   isRunning: boolean;

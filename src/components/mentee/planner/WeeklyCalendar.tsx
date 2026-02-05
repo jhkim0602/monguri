@@ -49,7 +49,7 @@ export default function WeeklyCalendar({ currentDate, onDateSelect }: WeeklyCale
 
         // 2. Extract keywords from mentor tasks first, then plan tasks
         // We'll prioritize Mentor Tasks titles
-        let keywords: { text: string; color: string }[] = [];
+        let keywords: { text: string; color: { bg: string; text: string } }[] = [];
 
         if (schedule) {
             // Mentor tasks
@@ -59,7 +59,7 @@ export default function WeeklyCalendar({ currentDate, onDateSelect }: WeeklyCale
                 const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                 keywords.push({
                     text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''), // Grab first 2 words
-                    color: `${category.color} ${category.textColor}`
+                    color: { bg: category.colorHex, text: category.textColorHex }
                 });
             });
 
@@ -70,7 +70,7 @@ export default function WeeklyCalendar({ currentDate, onDateSelect }: WeeklyCale
                     const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                     keywords.push({
                         text: e.title.split(' ')[0], // Grab first word only for user tasks
-                        color: `${category.color} ${category.textColor}` // Use unified category colors
+                        color: { bg: category.colorHex, text: category.textColorHex } // Use unified category colors
                     });
                 });
             }
@@ -115,7 +115,8 @@ export default function WeeklyCalendar({ currentDate, onDateSelect }: WeeklyCale
                                 {keywords.slice(0, 3).map((k, idx) => (
                                     <div
                                         key={idx}
-                                        className={`${k.color} rounded px-1 py-0.5 text-[8px] font-bold w-full text-center truncate leading-tight tracking-tight`}
+                                        className="rounded px-1 py-0.5 text-[8px] font-bold w-full text-center truncate leading-tight tracking-tight"
+                                        style={{ backgroundColor: k.color.bg, color: k.color.text }}
                                     >
                                         {k.text}
                                     </div>
