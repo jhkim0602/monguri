@@ -11,13 +11,8 @@ import {
 import Header from "@/components/mentee/layout/Header";
 import { supabase } from "@/lib/supabaseClient";
 import {
-    adaptMentorTasksToUi,
-    adaptPlannerTasksToUi,
     adaptProfileToUi,
-    type MentorTaskLike,
-    type PlannerTaskLike,
 } from "@/lib/menteeAdapters";
-import FeedbackArchive from "@/components/mentee/mypage/FeedbackArchive";
 import MentorMeetingSection from "@/components/mentee/mypage/MentorMeetingSection";
 
 export default function MyPage() {
@@ -30,9 +25,6 @@ export default function MyPage() {
     const [profileAvatar, setProfileAvatar] = useState("");
 
     // Data States
-    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
-    const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
-
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
 
@@ -53,29 +45,8 @@ export default function MyPage() {
                 const user = data?.user;
                 if (!user) return;
 
-                // Load Tasks (Mentor & User) + Profile
-                // Note: For FeedbackArchive, we ideally usually want 'all' tasks. 
-                // However, fetching 'all' might be heavy. For now, fetching default (maybe last 30 days implicit?)
-                // The API /api/mentee/tasks returns all/active tasks.
-                const [tasksRes, plannerRes, profileRes] = await Promise.all([
-                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
-                    fetch(`/api/mentee/planner/tasks?menteeId=${user.id}`), // Fetch all user tasks (might need pagination later)
-                    fetch(`/api/mentee/profile?profileId=${user.id}`)
-                ]);
-
-                if (tasksRes.ok) {
-                    const tasksJson = await tasksRes.json();
-                    if (isMounted && Array.isArray(tasksJson.tasks)) {
-                        setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
-                    }
-                }
-
-                if (plannerRes.ok) {
-                    const plannerJson = await plannerRes.json();
-                    if (isMounted && Array.isArray(plannerJson.tasks)) {
-                        setPlannerTasks(adaptPlannerTasksToUi(plannerJson.tasks));
-                    }
-                }
+                // Load Profile Only (Tasks removed as FeedbackArchive moved)
+                const profileRes = await fetch(`/api/mentee/profile?profileId=${user.id}`);
 
                 if (profileRes.ok) {
                     const profileJson = await profileRes.json();
@@ -172,19 +143,6 @@ export default function MyPage() {
 
             {/* Mentor Meeting Section */}
             <MentorMeetingSection />
-
-            {/* Feedback Archive (Passed API data) */}
-            <div className="px-6 mb-4">
-                <h3 className="text-[17px] font-black text-gray-900 tracking-tight mb-4">피드백 보관함</h3>
-            </div>
-            <FeedbackArchive
-                mentorTasks={mentorTasks}
-                userTasks={plannerTasks}
-                onOpenTask={(task) => {
-                    // Navigate to task detail
-                    router.push(`/planner/${task.id}`);
-                }}
-            />
 
             {/* ETC Menu */}
             <section className="px-6">
