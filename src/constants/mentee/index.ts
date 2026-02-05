@@ -6,14 +6,8 @@ export const MENTOR_TASKS = [
     subject: "국어",
     title: "국어 문학 현대시 3지문 분석",
     status: "feedback_completed",
-<<<<<<< HEAD
     badgeColor: { bg: "#DCFCE7", text: "#15803D" },
     description: "EBS 연계 현대시 작품 3지문 분석 및 문제 풀이. 시어의 상징적 의미와 시상 전개 방식 파악.",
-=======
-    badgeColor: "bg-green-100 text-green-700",
-    description:
-      "EBS 연계 현대시 작품 3지문 분석 및 문제 풀이. 시어의 상징적 의미와 시상 전개 방식 파악.",
->>>>>>> origin/sunbal
     categoryId: "korean",
     mentorFeedback:
       "시어 분석이 매우 정확합니다! 특히 현대시의 상징적 의미 파악 능력이 크게 향상되었네요.",
@@ -126,14 +120,8 @@ export const MENTOR_TASKS = [
     subject: "영어",
     title: "EBS 연계 지문 빈칸추론 20문항",
     status: "submitted",
-<<<<<<< HEAD
     badgeColor: { bg: "#FCE7F3", text: "#BE185D" },
     description: "수능특강 영어독해 3과~5과 빈칸추론 유형 집중 학습. 근거 문장 표시하며 풀이.",
-=======
-    badgeColor: "bg-pink-100 text-pink-700",
-    description:
-      "수능특강 영어독해 3과~5과 빈칸추론 유형 집중 학습. 근거 문장 표시하며 풀이.",
->>>>>>> origin/sunbal
     categoryId: "english",
     mentorFeedback: "과제 제출 확인했습니다. 피드백 대기 중입니다.",
     deadline: new Date(2026, 1, 2),
@@ -176,14 +164,8 @@ export const MENTOR_TASKS = [
     subject: "수학",
     title: "미적분 킬러문항 3개년 기출 분석",
     status: "pending",
-<<<<<<< HEAD
     badgeColor: { bg: "#DBEAFE", text: "#1D4ED8" },
     description: "2022~2024학년도 수능 미적분 30번 문제 풀이 및 오답노트 작성. 공통 패턴 정리 필수.",
-=======
-    badgeColor: "bg-blue-100 text-blue-700",
-    description:
-      "2022~2024학년도 수능 미적분 30번 문제 풀이 및 오답노트 작성. 공통 패턴 정리 필수.",
->>>>>>> origin/sunbal
     categoryId: "math",
     mentorFeedback: "아직 피드백이 등록되지 않았습니다.",
     deadline: new Date(2026, 1, 2),
@@ -210,14 +192,8 @@ export const MENTOR_TASKS = [
     subject: "수학",
     title: "수학1 삼각함수 그래프 20문항",
     status: "pending",
-<<<<<<< HEAD
     badgeColor: { bg: "#DBEAFE", text: "#1D4ED8" },
     description: "삼각함수 주기와 대칭성 활용 문제 집중 공략. 그래프 변환 연습 필수.",
-=======
-    badgeColor: "bg-blue-100 text-blue-700",
-    description:
-      "삼각함수 주기와 대칭성 활용 문제 집중 공략. 그래프 변환 연습 필수.",
->>>>>>> origin/sunbal
     categoryId: "math",
     mentorFeedback: "아직 피드백이 등록되지 않았습니다.",
     deadline: new Date(2026, 1, 3),
@@ -244,14 +220,8 @@ export const MENTOR_TASKS = [
     subject: "국어",
     title: "언어와 매체 개념 정리",
     status: "pending",
-<<<<<<< HEAD
     badgeColor: { bg: "#DCFCE7", text: "#15803D" },
     description: "음운의 변동 파트 백지 복습. 비음화, 유음화, 된소리되기 등 주요 음운 변동 정리.",
-=======
-    badgeColor: "bg-green-100 text-green-700",
-    description:
-      "음운의 변동 파트 백지 복습. 비음화, 유음화, 된소리되기 등 주요 음운 변동 정리.",
->>>>>>> origin/sunbal
     categoryId: "korean",
     mentorFeedback: "아직 피드백이 등록되지 않았습니다.",
     deadline: new Date(2026, 1, 4),

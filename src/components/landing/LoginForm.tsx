@@ -14,7 +14,6 @@ export default function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-<<<<<<< HEAD
     setErrorMessage(null);
     setIsLoading(true);
 
@@ -27,12 +26,6 @@ export default function LoginForm() {
       setErrorMessage("로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.");
       setIsLoading(false);
       return;
-=======
-    if (id.startsWith("admin") || id.startsWith("mentor")) {
-      router.push("/dashboard");
-    } else {
-      router.push("/home");
->>>>>>> origin/sunbal
     }
 
     let role = "mentee";
@@ -80,13 +73,7 @@ export default function LoginForm() {
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-1.5">
-<<<<<<< HEAD
           <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">이메일</label>
-=======
-          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">
-            아이디
-          </label>
->>>>>>> origin/sunbal
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
               <User size={18} />
@@ -139,40 +126,19 @@ export default function LoginForm() {
         </p>
         <div className="flex gap-2 justify-center">
           <button
-<<<<<<< HEAD
             onClick={() => { setEmail("monguri_mentor_01@example.com"); setPassword("password123"); }}
-=======
-            onClick={() => {
-              setId("mentor1");
-              setPassword("password");
-            }}
->>>>>>> origin/sunbal
             className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-[10px] font-bold hover:bg-purple-100 transition-colors border border-purple-100"
           >
             Mentor 1
           </button>
           <button
-<<<<<<< HEAD
             onClick={() => { setEmail("monguri_mentee_01@example.com"); setPassword("password123"); }}
-=======
-            onClick={() => {
-              setId("mentee1");
-              setPassword("password");
-            }}
->>>>>>> origin/sunbal
             className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition-colors border border-blue-100"
           >
             Mentee 1
           </button>
           <button
-<<<<<<< HEAD
             onClick={() => { setEmail("monguri_mentee_02@example.com"); setPassword("password123"); }}
-=======
-            onClick={() => {
-              setId("mentee2");
-              setPassword("password");
-            }}
->>>>>>> origin/sunbal
             className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition-colors border border-blue-100"
           >
             Mentee 2

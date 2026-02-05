@@ -186,7 +186,7 @@ export default function PlannerDetailView({
                                     className={`pt-1 ${index > 0 ? "border-t border-dashed border-gray-200" : ""}`}
                                 >
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className={`text-[9px] font-black ${group.category.textColor}`}>
+                                        <span style={{ color: group.category.textColorHex }} className="text-[9px] font-black">
                                             {group.category.name}영역
                                         </span>
                                     </div>
