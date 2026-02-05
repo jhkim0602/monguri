@@ -2,57 +2,79 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import { MENTOR_TASKS, WEEKLY_SCHEDULE } from "@/constants/mentee";
-import type { MentorTaskLike } from "@/lib/menteeAdapters";
+import type { MentorTaskLike, ScheduleEventLike } from "@/lib/menteeAdapters";
 
 interface HomeProgressProps {
     animatedProgress: number;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     mentorTasks?: MentorTaskLike[];
+    scheduleEvents?: ScheduleEventLike[];
 }
 
 export default function HomeProgress({
     animatedProgress,
     selectedDate,
     onDateChange,
-    mentorTasks = MENTOR_TASKS as MentorTaskLike[]
+    mentorTasks = MENTOR_TASKS as MentorTaskLike[],
+    scheduleEvents
 }: HomeProgressProps) {
     const [dailyTasks, setDailyTasks] = useState<any[]>([]);
+    const isSameDay = (date1: Date, date2: Date) => {
+        return (
+            date1.getDate() === date2.getDate() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getFullYear() === date2.getFullYear()
+        );
+    };
 
     useEffect(() => {
-        // Find schedule for selected date
-        const schedule = WEEKLY_SCHEDULE.find(s =>
-            s.date.getDate() === selectedDate.getDate() &&
-            s.date.getMonth() === selectedDate.getMonth() &&
-            s.date.getFullYear() === selectedDate.getFullYear()
-        );
+        const fallbackEvents =
+            WEEKLY_SCHEDULE.find(
+                (s) =>
+                    s.date.getDate() === selectedDate.getDate() &&
+                    s.date.getMonth() === selectedDate.getMonth() &&
+                    s.date.getFullYear() === selectedDate.getFullYear()
+            )?.events ?? [];
+        const eventsForDate = scheduleEvents
+            ? scheduleEvents.filter(
+                (event) =>
+                    event.date &&
+                    event.date.getDate() === selectedDate.getDate() &&
+                    event.date.getMonth() === selectedDate.getMonth() &&
+                    event.date.getFullYear() === selectedDate.getFullYear()
+            )
+            : fallbackEvents;
 
-        if (schedule) {
-            // Filter only mentor tasks
-            const mentorEvents = schedule.events.filter(e => e.taskType === 'mentor');
+        if (eventsForDate.length > 0) {
+            const mentorEvents = eventsForDate.filter(
+                (event) => event.taskType === "mentor"
+            );
 
-            // Enrich with full task details from MENTOR_TASKS
-            const tasks = mentorEvents.map(event => {
+            const tasks = mentorEvents.map((event) => {
                 const fullTask =
-                    mentorTasks.find(t => String(t.id) === String(event.id)) ||
-                    mentorTasks.find(t =>
-                        t.title === event.title &&
-                        t.deadline &&
-                        isSameDay(t.deadline, schedule.date)
+                    mentorTasks.find((task) => String(task.id) === String(event.id)) ||
+                    mentorTasks.find(
+                        (task) =>
+                            task.title === event.title &&
+                            task.deadline &&
+                            isSameDay(task.deadline, event.date ?? selectedDate)
                     );
-                return fullTask || {
-                    id: event.id,
-                    title: event.title,
-                    subject: '과목', // Fallback
-                    badgeColor: { bg: "#F3F4F6", text: "#4B5563" },
-                    status: 'pending'
-                };
+                return (
+                    fullTask || {
+                        id: event.id,
+                        title: event.title,
+                        subject: "과목",
+                        badgeColor: { bg: "#F3F4F6", text: "#4B5563" },
+                        status: "pending",
+                    }
+                );
             });
             setDailyTasks(tasks);
         } else {
             setDailyTasks([]);
         }
-    }, [selectedDate]);
+    }, [selectedDate, mentorTasks, scheduleEvents]);
 
     const handlePrevDay = () => {
         const newDate = new Date(selectedDate);

@@ -1,16 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { MENTOR_TASKS } from "@/constants/mentee";
 import { WEEKLY_SCHEDULE } from "@/constants/mentee";
+import type { ScheduleEventLike } from "@/lib/menteeAdapters";
 
 interface WeeklyCalendarProps {
     currentDate: Date;
     onDateSelect: (date: Date) => void;
+    scheduleEvents?: ScheduleEventLike[];
 }
 
-export default function WeeklyCalendar({ currentDate, onDateSelect }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({
+    currentDate,
+    onDateSelect,
+    scheduleEvents
+}: WeeklyCalendarProps) {
     // Get current week dates
     const getWeekDates = () => {
         const today = new Date(currentDate); // Base week on the selected date to allow navigation?
@@ -44,32 +48,34 @@ export default function WeeklyCalendar({ currentDate, onDateSelect }: WeeklyCale
 
     // Helper to get meaningful keywords for a day
     const getDailyKeywords = (date: Date) => {
-        // 1. Find schedule for this day
-        const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, date));
+        const fallbackEvents =
+            WEEKLY_SCHEDULE.find((s) => isSameDay(s.date, date))?.events ?? [];
+        const eventsForDate = scheduleEvents
+            ? scheduleEvents.filter((event) => event.date && isSameDay(event.date, date))
+            : fallbackEvents;
 
         // 2. Extract keywords from mentor tasks first, then plan tasks
         // We'll prioritize Mentor Tasks titles
         let keywords: { text: string; color: { bg: string; text: string } }[] = [];
 
-        if (schedule) {
-            // Mentor tasks
-            const mentorEvents = schedule.events.filter(e => e.taskType === 'mentor');
-            mentorEvents.forEach(e => {
+        if (eventsForDate.length > 0) {
+            const mentorEvents = eventsForDate.filter((event) => event.taskType === 'mentor');
+            mentorEvents.forEach((event) => {
                 // Find full task to get category color if needed, or use default
-                const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
                 keywords.push({
-                    text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''), // Grab first 2 words
+                    text: event.title.split(' ')[0] + ' ' + (event.title.split(' ')[1] || ''), // Grab first 2 words
                     color: { bg: category.colorHex, text: category.textColorHex }
                 });
             });
 
             // If we have space, add user tasks
             if (keywords.length < 3) {
-                const userEvents = schedule.events.filter(e => e.taskType !== 'mentor');
-                 userEvents.forEach(e => {
-                    const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                const userEvents = eventsForDate.filter((event) => event.taskType !== 'mentor');
+                userEvents.forEach((event) => {
+                    const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
                     keywords.push({
-                        text: e.title.split(' ')[0], // Grab first word only for user tasks
+                        text: event.title.split(' ')[0], // Grab first word only for user tasks
                         color: { bg: category.colorHex, text: category.textColorHex } // Use unified category colors
                     });
                 });

@@ -2,7 +2,7 @@ import { X, Check } from "lucide-react";
 import Link from "next/link";
 import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { USER_TASKS } from "@/constants/mentee";
+import type { PlannerTaskLike } from "@/lib/menteeAdapters";
 
 interface PlannerDetailModalProps {
     isOpen: boolean;
@@ -11,6 +11,7 @@ interface PlannerDetailModalProps {
     dailyRecord: any;
     mentorDeadlines: any[];
     dailyEvents: any[];
+    plannerTasks: PlannerTaskLike[];
 }
 
 export default function PlannerDetailModal({
@@ -19,7 +20,8 @@ export default function PlannerDetailModal({
     date,
     dailyRecord,
     mentorDeadlines,
-    dailyEvents
+    dailyEvents,
+    plannerTasks
 }: PlannerDetailModalProps) {
     if (!isOpen || !date) return null;
 
@@ -34,7 +36,9 @@ export default function PlannerDetailModal({
             date1.getFullYear() === date2.getFullYear();
     };
 
-    const userTasks = USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
+    const userTasks = plannerTasks.filter(
+        (task) => task.deadline && isSameDay(task.deadline, date)
+    );
     const allTasks = [...mentorDeadlines, ...userTasks];
     const hasActivity = dailyEvents.length > 0 || allTasks.length > 0;
     const tasksWithFeedback = mentorDeadlines.filter(t => t.mentorFeedback && t.mentorComment);

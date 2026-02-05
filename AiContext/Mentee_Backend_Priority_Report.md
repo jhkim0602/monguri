@@ -66,9 +66,9 @@
 - [x] 기본 에러 케이스 정의
 
 ### Phase 3 — 멘티 자율 플래너 CRUD
-- [ ] MCP로 플래너/일정 테이블 확인
-- [ ] CRUD API 설계
-- [ ] 일/주/월 단위 조회 시나리오 검증
+- [x] MCP로 플래너/일정 테이블 확인
+- [x] CRUD API 설계
+- [x] 일/주/월 단위 조회 시나리오 검증
 
 ### Phase 4 — 파일/첨부 연동
 - [ ] MCP로 파일 메타 테이블 확인
@@ -90,3 +90,4 @@
 - 2026-02-04: Phase 0/1 API 기본 구조(Route/Service/Repository/Validator) 구현 완료. (멘토-멘티 매칭 검증은 추후 강화)
 - 2026-02-04: Phase 2 제출/피드백 API 구현 및 상태 전이/에러 처리 정리 완료.
 - 2026-02-04: `subjects`를 `uuid + slug + color_hex/text_color_hex` 구조로 정규화하고, 관련 FK/응답 포맷을 갱신.
+- 2026-02-05: Phase 3 플래너 CRUD 및 캘린더 연동 검증 완료. (Mock -> API 전환 확인, UI/API 정상)

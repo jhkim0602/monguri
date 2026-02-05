@@ -22,3 +22,17 @@ export async function listSubjects() {
 
   return (data ?? []) as SubjectRow[];
 }
+
+export async function getSubjectBySlug(slug: string) {
+  const { data, error } = await supabaseServer
+    .from("subjects")
+    .select("id, slug, name, color_hex, text_color_hex, sort_order")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? null) as SubjectRow | null;
+}

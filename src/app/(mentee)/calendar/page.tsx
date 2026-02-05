@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Flame, CheckCircle2, MessageCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { DAILY_RECORDS, WEEKLY_SCHEDULE, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import Header from "@/components/mentee/layout/Header";
+import { supabase } from "@/lib/supabaseClient";
+import {
+    adaptDailyRecordsToUi,
+    adaptMentorTasksToUi,
+    adaptPlanEventsToUi,
+    adaptPlannerTasksToUi,
+    type DailyRecordLike,
+    type MentorTaskLike,
+    type PlannerTaskLike,
+    type ScheduleEventLike
+} from "@/lib/menteeAdapters";
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -17,6 +27,12 @@ export default function CalendarPage() {
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
+    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
+    const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
+    const [planEvents, setPlanEvents] = useState<ScheduleEventLike[]>([]);
+    const [dailyRecords, setDailyRecords] = useState<DailyRecordLike[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const hasLoadedRef = useRef(false);
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -45,12 +61,117 @@ export default function CalendarPage() {
             date1.getFullYear() === date2.getFullYear();
     };
 
+    const toDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getMonthRange = (date: Date) => {
+        const fromDate = new Date(date.getFullYear(), date.getMonth(), 1);
+        const toDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        return {
+            from: toDateString(fromDate),
+            to: toDateString(toDate),
+        };
+    };
+
     const getDailyRecord = (day: number | Date) => {
         const targetDate = typeof day === 'number'
             ? new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
             : day;
-        return DAILY_RECORDS.find(r => isSameDay(r.date, targetDate));
+        return dailyRecords.find(r => r.date && isSameDay(r.date, targetDate));
     };
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const load = async () => {
+            if (!hasLoadedRef.current) {
+                setIsLoading(true);
+            }
+            try {
+                const { data } = await supabase.auth.getUser();
+                const user = data?.user;
+                if (!user) return;
+
+                const { from, to } = getMonthRange(currentDate);
+
+                const [mentorRes, plannerRes, overviewRes] = await Promise.all([
+                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
+                    fetch(`/api/mentee/planner/tasks?menteeId=${user.id}&from=${from}&to=${to}`),
+                    fetch(`/api/mentee/planner/overview?menteeId=${user.id}&from=${from}&to=${to}`)
+                ]);
+
+                if (mentorRes.ok) {
+                    const mentorJson = await mentorRes.json();
+                    if (isMounted && Array.isArray(mentorJson.tasks)) {
+                        setMentorTasks(adaptMentorTasksToUi(mentorJson.tasks));
+                    }
+                }
+
+                if (plannerRes.ok) {
+                    const plannerJson = await plannerRes.json();
+                    if (isMounted && Array.isArray(plannerJson.tasks)) {
+                        setPlannerTasks(adaptPlannerTasksToUi(plannerJson.tasks));
+                    }
+                }
+
+                if (overviewRes.ok) {
+                    const overviewJson = await overviewRes.json();
+                    if (isMounted) {
+                        setPlanEvents(adaptPlanEventsToUi(overviewJson.scheduleEvents ?? []));
+                        setDailyRecords(adaptDailyRecordsToUi(overviewJson.dailyRecords ?? []));
+                    }
+                }
+            } finally {
+                if (isMounted && !hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
+                }
+            }
+        };
+
+        load();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [currentDate]);
+
+    const scheduleEvents = useMemo<ScheduleEventLike[]>(() => {
+        const events: ScheduleEventLike[] = [];
+
+        mentorTasks.forEach((task) => {
+            if (!task.deadline) return;
+            events.push({
+                id: String(task.id),
+                title: task.title,
+                date: task.deadline,
+                categoryId: task.categoryId,
+                taskType: "mentor",
+            });
+        });
+
+        plannerTasks.forEach((task) => {
+            if (!task.deadline) return;
+            events.push({
+                id: String(task.id),
+                title: task.title,
+                date: task.deadline,
+                categoryId: task.categoryId,
+                taskType: "user",
+            });
+        });
+
+        planEvents.forEach((event) => {
+            if (!event.date) return;
+            events.push(event);
+        });
+
+        return events;
+    }, [mentorTasks, plannerTasks, planEvents]);
 
     const previousPeriod = () => {
         if (viewMode === 'month') {
@@ -88,7 +209,6 @@ export default function CalendarPage() {
         setIsModalOpen(true);
     };
 
-    const currentStreak = 12;
 
     // Generate month calendar grid
     const calendarDays = [];
@@ -97,6 +217,10 @@ export default function CalendarPage() {
     }
     for (let day = 1; day <= daysInMonth; day++) {
         calendarDays.push(day);
+    }
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-gray-50" />;
     }
 
     return (
@@ -164,13 +288,13 @@ export default function CalendarPage() {
                                 const isTodayDate = isToday(targetDate);
                                 const isSelected = selectedDate && isSameDay(selectedDate, targetDate);
 
-                                // Get keywords for the day
-                                const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, targetDate));
+                                const dayEvents = scheduleEvents.filter(
+                                    (event) => event.date && isSameDay(event.date, targetDate)
+                                );
                                 let keywords: { text: string; color: { bg: string; text: string } }[] = [];
 
-                                if (schedule) {
-                                    // Mentor tasks
-                                    const mentorEvents = schedule.events.filter(e => e.taskType === 'mentor');
+                                if (dayEvents.length > 0) {
+                                    const mentorEvents = dayEvents.filter(e => e.taskType === 'mentor');
                                     mentorEvents.forEach(e => {
                                         const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                                         keywords.push({
@@ -179,14 +303,13 @@ export default function CalendarPage() {
                                         });
                                     });
 
-                                    // User tasks
                                     if (keywords.length < 3) {
-                                        const userEvents = schedule.events.filter(e => e.taskType !== 'mentor');
+                                        const userEvents = dayEvents.filter(e => e.taskType !== 'mentor');
                                         userEvents.forEach(e => {
                                             const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                                             keywords.push({
                                                 text: e.title.split(' ')[0],
-                                                color: { bg: category.colorHex, text: category.textColorHex } // Unified colors
+                                                color: { bg: category.colorHex, text: category.textColorHex }
                                             });
                                         });
                                     }
@@ -236,6 +359,10 @@ export default function CalendarPage() {
                         isToday={isToday}
                         isSameDay={isSameDay}
                         onDateClick={handleDateClick}
+                        scheduleEvents={scheduleEvents}
+                        dailyRecords={dailyRecords}
+                        mentorTasks={mentorTasks}
+                        plannerTasks={plannerTasks}
                     />
                 )}
 
@@ -262,7 +389,13 @@ export default function CalendarPage() {
                                 </h4>
                                 <div className="space-y-4">
                                     {DEFAULT_CATEGORIES.map(category => {
-                                        const eventsInCategory = WEEKLY_SCHEDULE.find(s => selectedDate && isSameDay(s.date, selectedDate))?.events.filter(e => e.categoryId === category.id) || [];
+                                        const eventsInCategory = scheduleEvents.filter(
+                                            (event) =>
+                                                event.categoryId === category.id &&
+                                                selectedDate &&
+                                                event.date &&
+                                                isSameDay(event.date, selectedDate)
+                                        );
                                         if (eventsInCategory.length === 0) return null;
 
                                         return (
@@ -284,9 +417,9 @@ export default function CalendarPage() {
                                                         // 🔍 Resolve full task details
                                                         let fullTask: any = null;
                                                         if (event.taskType === 'mentor') {
-                                                            fullTask = MENTOR_TASKS.find(t => t.id === event.id);
+                                                            fullTask = mentorTasks.find(t => String(t.id) === String(event.id));
                                                         } else if (event.taskType === 'user') {
-                                                            fullTask = USER_TASKS.find(t => t.id === event.id);
+                                                            fullTask = plannerTasks.find(t => String(t.id) === String(event.id));
                                                         }
 
                                                         // Default checks if fullTask is found, otherwise fallback to basic event data
@@ -353,7 +486,12 @@ export default function CalendarPage() {
                                             </div>
                                         );
                                     })}
-                                    {!WEEKLY_SCHEDULE.find(s => selectedDate && isSameDay(s.date, selectedDate))?.events.length && (
+                                    {!scheduleEvents.filter(
+                                        (event) =>
+                                            selectedDate &&
+                                            event.date &&
+                                            isSameDay(event.date, selectedDate)
+                                    ).length && (
                                         <p className="text-center text-xs text-gray-400 py-4">등록된 학습 계획이 없습니다.</p>
                                     )}
                                 </div>
@@ -366,7 +504,13 @@ export default function CalendarPage() {
                                 </h4>
                                 <div className="space-y-6">
                                     {DEFAULT_CATEGORIES.map(category => {
-                                        const feedbackInCategory = MENTOR_TASKS.filter(t => t.deadline && selectedDate && isSameDay(t.deadline, selectedDate) && t.categoryId === category.id);
+                                        const feedbackInCategory = mentorTasks.filter(
+                                            (task) =>
+                                                task.deadline &&
+                                                selectedDate &&
+                                                isSameDay(task.deadline, selectedDate) &&
+                                                task.categoryId === category.id
+                                        );
                                         if (feedbackInCategory.length === 0) return null;
 
                                         return (
@@ -408,7 +552,12 @@ export default function CalendarPage() {
                                             </div>
                                         );
                                     })}
-                                    {MENTOR_TASKS.filter(t => t.deadline && selectedDate && isSameDay(t.deadline, selectedDate)).length === 0 && (
+                                    {mentorTasks.filter(
+                                        (task) =>
+                                            task.deadline &&
+                                            selectedDate &&
+                                            isSameDay(task.deadline, selectedDate)
+                                    ).length === 0 && (
                                         <p className="text-center text-xs text-gray-400 py-4">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
                                     )}
                                 </div>
@@ -430,8 +579,9 @@ export default function CalendarPage() {
                 onClose={() => setIsPlannerModalOpen(false)}
                 date={selectedDate}
                 dailyRecord={selectedDate ? getDailyRecord(selectedDate) : null}
-                mentorDeadlines={selectedDate ? MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate)) : []}
-                dailyEvents={(selectedDate) ? (WEEKLY_SCHEDULE.find(s => selectedDate && isSameDay(s.date, selectedDate))?.events || []) : []}
+                mentorDeadlines={selectedDate ? mentorTasks.filter(task => task.deadline && isSameDay(task.deadline, selectedDate)) : []}
+                dailyEvents={(selectedDate) ? scheduleEvents.filter(event => event.date && isSameDay(event.date, selectedDate)) : []}
+                plannerTasks={plannerTasks}
             />
 
         </div>

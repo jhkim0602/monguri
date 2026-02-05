@@ -1,6 +1,10 @@
 import DailyPlannerCard from "./DailyPlannerCard";
-import { formatTime } from "@/utils/timeUtils";
-import { WEEKLY_SCHEDULE, DAILY_RECORDS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
+import type {
+    DailyRecordLike,
+    MentorTaskLike,
+    PlannerTaskLike,
+    ScheduleEventLike
+} from "@/lib/menteeAdapters";
 
 interface PlannerCollectionViewProps {
     currentDate: Date;
@@ -8,6 +12,10 @@ interface PlannerCollectionViewProps {
     isToday: (date: Date) => boolean;
     isSameDay: (d1: Date, d2: Date) => boolean;
     onDateClick: (date: Date) => void;
+    scheduleEvents: ScheduleEventLike[];
+    dailyRecords: DailyRecordLike[];
+    mentorTasks: MentorTaskLike[];
+    plannerTasks: PlannerTaskLike[];
 }
 
 export default function PlannerCollectionView({
@@ -15,11 +23,15 @@ export default function PlannerCollectionView({
     daysInMonth,
     isToday,
     isSameDay,
-    onDateClick
+    onDateClick,
+    scheduleEvents,
+    dailyRecords,
+    mentorTasks,
+    plannerTasks
 }: PlannerCollectionViewProps) {
 
     const getDailyRecord = (date: Date) => {
-         return DAILY_RECORDS.find(r => isSameDay(r.date, date));
+         return dailyRecords.find(r => r.date && isSameDay(r.date, date));
     };
 
     return (
@@ -29,9 +41,15 @@ export default function PlannerCollectionView({
                 {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                     const isTodayDate = isToday(date);
-                    const dailyEvents = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, date))?.events || [];
-                    const mentorDeadlines = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
-                    const userTasks = USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
+                    const dailyEvents = scheduleEvents.filter(
+                        (event) => event.date && isSameDay(event.date, date)
+                    );
+                    const mentorDeadlines = mentorTasks.filter(
+                        (task) => task.deadline && isSameDay(task.deadline, date)
+                    );
+                    const userTasks = plannerTasks.filter(
+                        (task) => task.deadline && isSameDay(task.deadline, date)
+                    );
                     const record = getDailyRecord(date);
 
                     return (

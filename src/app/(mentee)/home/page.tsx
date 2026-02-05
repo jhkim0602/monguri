@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 import { USER_PROFILE } from "@/constants/common";
-import { MENTOR_TASKS } from "@/constants/mentee";
 import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
@@ -11,8 +10,12 @@ import HomeTasks from "@/components/mentee/home/HomeTasks";
 import { supabase } from "@/lib/supabaseClient";
 import {
     adaptMentorTasksToUi,
+    adaptPlanEventsToUi,
+    adaptPlannerTasksToUi,
     adaptProfileToUi,
     type MentorTaskLike,
+    type PlannerTaskLike,
+    type ScheduleEventLike,
     type UiProfile
 } from "@/lib/menteeAdapters";
 
@@ -20,12 +23,65 @@ export default function Home() {
     // Default to Feb 2 2026 for demo context
     const [selectedDate, setSelectedDate] = useState(new Date(2026, 1, 2));
     const [animatedProgress, setAnimatedProgress] = useState(0);
-    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>(MENTOR_TASKS as MentorTaskLike[]);
-    const [profile, setProfile] = useState<UiProfile>(USER_PROFILE);
+    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
+    const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
+    const [planEvents, setPlanEvents] = useState<ScheduleEventLike[]>([]);
+    const [profile, setProfile] = useState<UiProfile | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const hasLoadedRef = useRef(false);
+
+    const scheduleEvents = useMemo<ScheduleEventLike[]>(() => {
+        const events: ScheduleEventLike[] = [];
+
+        mentorTasks.forEach((task) => {
+            if (!task.deadline) return;
+            events.push({
+                id: String(task.id),
+                title: task.title,
+                date: task.deadline,
+                categoryId: task.categoryId,
+                taskType: "mentor",
+            });
+        });
+
+        plannerTasks.forEach((task) => {
+            if (!task.deadline) return;
+            events.push({
+                id: String(task.id),
+                title: task.title,
+                date: task.deadline,
+                categoryId: task.categoryId,
+                taskType: "user",
+            });
+        });
+
+        planEvents.forEach((event) => {
+            if (!event.date) return;
+            events.push(event);
+        });
+
+        return events;
+    }, [mentorTasks, plannerTasks, planEvents]);
 
     const targetProgress = mentorTasks.length
         ? Math.round((mentorTasks.filter(t => t.status !== 'pending').length / mentorTasks.length) * 100)
         : 0;
+
+    const toDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getMonthRange = (date: Date) => {
+        const fromDate = new Date(date.getFullYear(), date.getMonth(), 1);
+        const toDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        return {
+            from: toDateString(fromDate),
+            to: toDateString(toDate),
+        };
+    };
 
     useEffect(() => {
         let startTime: number | null = null;
@@ -48,26 +104,54 @@ export default function Home() {
         let isMounted = true;
 
         const load = async () => {
-            const { data } = await supabase.auth.getUser();
-            const user = data?.user;
-            if (!user) return;
-
-            const [tasksRes, profileRes] = await Promise.all([
-                fetch(`/api/mentee/tasks?menteeId=${user.id}`),
-                fetch(`/api/mentee/profile?profileId=${user.id}`)
-            ]);
-
-            if (tasksRes.ok) {
-                const tasksJson = await tasksRes.json();
-                if (isMounted && Array.isArray(tasksJson.tasks)) {
-                    setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
-                }
+            if (!hasLoadedRef.current) {
+                setIsLoading(true);
             }
+            try {
+                const { data } = await supabase.auth.getUser();
+                const user = data?.user;
+                if (!user) return;
 
-            if (profileRes.ok) {
-                const profileJson = await profileRes.json();
-                if (isMounted) {
-                    setProfile(adaptProfileToUi(profileJson.profile ?? null, USER_PROFILE));
+                const { from, to } = getMonthRange(selectedDate);
+
+                const [tasksRes, profileRes, plannerRes, overviewRes] = await Promise.all([
+                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
+                    fetch(`/api/mentee/profile?profileId=${user.id}`),
+                    fetch(`/api/mentee/planner/tasks?menteeId=${user.id}&from=${from}&to=${to}`),
+                    fetch(`/api/mentee/planner/overview?menteeId=${user.id}&from=${from}&to=${to}`)
+                ]);
+
+                if (tasksRes.ok) {
+                    const tasksJson = await tasksRes.json();
+                    if (isMounted && Array.isArray(tasksJson.tasks)) {
+                        setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
+                    }
+                }
+
+                if (profileRes.ok) {
+                    const profileJson = await profileRes.json();
+                    if (isMounted) {
+                        setProfile(adaptProfileToUi(profileJson.profile ?? null, USER_PROFILE));
+                    }
+                }
+
+                if (plannerRes.ok) {
+                    const plannerJson = await plannerRes.json();
+                    if (isMounted && Array.isArray(plannerJson.tasks)) {
+                        setPlannerTasks(adaptPlannerTasksToUi(plannerJson.tasks));
+                    }
+                }
+
+                if (overviewRes.ok) {
+                    const overviewJson = await overviewRes.json();
+                    if (isMounted) {
+                        setPlanEvents(adaptPlanEventsToUi(overviewJson.scheduleEvents ?? []));
+                    }
+                }
+            } finally {
+                if (isMounted && !hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
                 }
             }
         };
@@ -77,7 +161,11 @@ export default function Home() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [selectedDate]);
+
+    if (isLoading || !profile) {
+        return <div className="min-h-screen bg-white" />;
+    }
 
     return (
         <div className="bg-white">
@@ -103,12 +191,15 @@ export default function Home() {
                 animatedProgress={animatedProgress}
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
+                mentorTasks={mentorTasks}
+                scheduleEvents={scheduleEvents}
             />
 
             <section className="px-6 mb-6">
                 <WeeklyCalendar
                     currentDate={selectedDate}
                     onDateSelect={setSelectedDate}
+                    scheduleEvents={scheduleEvents}
                 />
             </section>
 

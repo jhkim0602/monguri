@@ -12,12 +12,18 @@ import {
     Camera
 } from "lucide-react";
 import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
-import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
-import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
+import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import Header from "@/components/mentee/layout/Header";
 import PlannerTasks from "@/components/mentee/planner/PlannerTasks";
 import StudyTimeline from "@/components/mentee/planner/StudyTimeline";
+import { supabase } from "@/lib/supabaseClient";
+import {
+    adaptMentorTasksToUi,
+    adaptPlannerTasksToUi,
+    type MentorTaskLike,
+    type PlannerTaskLike
+} from "@/lib/menteeAdapters";
 
 export default function PlannerPage() {
     const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 2)); // Feb 2, 2026
@@ -58,8 +64,11 @@ export default function PlannerPage() {
     const [studyTimeBlocks, setStudyTimeBlocks] = useState<{ [key: string]: string }>({});
 
     // Unified Tasks State
-    const [tasks, setTasks] = useState<any[]>([]);
+    const [tasks, setTasks] = useState<Array<MentorTaskLike | PlannerTaskLike>>([]);
     const [newTaskTitle, setNewTaskTitle] = useState("");
+    const [menteeId, setMenteeId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const hasLoadedRef = useRef(false);
 
     // Task Detail Modal State
     const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -71,27 +80,103 @@ export default function PlannerPage() {
             date1.getFullYear() === date2.getFullYear();
     };
 
+    const toDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    };
+
+ 
+
     useEffect(() => {
-        const initialMentorTasks = MENTOR_TASKS
-            .filter(t => t.deadline && isSameDay(t.deadline, currentDate))
-            .map(t => ({
-                ...t,
-                id: String(t.id), // 🔧 ID를 string으로 표준화
-                isMentorTask: true,
-                completed: t.status === 'feedback_completed',
-                timeSpent: 0,
-                isRunning: false,
-                studyRecord: null
-            }));
+        let isMounted = true;
 
-        // ✏️ USER_TASKS를 constants에서 가져와서 사용
-        const initialUserTasks = USER_TASKS.map(t => ({
-            ...t,
-            timeSpent: 0,
-            isRunning: false
-        }));
+        const load = async () => {
+            if (!hasLoadedRef.current) {
+                setIsLoading(true);
+            }
+            try {
+                const { data } = await supabase.auth.getUser();
+                const user = data?.user;
+                if (!user) return;
 
-        setTasks([...initialMentorTasks, ...initialUserTasks]);
+                if (isMounted) {
+                    setMenteeId(user.id);
+                }
+
+                const dateStr = toDateString(currentDate);
+                const [mentorRes, plannerRes, subjectsRes] = await Promise.all([
+                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
+                    fetch(`/api/mentee/planner/tasks?menteeId=${user.id}&date=${dateStr}`),
+                    fetch(`/api/subjects`)
+                ]);
+
+                if (subjectsRes.ok) {
+                    const subjectsJson = await subjectsRes.json();
+                    if (isMounted && Array.isArray(subjectsJson.subjects) && subjectsJson.subjects.length > 0) {
+                        const nextCategories = subjectsJson.subjects.map((subject: any) => {
+                            const fallback =
+                                DEFAULT_CATEGORIES.find((cat) => cat.id === subject.slug) ??
+                                DEFAULT_CATEGORIES[0];
+                            return {
+                                id: subject.slug ?? subject.id,
+                                name: subject.name,
+                                colorHex: subject.colorHex ?? fallback.colorHex,
+                                textColorHex: subject.textColorHex ?? fallback.textColorHex,
+                            };
+                        });
+                        setCategories(nextCategories);
+                        if (!nextCategories.find((cat: any) => cat.id === selectedCategoryId)) {
+                            setSelectedCategoryId(nextCategories[0]?.id ?? DEFAULT_CATEGORIES[0].id);
+                        }
+                    }
+                }
+
+                let mentorTasksForDate: MentorTaskLike[] = [];
+                if (mentorRes.ok) {
+                    const mentorJson = await mentorRes.json();
+                    if (Array.isArray(mentorJson.tasks)) {
+                        mentorTasksForDate = adaptMentorTasksToUi(mentorJson.tasks)
+                            .filter((task) => task.deadline && isSameDay(task.deadline, currentDate))
+                            .map((task) => ({
+                                ...task,
+                                id: String(task.id),
+                                timeSpent: 0,
+                                isRunning: false,
+                                studyRecord: task.studyRecord ?? null,
+                            }));
+                    }
+                }
+
+                let plannerTasksForDate: PlannerTaskLike[] = [];
+                if (plannerRes.ok) {
+                    const plannerJson = await plannerRes.json();
+                    if (Array.isArray(plannerJson.tasks)) {
+                        plannerTasksForDate = adaptPlannerTasksToUi(plannerJson.tasks).map((task) => ({
+                            ...task,
+                            timeSpent: task.timeSpent ?? 0,
+                            isRunning: false,
+                        }));
+                    }
+                }
+
+                if (isMounted) {
+                    setTasks([...mentorTasksForDate, ...plannerTasksForDate]);
+                }
+            } finally {
+                if (isMounted && !hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
+                }
+            }
+        };
+
+        load();
+
+        return () => {
+            isMounted = false;
+        };
     }, [currentDate]);
 
     // Sync studyTimeBlocks with tasks
@@ -113,40 +198,81 @@ export default function PlannerPage() {
 
 
 
-    const addTask = () => {
+    const addTask = async () => {
         if (!newTaskTitle.trim()) return;
-        const newTask = {
-            id: String(Date.now()), // 🔧 ID를 string으로 생성
-            title: newTaskTitle,
-            categoryId: selectedCategoryId,
-            completed: false,
-            timeSpent: 0,
-            isRunning: false,
-            isMentorTask: false,
-            studyRecord: null
+
+        if (!menteeId) {
+            const newTask = {
+                id: String(Date.now()),
+                title: newTaskTitle,
+                categoryId: selectedCategoryId,
+                completed: false,
+                timeSpent: 0,
+                isRunning: false,
+                isMentorTask: false,
+                studyRecord: null,
+                deadline: currentDate
+            };
+            setTasks(prev => [...prev, newTask]);
+            setNewTaskTitle("");
+            return;
+        }
+
+        const payload = {
+            menteeId,
+            title: newTaskTitle.trim(),
+            date: toDateString(currentDate),
+            subjectSlug: selectedCategoryId || null,
         };
-        setTasks([...tasks, newTask]);
-        setNewTaskTitle("");
+
+        const response = await fetch("/api/mentee/planner/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+            const json = await response.json();
+            const createdTask = json?.task ? adaptPlannerTasksToUi([json.task])[0] : null;
+            if (createdTask) {
+                setTasks(prev => [...prev, { ...createdTask, isRunning: false }]);
+            }
+            setNewTaskTitle("");
+        }
     };
 
-    const toggleTaskCompletion = (taskId: number | string) => {
+    const toggleTaskCompletion = async (taskId: number | string) => {
         const taskIdStr = String(taskId);
+        const targetTask = tasks.find(task => String(task.id) === taskIdStr);
+        if (!targetTask || targetTask.isMentorTask) return;
+
+        const nextCompleted = !targetTask.completed;
         setTasks(prev => prev.map(task => {
             if (String(task.id) === taskIdStr) {
-                return { ...task, completed: !task.completed };
+                return { ...task, completed: nextCompleted };
             }
             return task;
         }));
+
+        if (!menteeId) return;
+
+        await fetch(`/api/mentee/planner/tasks/${taskIdStr}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                menteeId,
+                completed: nextCompleted
+            })
+        });
     };
 
     const updateTaskTimeRange = (taskId: number | string, startTime: string, endTime: string) => {
         const taskIdStr = String(taskId);
-        let targetTask: any = null;
 
         setTasks(prev => prev.map(task => {
             if (String(task.id) === taskIdStr) {
-                targetTask = { ...task, startTime, endTime };
-                return targetTask;
+                if (task.isMentorTask) return task;
+                return { ...task, startTime, endTime };
             }
             return task;
         }));
@@ -154,9 +280,18 @@ export default function PlannerPage() {
         // Auto-fill time blocks is now handled by useEffect on tasks change
     };
 
-    const deleteTask = (taskId: number | string) => {
+    const deleteTask = async (taskId: number | string) => {
         const taskIdStr = String(taskId);
+        const targetTask = tasks.find(task => String(task.id) === taskIdStr);
+        if (!targetTask || targetTask.isMentorTask) return;
+
         setTasks(prev => prev.filter(task => String(task.id) !== taskIdStr));
+
+        if (!menteeId) return;
+
+        await fetch(`/api/mentee/planner/tasks/${taskIdStr}?menteeId=${menteeId}`, {
+            method: "DELETE"
+        });
     };
 
     const handleOpenSubmission = (task: any) => {
@@ -189,6 +324,10 @@ export default function PlannerPage() {
         setIsSubmissionOpen(false);
         setSubmittingTask(null);
     };
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-gray-50" />;
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
