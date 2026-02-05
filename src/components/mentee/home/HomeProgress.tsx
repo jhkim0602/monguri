@@ -19,15 +19,8 @@ export default function HomeProgress({
     scheduleEvents
 }: HomeProgressProps) {
     const [dailyTasks, setDailyTasks] = useState<any[]>([]);
-<<<<<<< HEAD
-    const isSameDay = (date1: Date, date2: Date) => {
-        return (
-            date1.getDate() === date2.getDate() &&
-            date1.getMonth() === date2.getMonth() &&
-            date1.getFullYear() === date2.getFullYear()
-        );
-    };
-=======
+
+    // Merge: Added progressData state and SUBJECTS from sunbal
     const [progressData, setProgressData] = useState<Record<string, number>>({
         korean: 0,
         math: 0,
@@ -39,15 +32,21 @@ export default function HomeProgress({
         { id: 'math', name: '수학', color: 'text-blue-500', bg: 'bg-blue-500', ring: 'border-blue-100' },
         { id: 'english', name: '영어', color: 'text-purple-500', bg: 'bg-purple-500', ring: 'border-purple-100' },
     ];
->>>>>>> origin/sunbal
 
+    const isSameDay = (date1: Date, date2: Date) => {
+        return (
+            date1.getDate() === date2.getDate() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getFullYear() === date2.getFullYear()
+        );
+    };
+
+    // Calculate Daily Tasks for the List
     useEffect(() => {
         const eventsForDate = (scheduleEvents ?? []).filter(
             (event) =>
                 event.date &&
-                event.date.getDate() === selectedDate.getDate() &&
-                event.date.getMonth() === selectedDate.getMonth() &&
-                event.date.getFullYear() === selectedDate.getFullYear()
+                isSameDay(event.date, selectedDate)
         );
 
         if (eventsForDate.length > 0) {
@@ -80,19 +79,21 @@ export default function HomeProgress({
         }
     }, [selectedDate, mentorTasks, scheduleEvents]);
 
+    // Calculate Progress Charts from Props (HEAD Logic adapted to Sunbal UI)
     useEffect(() => {
-        // Calculate real progress from MENTOR_TASKS for the charts
         const stats: Record<string, { total: number; completed: number }> = {
             korean: { total: 0, completed: 0 },
             math: { total: 0, completed: 0 },
             english: { total: 0, completed: 0 }
         };
 
-        MENTOR_TASKS.forEach(task => {
+        // Use the passed mentorTasks prop instead of MENTOR_TASKS constant
+        mentorTasks.forEach(task => {
             const key = task.categoryId;
             if (stats[key]) {
                 stats[key].total++;
-                if (task.status !== 'pending') {
+                // Check status logic
+                if (task.status === 'submitted' || task.status === 'feedback_completed' || task.status === 'completed') {
                     stats[key].completed++;
                 }
             }
@@ -105,7 +106,7 @@ export default function HomeProgress({
         };
 
         setProgressData(newProgress);
-    }, []);
+    }, [mentorTasks]); // Updates when prop changes
 
     const handlePrevDay = () => {
         const newDate = new Date(selectedDate);
@@ -124,7 +125,6 @@ export default function HomeProgress({
         return `${date.getMonth() + 1}월 ${date.getDate()}일 (${days[date.getDay()]})`;
     };
 
-    // Helper for Donut Chart (SVG)
     const renderDonut = (percentage: number, colorClass: string) => {
         const radius = 14;
         const circumference = 2 * Math.PI * radius;
@@ -133,7 +133,6 @@ export default function HomeProgress({
         return (
             <div className="relative w-10 h-10 flex items-center justify-center">
                 <svg className="transform -rotate-90 w-full h-full">
-                    {/* Background Circle */}
                     <circle
                         cx="20"
                         cy="20"
@@ -143,7 +142,6 @@ export default function HomeProgress({
                         fill="transparent"
                         className="text-gray-100"
                     />
-                    {/* Progress Circle */}
                     <circle
                         cx="20"
                         cy="20"

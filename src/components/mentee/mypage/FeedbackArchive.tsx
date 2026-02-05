@@ -1,13 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
 import FeedbackCard from "./FeedbackCard";
 import { Search, Library, Calculator, Languages, ChevronLeft, ChevronRight, Star } from "lucide-react";
-import { MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
+import type { MentorTaskLike, PlannerTaskLike } from "@/lib/menteeAdapters";
 
 interface FeedbackArchiveProps {
+    mentorTasks: MentorTaskLike[];
+    userTasks?: PlannerTaskLike[];
     onOpenTask?: (task: any) => void;
 }
 
-export default function FeedbackArchive({ onOpenTask }: FeedbackArchiveProps) {
+export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTask }: FeedbackArchiveProps) {
     const [activeSubject, setActiveSubject] = useState("korean");
     const [openFeedbackId, setOpenFeedbackId] = useState<string | number | null>(null);
     const [starredIds, setStarredIds] = useState<string[]>([]);
@@ -54,7 +56,7 @@ export default function FeedbackArchive({ onOpenTask }: FeedbackArchiveProps) {
     // ==========================================
     const FEEDBACK_DATA = useMemo(() => {
         // 1. Filter Mentor Tasks that have feedback
-        const mentorFeedbacks = MENTOR_TASKS
+        const mentorFeedbacks = mentorTasks
             .filter(task =>
                 task.mentorFeedback &&
                 task.mentorFeedback.length > 5 &&
@@ -64,18 +66,18 @@ export default function FeedbackArchive({ onOpenTask }: FeedbackArchiveProps) {
             )
             .map(task => ({
                 id: `m-${task.id}`,
-                title: generateSimpleSummary(task.mentorFeedback),
+                title: generateSimpleSummary(task.mentorFeedback || ""),
                 taskTitle: task.title,
                 subject: task.subject,
                 subjectId: task.categoryId,
                 subjectColor: mapSubjectColor(task.categoryId),
-                date: task.deadline,
+                date: task.deadline || new Date(),
                 content: task.mentorFeedback,
                 originalTask: task, // Store full task for modal
             }));
 
         // 2. Filter User Tasks that have mentor comments
-        const userFeedbacks = USER_TASKS
+        const userFeedbacks = userTasks
             .filter(task =>
                 task.mentorComment &&
                 task.mentorComment.length > 5 &&
@@ -83,18 +85,18 @@ export default function FeedbackArchive({ onOpenTask }: FeedbackArchiveProps) {
             )
             .map(task => ({
                 id: `u-${task.id}`,
-                title: generateSimpleSummary(task.mentorComment),
+                title: generateSimpleSummary(task.mentorComment || ""),
                 taskTitle: task.title,
                 subject: getSubjectName(task.categoryId),
                 subjectId: task.categoryId,
                 subjectColor: mapSubjectColor(task.categoryId),
-                date: task.deadline,
+                date: task.deadline || new Date(),
                 content: task.mentorComment,
                 originalTask: task, // Store full task for modal
             }));
 
         return [...mentorFeedbacks, ...userFeedbacks];
-    }, []);
+    }, [mentorTasks, userTasks]);
 
     // 1. Filter by Subject
     let processedFeedbacks = FEEDBACK_DATA.filter(f => f.subjectId === activeSubject || showStarredOnly);
@@ -204,7 +206,8 @@ export default function FeedbackArchive({ onOpenTask }: FeedbackArchiveProps) {
                             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${isSelected
                                 ? `bg-${subject.color}-50 text-${subject.color}-600`
                                 : 'bg-gray-200 text-gray-400'
-                                }`}>
+                                }`}
+                            >
                                 {count}
                             </span>
                         </button>
