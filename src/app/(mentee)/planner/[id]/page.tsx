@@ -68,7 +68,7 @@ export default function TaskDetailPage() {
                 submissions: [],
                 mentorComment: "",
                 feedbackFiles: [],
-                isMentorTask: scheduleEvent.isMentorTask ?? scheduleEvent.taskType === "mentor",
+                isMentorTask: scheduleEvent.taskType === "mentor",
                 completed: false,
                 studyRecord: null,
                 userQuestion: undefined,

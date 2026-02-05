@@ -361,7 +361,7 @@ export default function FeedbackPage() {
                 </button>
                 <div className="flex items-center gap-3">
                   <span
-                    className={`p-2 rounded-lg 
+                    className={`p-2 rounded-lg
                                 ${
                                   selectedItem.type === "question"
                                     ? "bg-orange-100 text-orange-600"
@@ -438,7 +438,7 @@ export default function FeedbackPage() {
                                 mentorDeadlines={props.mentorDeadlines}
                                 userTasks={props.userTasks}
                                 dailyEvents={props.dailyEvents}
-                                dailyReview={publishedFeedback ?? undefined} // Only show if published
+                                mentorReview={publishedFeedback ?? undefined} // Only show if published
                                 studyTimeBlocks={props.studyTimeBlocks}
                                 onClick={() =>
                                   handleExpandPlan(selectedItem.date)
@@ -649,7 +649,7 @@ export default function FeedbackPage() {
           mentorDeadlines={expandedPlanData.mentorDeadlines}
           userTasks={expandedPlanData.userTasks}
           dailyEvents={expandedPlanData.dailyEvents}
-          dailyReview={publishedFeedback ?? undefined}
+          mentorReview={publishedFeedback ?? undefined}
         />
       )}
     </div>

@@ -727,7 +727,7 @@ export default function StudentDetailPage({
                 mentorDeadlines={mentorDeadlines}
                 dailyEvents={dailyEvents}
                 userTasks={userTasksRaw}
-                dailyReview={dailyReview} // Pass state
+                mentorReview={dailyReview} // Pass state
                 onEditReview={() => {
                   // close planner modal? No, input modal should stack or planner modal stay open underneath.
                   // ModalContext might handle stacking, or replace.

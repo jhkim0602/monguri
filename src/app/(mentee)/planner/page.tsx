@@ -99,12 +99,12 @@ export default function PlannerPage() {
                     completed: false,
                     timeSpent: 0,
                     isRunning: false,
-                    isMentorTask: event.isMentorTask ?? false,
+                    isMentorTask: event.taskType === "mentor",
                     studyRecord: null,
                     isCustomEvent: true,
                     taskType: "plan",
-                    startTime: event.startTime || "00:00",
-                    endTime: event.endTime || "00:00"
+                    startTime: "00:00",
+                    endTime: "00:00"
                 };
             });
         };

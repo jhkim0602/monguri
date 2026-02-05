@@ -66,10 +66,10 @@ export const MOCK_MENTOR_TASKS: MentorTask[] = MOCK_MENTEES.flatMap(
       subject: task.subject,
       title: task.title,
       description: task.description,
-      status: task.status,
+      status: task.status as any,
       deadline: task.deadline,
-      startTime: task.startTime,
-      endTime: task.endTime,
+      startTime: (task as any).startTime || "00:00",
+      endTime: (task as any).endTime || "00:00",
       hasMentorResponse: task.hasMentorResponse,
       mentorComment: task.mentorComment ?? "",
     })),
@@ -94,9 +94,9 @@ export const MOCK_WEEKLY_SCHEDULE: CalendarDaySummary[] = MOCK_MENTEES.flatMap(
         title: event.title,
         categoryId: event.categoryId,
         taskType: event.taskType,
-        startTime: event.startTime,
-        endTime: event.endTime,
-        isMentorTask: event.isMentorTask ?? event.taskType === "mentor",
+        startTime: (event as any).startTime || "00:00", // Cast to any because original type might not have it
+        endTime: (event as any).endTime || "00:00",
+        isMentorTask: event.taskType === "mentor", // Removed non-existent property access
       })),
     })),
 );

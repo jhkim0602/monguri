@@ -93,9 +93,9 @@ export default function FeedbackCollectionPage() {
                 title: event.title,
                 categoryId: event.categoryId,
                 taskType: "plan",
-                startTime: event.startTime,
-                endTime: event.endTime,
-                isMentorTask: event.isMentorTask ?? false,
+                startTime: "00:00",
+                endTime: "00:00",
+                isMentorTask: event.taskType === "mentor",
                 isCustomEvent: true
             }));
     };

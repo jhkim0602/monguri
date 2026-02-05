@@ -9,6 +9,7 @@ interface DailyPlannerCardProps {
     userTasks: any[];
     dailyEvents: any[];
     studyTimeBlocks: { [key: string]: string };
+    mentorReview?: string;
     onClick?: () => void;
     fill?: boolean;
     fillScale?: number;
@@ -22,6 +23,7 @@ export default function DailyPlannerCard({
     mentorDeadlines = [],
     userTasks = [],
     dailyEvents = [],
+    mentorReview,
     onClick,
     fill = false,
     fillScale,
@@ -30,6 +32,9 @@ export default function DailyPlannerCard({
     const sizeClass = fill ? "h-full" : "aspect-[3/5]";
     const scale = fill ? (fillScale ?? 0.34) : 0.28;
     const scaledSize = fill ? `${100 / scale}%` : undefined;
+
+    const derivedReview = mentorReview || dailyEvents.find((e: any) => e.taskType === "daily_review")?.comment || dailyEvents.find((e: any) => e.kind === "daily_review")?.comment;
+
     return (
         <div
             onClick={onClick}
@@ -50,7 +55,7 @@ export default function DailyPlannerCard({
                         mentorDeadlines={mentorDeadlines}
                         userTasks={userTasks}
                         dailyEvents={dailyEvents}
-                        mentorReview={dailyEvents.find((e: any) => e.taskType === "daily_review")?.comment || dailyEvents.find((e: any) => e.kind === "daily_review")?.comment}
+                        mentorReview={derivedReview}
                         size="mini"
                         showHeader={false}
                     />
@@ -64,7 +69,7 @@ export default function DailyPlannerCard({
                         mentorDeadlines={mentorDeadlines}
                         userTasks={userTasks}
                         dailyEvents={dailyEvents}
-                        mentorReview={dailyEvents.find((e: any) => e.taskType === "daily_review")?.comment || dailyEvents.find((e: any) => e.kind === "daily_review")?.comment}
+                        mentorReview={derivedReview}
                         size="page"
                     />
                 </div>
