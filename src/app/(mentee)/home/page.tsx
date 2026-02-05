@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 
-import { USER_PROFILE } from "@/constants/common";
 import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
@@ -131,7 +130,7 @@ export default function Home() {
                 if (profileRes.ok) {
                     const profileJson = await profileRes.json();
                     if (isMounted) {
-                        setProfile(adaptProfileToUi(profileJson.profile ?? null, USER_PROFILE));
+                        setProfile(adaptProfileToUi(profileJson.profile ?? null));
                     }
                 }
 
@@ -175,7 +174,10 @@ export default function Home() {
             <section className="px-6 flex justify-between items-start mb-6">
                 <div>
                     <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-semibold mb-2">
-                        {profile.role} <span className="ml-1 text-primary">D-{profile.dDay}</span>
+                        {profile.role}
+                        {typeof profile.dDay === "number" ? (
+                            <span className="ml-1 text-primary">D-{profile.dDay}</span>
+                        ) : null}
                     </span>
                     <h2 className="text-xl font-bold leading-tight">
                         {profile.name}님, <br />

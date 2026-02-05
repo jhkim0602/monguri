@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import Link from "next/link";
-import { MENTOR_TASKS, WEEKLY_SCHEDULE } from "@/constants/mentee";
 import type { MentorTaskLike, ScheduleEventLike } from "@/lib/menteeAdapters";
 
 interface HomeProgressProps {
@@ -16,7 +15,7 @@ export default function HomeProgress({
     animatedProgress,
     selectedDate,
     onDateChange,
-    mentorTasks = MENTOR_TASKS as MentorTaskLike[],
+    mentorTasks = [],
     scheduleEvents
 }: HomeProgressProps) {
     const [dailyTasks, setDailyTasks] = useState<any[]>([]);
@@ -29,22 +28,13 @@ export default function HomeProgress({
     };
 
     useEffect(() => {
-        const fallbackEvents =
-            WEEKLY_SCHEDULE.find(
-                (s) =>
-                    s.date.getDate() === selectedDate.getDate() &&
-                    s.date.getMonth() === selectedDate.getMonth() &&
-                    s.date.getFullYear() === selectedDate.getFullYear()
-            )?.events ?? [];
-        const eventsForDate = scheduleEvents
-            ? scheduleEvents.filter(
-                (event) =>
-                    event.date &&
-                    event.date.getDate() === selectedDate.getDate() &&
-                    event.date.getMonth() === selectedDate.getMonth() &&
-                    event.date.getFullYear() === selectedDate.getFullYear()
-            )
-            : fallbackEvents;
+        const eventsForDate = (scheduleEvents ?? []).filter(
+            (event) =>
+                event.date &&
+                event.date.getDate() === selectedDate.getDate() &&
+                event.date.getMonth() === selectedDate.getMonth() &&
+                event.date.getFullYear() === selectedDate.getFullYear()
+        );
 
         if (eventsForDate.length > 0) {
             const mentorEvents = eventsForDate.filter(

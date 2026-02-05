@@ -20,15 +20,12 @@ import {
     Calculator,
     Languages
 } from "lucide-react";
-import { USER_PROFILE } from "@/constants/common";
-import { MENTOR_TASKS } from "@/constants/mentee";
 import Header from "@/components/mentee/layout/Header";
 import { supabase } from "@/lib/supabaseClient";
 import {
     adaptMentorTasksToUi,
     adaptProfileToUi,
     type MentorTaskLike,
-    type UiProfile
 } from "@/lib/menteeAdapters";
 
 export default function MyPage() {
@@ -36,10 +33,12 @@ export default function MyPage() {
 
     // Profile Edit States
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [profileName, setProfileName] = useState(USER_PROFILE.name);
+    const [profileName, setProfileName] = useState("");
     const [profileIntro, setProfileIntro] = useState("서울대학교 입학을 목표로 열공 중 ✨");
-    const [profileAvatar, setProfileAvatar] = useState(USER_PROFILE.avatar);
-    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>(MENTOR_TASKS as MentorTaskLike[]);
+    const [profileAvatar, setProfileAvatar] = useState("");
+    const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const hasLoadedRef = useRef(false);
 
     // Achievement Detail State
     const [selectedStatSubject, setSelectedStatSubject] = useState<string>('korean');
@@ -52,33 +51,42 @@ export default function MyPage() {
         let isMounted = true;
 
         const load = async () => {
-            const { data } = await supabase.auth.getUser();
-            const user = data?.user;
-            if (!user) return;
-
-            const [tasksRes, profileRes] = await Promise.all([
-                fetch(`/api/mentee/tasks?menteeId=${user.id}`),
-                fetch(`/api/mentee/profile?profileId=${user.id}`)
-            ]);
-
-            if (tasksRes.ok) {
-                const tasksJson = await tasksRes.json();
-                if (isMounted && Array.isArray(tasksJson.tasks)) {
-                    setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
-                }
+            if (!hasLoadedRef.current) {
+                setIsLoading(true);
             }
+            try {
+                const { data } = await supabase.auth.getUser();
+                const user = data?.user;
+                if (!user) return;
 
-            if (profileRes.ok) {
-                const profileJson = await profileRes.json();
-                const fallbackProfile: UiProfile = USER_PROFILE;
-                const nextProfile = adaptProfileToUi(profileJson.profile ?? null, fallbackProfile);
-                if (isMounted) {
-                    setProfileName(nextProfile.name);
-                    setProfileAvatar(nextProfile.avatar);
-                    if (!isEditModalOpen) {
-                        setTempName(nextProfile.name);
-                        setTempAvatar(nextProfile.avatar);
+                const [tasksRes, profileRes] = await Promise.all([
+                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
+                    fetch(`/api/mentee/profile?profileId=${user.id}`)
+                ]);
+
+                if (tasksRes.ok) {
+                    const tasksJson = await tasksRes.json();
+                    if (isMounted && Array.isArray(tasksJson.tasks)) {
+                        setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
                     }
+                }
+
+                if (profileRes.ok) {
+                    const profileJson = await profileRes.json();
+                    const nextProfile = adaptProfileToUi(profileJson.profile ?? null);
+                    if (isMounted && nextProfile) {
+                        setProfileName(nextProfile.name);
+                        setProfileAvatar(nextProfile.avatar);
+                        if (!isEditModalOpen) {
+                            setTempName(nextProfile.name);
+                            setTempAvatar(nextProfile.avatar);
+                        }
+                    }
+                }
+            } finally {
+                if (isMounted && !hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
                 }
             }
         };
@@ -89,6 +97,15 @@ export default function MyPage() {
             isMounted = false;
         };
     }, [isEditModalOpen]);
+
+    // Temp states for modal
+    const [tempName, setTempName] = useState(profileName);
+    const [tempIntro, setTempIntro] = useState(profileIntro);
+    const [tempAvatar, setTempAvatar] = useState(profileAvatar);
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-gray-50" />;
+    }
 
     // Filter Tasks based on period
     const getFilteredTasks = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
@@ -121,11 +138,6 @@ export default function MyPage() {
         const completed = subjectTasks.filter(t => t.status !== 'pending').length;
         return Math.round((completed / subjectTasks.length) * 100);
     };
-
-    // Temp states for modal
-    const [tempName, setTempName] = useState(profileName);
-    const [tempIntro, setTempIntro] = useState(profileIntro);
-    const [tempAvatar, setTempAvatar] = useState(profileAvatar);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

@@ -1,7 +1,6 @@
 "use client";
 
 import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { WEEKLY_SCHEDULE } from "@/constants/mentee";
 import type { ScheduleEventLike } from "@/lib/menteeAdapters";
 
 interface WeeklyCalendarProps {
@@ -48,11 +47,9 @@ export default function WeeklyCalendar({
 
     // Helper to get meaningful keywords for a day
     const getDailyKeywords = (date: Date) => {
-        const fallbackEvents =
-            WEEKLY_SCHEDULE.find((s) => isSameDay(s.date, date))?.events ?? [];
-        const eventsForDate = scheduleEvents
-            ? scheduleEvents.filter((event) => event.date && isSameDay(event.date, date))
-            : fallbackEvents;
+        const eventsForDate = (scheduleEvents ?? []).filter(
+            (event) => event.date && isSameDay(event.date, date)
+        );
 
         // 2. Extract keywords from mentor tasks first, then plan tasks
         // We'll prioritize Mentor Tasks titles

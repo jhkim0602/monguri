@@ -267,19 +267,19 @@ type ApiProfile = {
 export type UiProfile = {
   name: string;
   role: string;
-  dDay: number;
+  dDay: number | null;
   avatar: string;
 };
 
 export function adaptProfileToUi(
-  profile: ApiProfile | null,
-  fallback: UiProfile
-): UiProfile {
-  if (!profile) return fallback;
+  profile: ApiProfile | null
+): UiProfile | null {
+  if (!profile) return null;
 
   return {
-    ...fallback,
-    name: profile.name ?? fallback.name,
-    avatar: profile.avatar_url ?? fallback.avatar,
+    name: profile.name ?? "",
+    role: profile.role,
+    dDay: null,
+    avatar: profile.avatar_url ?? "",
   };
 }
