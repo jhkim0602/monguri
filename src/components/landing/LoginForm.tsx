@@ -12,7 +12,7 @@ export default function LoginForm() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (id.startsWith("admin") || id.startsWith("mentor")) {
-      router.push("/mentor");
+      router.push("/dashboard");
     } else {
       router.push("/home");
     }
@@ -22,12 +22,16 @@ export default function LoginForm() {
     <div className="w-full max-w-sm bg-white/80 backdrop-blur-md p-8 rounded-[32px] border border-white/50 shadow-xl">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-black text-gray-900 mb-2">시작하기</h2>
-        <p className="text-sm text-gray-500 font-medium">멘토와 멘티, 성장을 위한 연결</p>
+        <p className="text-sm text-gray-500 font-medium">
+          멘토와 멘티, 성장을 위한 연결
+        </p>
       </div>
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">아이디</label>
+          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">
+            아이디
+          </label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
               <User size={18} />
@@ -43,7 +47,9 @@ export default function LoginForm() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">비밀번호</label>
+          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">
+            비밀번호
+          </label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
               <Lock size={18} />
@@ -68,22 +74,33 @@ export default function LoginForm() {
       </form>
 
       <div className="mt-8 pt-6 border-t border-gray-100">
-        <p className="text-[10px] font-bold text-gray-400 text-center mb-3">체험용 계정 (클릭 시 자동 입력)</p>
+        <p className="text-[10px] font-bold text-gray-400 text-center mb-3">
+          체험용 계정 (클릭 시 자동 입력)
+        </p>
         <div className="flex gap-2 justify-center">
           <button
-            onClick={() => { setId("mentor1"); setPassword("password"); }}
+            onClick={() => {
+              setId("mentor1");
+              setPassword("password");
+            }}
             className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-[10px] font-bold hover:bg-purple-100 transition-colors border border-purple-100"
           >
             Mentor 1
           </button>
           <button
-            onClick={() => { setId("mentee1"); setPassword("password"); }}
+            onClick={() => {
+              setId("mentee1");
+              setPassword("password");
+            }}
             className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition-colors border border-blue-100"
           >
             Mentee 1
           </button>
           <button
-            onClick={() => { setId("mentee2"); setPassword("password"); }}
+            onClick={() => {
+              setId("mentee2");
+              setPassword("password");
+            }}
             className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition-colors border border-blue-100"
           >
             Mentee 2
@@ -93,7 +110,10 @@ export default function LoginForm() {
 
       <div className="mt-6 text-center">
         <p className="text-xs text-gray-400">
-          계정이 없으신가요? <span className="text-blue-500 font-bold cursor-pointer hover:underline">회원가입</span>
+          계정이 없으신가요?{" "}
+          <span className="text-blue-500 font-bold cursor-pointer hover:underline">
+            회원가입
+          </span>
         </p>
       </div>
     </div>

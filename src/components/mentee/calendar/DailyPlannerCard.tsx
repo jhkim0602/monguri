@@ -50,6 +50,7 @@ export default function DailyPlannerCard({
                         mentorDeadlines={mentorDeadlines}
                         userTasks={userTasks}
                         dailyEvents={dailyEvents}
+                        mentorReview={dailyEvents.find((e: any) => e.taskType === "daily_review")?.comment || dailyEvents.find((e: any) => e.kind === "daily_review")?.comment}
                         size="mini"
                         showHeader={false}
                     />
@@ -63,6 +64,7 @@ export default function DailyPlannerCard({
                         mentorDeadlines={mentorDeadlines}
                         userTasks={userTasks}
                         dailyEvents={dailyEvents}
+                        mentorReview={dailyEvents.find((e: any) => e.taskType === "daily_review")?.comment || dailyEvents.find((e: any) => e.kind === "daily_review")?.comment}
                         size="page"
                     />
                 </div>

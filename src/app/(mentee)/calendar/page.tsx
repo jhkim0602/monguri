@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { DAILY_RECORDS, WEEKLY_SCHEDULE, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
+import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
+import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import Header from "@/components/mentee/layout/Header";
 
 type MeetingStatus = "requested" | "scheduled" | "completed";
@@ -25,21 +26,21 @@ type MeetingRecord = {
 };
 
 export default function CalendarPage() {
-    const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+    const [selectedTask, setSelectedTask] = useState<any>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([]);
 
     const [customEvents, setCustomEvents] = useState<
-        { id: string; title: string; categoryId: string; taskType: string; date: string; startTime?: string; endTime?: string; isMentorTask?: boolean }[]
+        { id: string; title: string; categoryId: string; taskType: string; date: string }[]
     >([]);
     const [eventTitle, setEventTitle] = useState("");
     const [eventCategoryId, setEventCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
     const [eventDate, setEventDate] = useState("");
-    const [eventStartTime, setEventStartTime] = useState("00:00");
-    const [eventEndTime, setEventEndTime] = useState("00:00");
     const [recurrenceType, setRecurrenceType] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
     const [repeatDays, setRepeatDays] = useState<number[]>([1]);
     const [repeatStart, setRepeatStart] = useState("");
@@ -48,25 +49,6 @@ export default function CalendarPage() {
 
     const EVENTS_STORAGE_KEY = "mentee-calendar-events";
     const MEETING_STORAGE_KEY = "mentor-meeting-records";
-    const PLANNER_TASKS_KEY = "planner-day-tasks";
-
-    const [conflictInfo, setConflictInfo] = useState<{
-        dates: Array<{
-            date: string;
-            overlaps: Array<{ id: string; title: string; label: string; isRemovable: boolean }>;
-            removableIds: string[];
-        }>;
-        pendingEvents: Array<{
-            id: string;
-            title: string;
-            categoryId: string;
-            taskType: string;
-            date: string;
-            startTime?: string;
-            endTime?: string;
-            isMentorTask?: boolean;
-        }>;
-    } | null>(null);
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -102,25 +84,6 @@ export default function CalendarPage() {
         const [year, month, day] = value.split("-").map(Number);
         return new Date(year, month - 1, day);
     };
-
-    const parseTimeToMinutes = (value?: string) => {
-        if (!value) return null;
-        const [h, m] = value.split(":").map(Number);
-        if (Number.isNaN(h) || Number.isNaN(m)) return null;
-        return h * 60 + m;
-    };
-
-    const getValidRange = (start?: string, end?: string) => {
-        const startMin = parseTimeToMinutes(start);
-        const endMin = parseTimeToMinutes(end);
-        if (startMin === null || endMin === null) return null;
-        if (startMin === endMin) return null;
-        if (endMin < startMin) return null;
-        return { startMin, endMin };
-    };
-
-    const rangesOverlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) =>
-        aStart < bEnd && bStart < aEnd;
     const addDays = (date: Date, days: number) =>
         new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
     const parseMeetingRecord = (record: any): MeetingRecord => ({
@@ -178,9 +141,6 @@ export default function CalendarPage() {
                 title: event.title,
                 categoryId: event.categoryId,
                 taskType: event.taskType || "plan",
-                startTime: event.startTime,
-                endTime: event.endTime,
-                isMentorTask: event.isMentorTask ?? false,
                 isCustom: true,
             }));
     };
@@ -199,219 +159,19 @@ export default function CalendarPage() {
         }
     };
 
-    const buildPlanTaskFromEvent = (event: {
-        id: string;
-        title: string;
-        categoryId: string;
-        date: string;
-        startTime?: string;
-        endTime?: string;
-        isMentorTask?: boolean;
-    }) => {
-        const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
-        return {
-            id: String(event.id),
-            title: event.title,
-            categoryId: event.categoryId,
-            description: "캘린더에서 추가한 반복 일정",
-            status: "pending",
-            badgeColor: `${category.color} ${category.textColor}`,
-            completed: false,
-            timeSpent: 0,
-            isRunning: false,
-            isMentorTask: event.isMentorTask ?? false,
-            studyRecord: null,
-            isCustomEvent: true,
-            taskType: "plan",
-            startTime: event.startTime || "00:00",
-            endTime: event.endTime || "00:00"
-        };
-    };
-
-    const updatePlannerTasksWithEvents = (
-        events: Array<{
-            id: string;
-            title: string;
-            categoryId: string;
-            date: string;
-            startTime?: string;
-            endTime?: string;
-            isMentorTask?: boolean;
-        }>,
-        removeIds: string[] = []
-    ) => {
-        if (typeof window === "undefined") return;
-        const raw = localStorage.getItem(PLANNER_TASKS_KEY);
-        let data: Record<string, any[]> = {};
-        if (raw) {
-            try {
-                data = JSON.parse(raw);
-            } catch {
-                data = {};
-            }
-        }
-
-        if (removeIds.length > 0) {
-            Object.keys(data).forEach((key) => {
-                data[key] = (data[key] || []).filter((task) => !removeIds.includes(String(task.id)));
-            });
-        }
-
-        events.forEach((event) => {
-            const key = event.date;
-            const tasks = Array.isArray(data[key]) ? data[key] : [];
-            const exists = tasks.some((task) => String(task.id) === String(event.id));
-            if (!exists) {
-                tasks.push(buildPlanTaskFromEvent(event));
-                data[key] = tasks;
-            }
-        });
-
-        localStorage.setItem(PLANNER_TASKS_KEY, JSON.stringify(data));
-    };
-
-    const getPlanTasksFromSchedule = (date: Date) => {
-        const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, date));
-        const baseEvents = schedule ? schedule.events : [];
-        return baseEvents
-            .filter((event) => event.taskType === "plan")
-            .map((event) => ({
-                id: `plan-${event.id}`,
-                title: event.title,
-                categoryId: event.categoryId,
-                taskType: "plan",
-                startTime: event.startTime,
-                endTime: event.endTime,
-                isMentorTask: event.isMentorTask ?? false,
-                isCustomEvent: true,
-            }));
-    };
-
-    const getConflictCandidatesForDate = (date: Date) => {
+    const getDailyEvents = (date: Date) => {
         const plannerTasks = getPlannerTasksForDate(date);
         if (plannerTasks && plannerTasks.length > 0) {
-            const base = plannerTasks.map((task) => ({
-                id: String(task.id),
+            return plannerTasks.map((task) => ({
+                id: task.id,
                 title: task.title,
                 categoryId: task.categoryId,
-                taskType: task.taskType ?? (task.isMentorTask ? "mentor" : "user"),
-                startTime: task.startTime,
-                endTime: task.endTime,
-                isMentorTask: task.isMentorTask ?? false,
-                isCustomEvent: task.isCustomEvent ?? false
+                taskType: task.isMentorTask ? "mentor" : "user",
             }));
-            const custom = getCustomEventsForDate(date).map((event) => ({
-                id: String(event.id),
-                title: event.title,
-                categoryId: event.categoryId,
-                taskType: "plan",
-                startTime: event.startTime,
-                endTime: event.endTime,
-                isMentorTask: event.isMentorTask ?? false,
-                isCustomEvent: true
-            }));
-            const existingIds = new Set(base.map((item) => item.id));
-            custom.forEach((item) => {
-                if (!existingIds.has(item.id)) {
-                    base.push(item);
-                }
-            });
-            return base;
         }
-
-        const mentorTasks = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date)).map((task) => ({
-            id: `mentor-${task.id}`,
-            title: task.title,
-            categoryId: task.categoryId,
-            taskType: "mentor",
-            startTime: task.startTime,
-            endTime: task.endTime,
-            isMentorTask: true,
-            isCustomEvent: false
-        }));
-        const userTasks = USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date)).map((task) => ({
-            id: `user-${task.id}`,
-            title: task.title,
-            categoryId: task.categoryId,
-            taskType: "user",
-            startTime: task.startTime,
-            endTime: task.endTime,
-            isMentorTask: false,
-            isCustomEvent: false
-        }));
-        const planTasks = getPlanTasksFromSchedule(date).map((task) => ({
-            id: String(task.id),
-            title: task.title,
-            categoryId: task.categoryId,
-            taskType: "plan",
-            startTime: task.startTime,
-            endTime: task.endTime,
-            isMentorTask: task.isMentorTask ?? false,
-            isCustomEvent: false
-        }));
-        const custom = getCustomEventsForDate(date).map((event) => ({
-            id: String(event.id),
-            title: event.title,
-            categoryId: event.categoryId,
-            taskType: "plan",
-            startTime: event.startTime,
-            endTime: event.endTime,
-            isMentorTask: event.isMentorTask ?? false,
-            isCustomEvent: true
-        }));
-        return [...mentorTasks, ...userTasks, ...planTasks, ...custom];
-    };
-
-    const resolveTasksForDate = (date: Date) => {
-        const plannerTasks = getPlannerTasksForDate(date);
-        if (plannerTasks && plannerTasks.length > 0) {
-            const mentorTasks = plannerTasks.filter((task) => task.isMentorTask && task.taskType !== "plan");
-            const planTasks = plannerTasks.filter((task) => task.taskType === "plan");
-            const userTasks = plannerTasks.filter((task) => !task.isMentorTask && task.taskType !== "plan");
-            return { mentorTasks, userTasks, planTasks };
-        }
-
-        const mentorTasks = MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
-        const userTasks = USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
-        const planTasks = [
-            ...getPlanTasksFromSchedule(date),
-            ...getCustomEventsForDate(date).map((event) => ({
-                id: String(event.id),
-                title: event.title,
-                categoryId: event.categoryId,
-                taskType: "plan",
-                startTime: event.startTime,
-                endTime: event.endTime,
-                isMentorTask: event.isMentorTask ?? false,
-                isCustomEvent: true,
-            }))
-        ];
-        return { mentorTasks, userTasks, planTasks };
-    };
-
-    const getDailyEvents = (date: Date) => {
-        const { mentorTasks, userTasks, planTasks } = resolveTasksForDate(date);
-        return [
-            ...mentorTasks.map((task) => ({
-                ...task,
-                taskType: "mentor",
-                startTime: task.startTime,
-                endTime: task.endTime,
-            })),
-            ...userTasks.map((task) => ({
-                ...task,
-                taskType: "user",
-                startTime: task.startTime,
-                endTime: task.endTime,
-            })),
-            ...planTasks.map((task) => ({
-                ...task,
-                taskType: "plan",
-                startTime: task.startTime,
-                endTime: task.endTime,
-                isMentorTask: task.isMentorTask ?? false,
-            })),
-        ];
+        const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, date));
+        const baseEvents = schedule ? schedule.events : [];
+        return [...baseEvents, ...getCustomEventsForDate(date)];
     };
 
     const getDailyRecord = (day: number | Date) => {
@@ -451,17 +211,17 @@ export default function CalendarPage() {
             ? new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
             : day;
 
-        if (viewMode === 'week') {
-            router.push(`/mypage/feedbacks?date=${formatDateInput(date)}`);
-            return;
-        }
-
         setSelectedDate(date);
+
+        // If in Planner Collection View, open the detail modal
+        if (viewMode === 'week') {
+            setIsPlannerModalOpen(true);
+        }
     };
 
-    const navigateToTask = (taskId?: string | number) => {
-        if (!taskId) return;
-        router.push(`/planner/${taskId}`);
+    const openTaskDetail = (task: any) => {
+        setSelectedTask(task);
+        setIsModalOpen(true);
     };
 
     const openAddModal = (date?: Date) => {
@@ -470,8 +230,6 @@ export default function CalendarPage() {
         setEventTitle("");
         setEventCategoryId(DEFAULT_CATEGORIES[0].id);
         setEventDate(baseValue);
-        setEventStartTime("00:00");
-        setEventEndTime("00:00");
         setRepeatStart(baseValue);
         setRepeatEnd(formatDateInput(addDays(baseDate, 28)));
         setRepeatDays([baseDate.getDay()]);
@@ -528,97 +286,25 @@ export default function CalendarPage() {
             categoryId: eventCategoryId,
             taskType: "plan",
             date: formatDateInput(date),
-            startTime: eventStartTime || "00:00",
-            endTime: eventEndTime || "00:00",
-            isMentorTask: false,
         }));
 
-        const conflictsByDate: Array<{
-            date: string;
-            overlaps: Array<{ id: string; title: string; label: string; isRemovable: boolean }>;
-            removableIds: string[];
-        }> = [];
-
-        newEvents.forEach((event) => {
-            const range = getValidRange(event.startTime, event.endTime);
-            if (!range) return;
-            const date = parseDateInput(event.date);
-            const candidates = getConflictCandidatesForDate(date);
-            const overlaps = candidates
-                .map((candidate) => {
-                    const candidateRange = getValidRange(candidate.startTime, candidate.endTime);
-                    if (!candidateRange) return null;
-                    if (!rangesOverlap(range.startMin, range.endMin, candidateRange.startMin, candidateRange.endMin)) return null;
-                    let label = "일정";
-                    if (candidate.taskType === "mentor") label = "멘토 과제";
-                    else if (candidate.taskType === "user") label = "나의 과제";
-                    else if (candidate.taskType === "plan" && candidate.isMentorTask) label = "멘토 반복 일정";
-                    else if (candidate.taskType === "plan") label = "반복 일정";
-
-                    const isRemovable = candidate.taskType === "plan" && candidate.isCustomEvent && !candidate.isMentorTask;
-                    return {
-                        id: String(candidate.id),
-                        title: candidate.title,
-                        label,
-                        isRemovable
-                    };
-                })
-                .filter(Boolean) as Array<{ id: string; title: string; label: string; isRemovable: boolean }>;
-
-            if (overlaps.length > 0) {
-                const removableIds = overlaps.filter((item) => item.isRemovable).map((item) => item.id);
-                const existing = conflictsByDate.find((entry) => entry.date === event.date);
-                if (existing) {
-                    const mergedOverlaps = [...existing.overlaps];
-                    overlaps.forEach((item) => {
-                        if (!mergedOverlaps.find((existingItem) => existingItem.id === item.id && existingItem.label === item.label)) {
-                            mergedOverlaps.push(item);
-                        }
-                    });
-                    existing.overlaps = mergedOverlaps;
-                    existing.removableIds = Array.from(new Set([...existing.removableIds, ...removableIds]));
-                } else {
-                    conflictsByDate.push({
-                        date: event.date,
-                        overlaps,
-                        removableIds
-                    });
-                }
-            }
-        });
-
-        if (conflictsByDate.length > 0) {
-            setConflictInfo({ dates: conflictsByDate, pendingEvents: newEvents });
-            return;
-        }
-
         setCustomEvents((prev) => [...prev, ...newEvents]);
-        updatePlannerTasksWithEvents(newEvents);
         setIsAddModalOpen(false);
     };
 
     const currentStreak = 12;
 
-    const handleConflictCancel = () => {
-        setConflictInfo(null);
-    };
-
-    const handleConflictReplace = () => {
-        if (!conflictInfo) return;
-        const removableIds = Array.from(new Set(conflictInfo.dates.flatMap((entry) => entry.removableIds)));
-        setCustomEvents((prev) => prev.filter((event) => !removableIds.includes(String(event.id))).concat(conflictInfo.pendingEvents));
-        updatePlannerTasksWithEvents(conflictInfo.pendingEvents, removableIds);
-        setConflictInfo(null);
-        setIsAddModalOpen(false);
-    };
-
-    const handleConflictAdd = () => {
-        if (!conflictInfo) return;
-        setCustomEvents((prev) => prev.concat(conflictInfo.pendingEvents));
-        updatePlannerTasksWithEvents(conflictInfo.pendingEvents);
-        setConflictInfo(null);
-        setIsAddModalOpen(false);
-    };
+    const selectedPlannerTasks = selectedDate ? getPlannerTasksForDate(selectedDate) : null;
+    const mentorDeadlinesForSelected = selectedPlannerTasks && selectedPlannerTasks.length > 0
+        ? selectedPlannerTasks.filter((task) => task.isMentorTask)
+        : selectedDate
+            ? MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate))
+            : [];
+    const userTasksForSelected = selectedPlannerTasks && selectedPlannerTasks.length > 0
+        ? selectedPlannerTasks.filter((task) => !task.isMentorTask)
+        : selectedDate
+            ? USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate))
+            : [];
 
     // Generate month calendar grid
     const calendarDays = [];
@@ -635,7 +321,15 @@ export default function CalendarPage() {
             <Header
                 title="인사이트 캘린더"
                 variant="clean"
-
+                rightElement={
+                    <button
+                        onClick={() => openAddModal(selectedDate || new Date())}
+                        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-primary/20 hover:scale-105 active:scale-95"
+                    >
+                        <Plus size={16} strokeWidth={3} />
+                        <span className="text-sm font-bold">추가</span>
+                    </button>
+                }
             />
 
             <div className="px-6 py-4">
@@ -771,25 +465,7 @@ export default function CalendarPage() {
                     />
                 )}
 
-                {/* Add Task Entry */}
-                <div className="mt-6 bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-sm font-bold text-gray-900">할 일 추가</h3>
-                            <p className="text-[11px] text-gray-400 mt-1">반복 일정까지 캘린더에서 한 번에 생성할 수 있어요.</p>
-                        </div>
-                        <button
-                            onClick={() => openAddModal(selectedDate || new Date())}
-                            className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold shadow-lg shadow-gray-200 flex items-center gap-1.5"
-                        >
-                            <Plus size={14} />
-                            추가하기
-                        </button>
-                    </div>
-                    <div className="mt-3 bg-blue-50/60 border border-blue-100 rounded-xl px-3 py-2 text-[10px] font-bold text-blue-700">
-                        도움말: 반복 일정은 시작~종료 범위 안에서 선택한 요일/날짜에 자동 생성됩니다.
-                    </div>
-                </div>
+
 
                 {/* Selected Date Details (Only visible in Month view for now) */}
                 {viewMode === 'month' && selectedDate && (
@@ -799,9 +475,9 @@ export default function CalendarPage() {
                                 <h3 className="text-lg font-bold text-gray-800">
                                     {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 자세히보기
                                 </h3>
-                                <div className="flex items-baseline gap-1.5 font-black">
-                                    <span className="text-[9px] uppercase tracking-[0.16em] text-blue-400">Study Time</span>
-                                    <span className="text-[16px] tabular-nums text-blue-600">
+                                <div className="flex items-center gap-1.5 text-primary">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Study Time</span>
+                                    <span className="text-lg tabular-nums font-bold">
                                         {formatTime(getDailyRecord(selectedDate)?.studyTime || 0)}
                                     </span>
                                 </div>
@@ -812,12 +488,12 @@ export default function CalendarPage() {
                                 </div>
                             )}
 
-                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                                <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm">
+                                <h4 className="text-[17px] font-black text-gray-900 mb-6 flex items-center gap-2 tracking-tight">
                                     <div className="w-1.5 h-4 bg-primary rounded-full" />
                                     오늘의 학습 계획
                                 </h4>
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     {DEFAULT_CATEGORIES.map(category => {
                                         const eventsInCategory = selectedDate
                                             ? getDailyEvents(selectedDate).filter(e => e.categoryId === category.id)
@@ -825,12 +501,12 @@ export default function CalendarPage() {
                                         if (eventsInCategory.length === 0) return null;
 
                                         return (
-                                            <div key={category.id} className="space-y-2">
+                                            <div key={category.id} className="space-y-4">
                                                 <div className="flex items-center gap-2 px-1">
                                                     <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[10px] font-bold ${category.textColor}`}>{category.name}</span>
+                                                    <span className={`text-[13px] font-extrabold ${category.textColor} tracking-tight`}>{category.name}</span>
                                                 </div>
-                                                <div className="space-y-2">
+                                                <div className="space-y-3.5">
                                                     {eventsInCategory.map((event, idx) => {
                                                         // 🔍 Resolve full task details
                                                         let fullTask: any = null;
@@ -849,49 +525,47 @@ export default function CalendarPage() {
                                                         return (
                                                             <div
                                                                 key={idx}
-                                                                onClick={() => navigateToTask(fullTask?.id ?? event.id)}
-                                                                className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group
+                                                                onClick={() => fullTask && openTaskDetail(fullTask)}
+                                                                className={`group relative p-5 rounded-[24px] transition-all duration-300 border cursor-pointer
                                                                     ${isCompleted
-                                                                        ? 'bg-gray-50/50 border-gray-50 text-gray-400'
-                                                                        : 'bg-white border-gray-100 hover:border-primary/30 hover:shadow-sm text-gray-900'
+                                                                        ? 'bg-gray-50/50 border-gray-50'
+                                                                        : 'bg-white border-gray-50 shadow-sm hover:border-gray-200 hover:shadow-md'
                                                                     }`}
                                                             >
-                                                                {/* Status Icon */}
-                                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors
-                                                                    ${isCompleted
-                                                                        ? `${category.color.replace('bg-', 'border-')} ${category.color}`
-                                                                        : 'border-gray-200'
-                                                                    }`}>
-                                                                    {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
-                                                                </div>
-
-                                                                <div className="flex-1 min-w-0">
-                                                                    {/* Badges Row */}
-                                                                    <div className="flex items-center gap-1.5 mb-1">
-                                                                        {isMentorTask && (
-                                                                            <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
-                                                                                MENTOR
-                                                                            </span>
-                                                                        )}
-                                                                        {hasFeedback && (
-                                                                            <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
-                                                                                <MessageCircle size={8} className="fill-current" />
-                                                                                FEEDBACK
-                                                                            </span>
-                                                                        )}
+                                                                <div className="flex items-start gap-3.5">
+                                                                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5
+                                                                        ${isCompleted
+                                                                            ? `${category.color.replace('bg-', 'border-')} ${category.color}`
+                                                                            : 'border-gray-200'
+                                                                        }`}>
+                                                                        {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
                                                                     </div>
 
-                                                                    <p className={`text-sm font-bold truncate transition-colors ${isCompleted ? 'line-through opacity-80' : ''}`}>
-                                                                        {event.title}
-                                                                    </p>
-                                                                </div>
-
-                                                                {/* Right Arrow (Visual Cue) */}
-                                                                {!isCompleted && (fullTask || event?.id) && (
-                                                                    <div className="text-gray-300 group-hover:text-primary transition-colors">
-                                                                        <ChevronRight size={16} />
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                                                                            {isMentorTask && (
+                                                                                <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
+                                                                                    MENTOR
+                                                                                </span>
+                                                                            )}
+                                                                            {hasFeedback && (
+                                                                                <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
+                                                                                    <MessageCircle size={8} className="fill-current" />
+                                                                                    FEEDBACK
+                                                                                </span>
+                                                                            )}
+                                                                            <p className={`text-[14.5px] font-bold truncate transition-colors leading-relaxed tracking-[0.01em] ${isCompleted ? 'text-gray-300 line-through' : 'text-gray-900'}`}>
+                                                                                {event.title}
+                                                                            </p>
+                                                                        </div>
                                                                     </div>
-                                                                )}
+
+                                                                    {!isCompleted && fullTask && (
+                                                                        <div className="text-gray-300 group-hover:text-primary transition-colors mt-0.5">
+                                                                            <ChevronRight size={18} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         );
                                                     })}
@@ -900,13 +574,15 @@ export default function CalendarPage() {
                                         );
                                     })}
                                     {selectedDate && getDailyEvents(selectedDate).length === 0 && (
-                                        <p className="text-center text-xs text-gray-400 py-4">등록된 학습 계획이 없습니다.</p>
+                                        <div className="text-center py-12 bg-gray-50/50 rounded-[28px] border-2 border-dashed border-gray-100">
+                                            <p className="text-gray-400 text-sm font-bold">등록된 학습 계획이 없습니다.</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                                <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm">
+                                <h4 className="text-[17px] font-black text-gray-900 mb-6 flex items-center gap-2 tracking-tight">
                                     <div className="w-1.5 h-4 bg-purple-500 rounded-full" />
                                     멘토 피드백
                                 </h4>
@@ -916,25 +592,27 @@ export default function CalendarPage() {
                                         if (feedbackInCategory.length === 0) return null;
 
                                         return (
-                                            <div key={category.id} className="space-y-3">
+                                            <div key={category.id} className="space-y-4">
                                                 <div className="flex items-center gap-2 px-1">
                                                     <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[10px] font-bold ${category.textColor}`}>{category.name}</span>
+                                                    <span className={`text-[13px] font-extrabold ${category.textColor} tracking-tight`}>{category.name}</span>
                                                 </div>
-                                                <div className="space-y-3">
+                                                <div className="space-y-3.5">
                                                     {feedbackInCategory.map(task => (
                                                         <div
                                                             key={task.id}
-                                                            onClick={() => navigateToTask(task.id)}
-                                                            className="bg-purple-50/30 rounded-2xl p-4 border border-purple-50 cursor-pointer hover:bg-purple-50/50 transition-colors shadow-sm"
+                                                            onClick={() => openTaskDetail(task)}
+                                                            className="group relative p-5 rounded-[24px] bg-white border border-gray-50 shadow-sm cursor-pointer hover:border-purple-200 hover:shadow-md transition-all"
                                                         >
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <p className="text-xs font-bold text-purple-600">{task.title}</p>
-                                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${task.badgeColor}`}>
+                                                            <div className="flex items-center justify-between mb-3.5">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-[14.5px] font-bold text-gray-900 leading-relaxed tracking-[0.01em]">{task.title}</p>
+                                                                </div>
+                                                                <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${task.badgeColor}`}>
                                                                     {task.status === 'feedback_completed' ? '피드백 완료' : task.status === 'submitted' ? '제출 완료' : '진행 중'}
                                                                 </span>
                                                             </div>
-                                                            <div className="p-3 bg-white rounded-xl border border-purple-100 text-[13px] text-gray-700 leading-relaxed italic">
+                                                            <div className="p-4 bg-purple-50/50 rounded-[20px] border border-purple-50 text-[13.5px] text-gray-700 leading-loose tracking-wide group-hover:bg-purple-50 transition-colors">
                                                                 "{task.mentorFeedback || "아직 피드백이 등록되지 않았습니다."}"
                                                             </div>
                                                         </div>
@@ -944,7 +622,9 @@ export default function CalendarPage() {
                                         );
                                     })}
                                     {MENTOR_TASKS.filter(t => t.deadline && selectedDate && isSameDay(t.deadline, selectedDate)).length === 0 && (
-                                        <p className="text-center text-xs text-gray-400 py-4">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
+                                        <div className="text-center py-12 bg-gray-50/50 rounded-[28px] border-2 border-dashed border-gray-100">
+                                            <p className="text-gray-400 text-sm font-bold">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -992,11 +672,10 @@ export default function CalendarPage() {
                                         <button
                                             key={category.id}
                                             onClick={() => setEventCategoryId(category.id)}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${
-                                                eventCategoryId === category.id
-                                                    ? `bg-white border-gray-300 ${category.textColor} shadow-sm`
-                                                    : `bg-gray-50 border-gray-100 ${category.textColor}`
-                                            }`}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${eventCategoryId === category.id
+                                                ? `bg-white border-gray-300 ${category.textColor} shadow-sm`
+                                                : `bg-gray-50 border-gray-100 ${category.textColor}`
+                                                }`}
                                         >
                                             {category.name}
                                         </button>
@@ -1023,27 +702,6 @@ export default function CalendarPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">시작 시간</label>
-                                    <input
-                                        type="time"
-                                        value={eventStartTime}
-                                        onChange={(e) => setEventStartTime(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">종료 시간</label>
-                                    <input
-                                        type="time"
-                                        value={eventEndTime}
-                                        onChange={(e) => setEventEndTime(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                                    />
-                                </div>
-                            </div>
-
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
                                     <Repeat size={14} /> 반복 설정
@@ -1060,9 +718,8 @@ export default function CalendarPage() {
                                             <button
                                                 key={option.key}
                                                 onClick={() => setRecurrenceType(option.key)}
-                                                className={`h-9 rounded-xl text-[11px] font-black transition-all ${
-                                                    isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
-                                                }`}
+                                                className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+                                                    }`}
                                             >
                                                 {option.label}
                                             </button>
@@ -1089,9 +746,8 @@ export default function CalendarPage() {
                                                                         : [...prev, idx]
                                                                 );
                                                             }}
-                                                            className={`h-9 rounded-xl text-[11px] font-black transition-all ${
-                                                                isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
-                                                            }`}
+                                                            className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+                                                                }`}
                                                         >
                                                             {label}
                                                         </button>
@@ -1169,73 +825,23 @@ export default function CalendarPage() {
                 </div>
             )}
 
-            {conflictInfo && (
-                <div className="fixed inset-0 z-[90] flex items-center justify-center px-6">
-                    <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={handleConflictCancel}
-                    />
-                    <div className="relative w-full max-w-sm bg-white rounded-[28px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <div className="px-6 pt-6 pb-4 border-b border-gray-50">
-                            <h3 className="text-lg font-black text-gray-900">시간이 겹치는 일정이 있어요</h3>
-                            <p className="text-[11px] text-gray-400 font-bold mt-1">
-                                겹치는 일정은 선택적으로 교체할 수 있어요.
-                            </p>
-                        </div>
+            <TaskDetailModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                task={selectedTask}
+            />
 
-                        <div className="px-6 py-4 space-y-4 max-h-[50vh] overflow-y-auto">
-                            {conflictInfo.dates.map((entry) => (
-                                <div key={entry.date} className="rounded-2xl border border-gray-100 bg-gray-50/50 p-3">
-                                    <p className="text-[11px] font-black text-gray-600 mb-2">
-                                        {entry.date.replace("-", ". ").replace("-", ". ")}
-                                    </p>
-                                    <div className="space-y-2">
-                                        {entry.overlaps.map((item) => (
-                                            <div key={`${entry.date}-${item.id}`} className="flex items-center justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <p className="text-[12px] font-bold text-gray-800 truncate">{item.title}</p>
-                                                    <p className="text-[10px] text-gray-400 font-bold">{item.label}</p>
-                                                </div>
-                                                {item.isRemovable ? (
-                                                    <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
-                                                        교체 가능
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-[9px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
-                                                        유지됨
-                                                    </span>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="px-6 pb-6 pt-2 space-y-2">
-                            <button
-                                onClick={handleConflictAdd}
-                                className="w-full h-11 rounded-2xl bg-gray-900 text-white text-sm font-black hover:bg-black"
-                            >
-                                그냥 추가하기
-                            </button>
-                            <button
-                                onClick={handleConflictReplace}
-                                disabled={conflictInfo.dates.every((entry) => entry.removableIds.length === 0)}
-                                className="w-full h-11 rounded-2xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 disabled:opacity-40"
-                            >
-                                겹치는 멘티 일정 삭제 후 추가
-                            </button>
-                            <button
-                                onClick={handleConflictCancel}
-                                className="w-full h-10 text-[12px] font-bold text-gray-400 hover:text-gray-600"
-                            >
-                                취소
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Daily Planner Detail Modal */}
+            <PlannerDetailModal
+                isOpen={isPlannerModalOpen}
+                onClose={() => setIsPlannerModalOpen(false)}
+                date={selectedDate}
+                dailyRecord={selectedDate ? getDailyRecord(selectedDate) : null}
+                mentorDeadlines={mentorDeadlinesForSelected}
+                userTasks={userTasksForSelected}
+                dailyEvents={selectedDate ? getDailyEvents(selectedDate) : []}
+                onTaskClick={openTaskDetail}
+            />
 
         </div>
     );

@@ -12,6 +12,9 @@ interface PlannerDetailViewProps {
     mentorDeadlines: any[];
     dailyEvents: any[];
     userTasks?: any[];
+    mentorReview?: string;
+    onEditReview?: () => void;
+    onTaskClick?: (task: any) => void;
     size?: "modal" | "page" | "collection" | "mini";
     showHeader?: boolean;
 }
@@ -22,6 +25,9 @@ export default function PlannerDetailView({
     mentorDeadlines,
     dailyEvents,
     userTasks: userTasksProp,
+    mentorReview,
+    onEditReview,
+    onTaskClick,
     size = "modal",
     showHeader = true
 }: PlannerDetailViewProps) {
@@ -306,12 +312,8 @@ export default function PlannerDetailView({
                                                     </div>
                                                 );
                                             }
-                                            return (
-                                                <Link
-                                                    key={`${item.itemType}-${item.id}`}
-                                                    href={`/planner/${item.id}`}
-                                                    className="relative flex items-start gap-2 hover:bg-gray-50/70 rounded-lg px-1.5 py-0.5 -m-0.5 transition-colors pl-4"
-                                                >
+                                            const CommonContent = (
+                                                <>
                                                     <span className={`absolute left-0 top-2 bottom-2 w-1 rounded-full ${colorClass}`} />
                                                     {checkboxButton}
                                                     <div className="flex-1 min-w-0">
@@ -321,10 +323,31 @@ export default function PlannerDetailView({
                                                                     Mentor
                                                                 </span>
                                                             )}
-                                                            {/** 제출 상태 라벨 제거 */}
                                                         </div>
                                                         <p className={`text-[11px] font-bold truncate ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}>{item.title}</p>
                                                     </div>
+                                                </>
+                                            );
+
+                                            if (onTaskClick) {
+                                                return (
+                                                    <div
+                                                        key={`${item.itemType}-${item.id}`}
+                                                        onClick={() => onTaskClick(item)}
+                                                        className="relative flex items-start gap-2 hover:bg-gray-50/70 rounded-lg px-1.5 py-0.5 -m-0.5 transition-colors pl-4 cursor-pointer"
+                                                    >
+                                                        {CommonContent}
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <Link
+                                                    key={`${item.itemType}-${item.id}`}
+                                                    href={`/planner/${item.id}`}
+                                                    className="relative flex items-start gap-2 hover:bg-gray-50/70 rounded-lg px-1.5 py-0.5 -m-0.5 transition-colors pl-4"
+                                                >
+                                                    {CommonContent}
                                                 </Link>
                                             );
                                         })}
@@ -371,6 +394,51 @@ export default function PlannerDetailView({
                                 );
                             })}
                         </div>
+
+            {/* Mentor Feedback Section */}
+            {(mentorReview || onEditReview || mentorTasksResolved.some(t => t.mentorFeedback)) && (
+                <div className="p-2 pt-0 shrink-0">
+                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 shadow-sm ring-1 ring-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                <span className={`font-bold text-indigo-600 ${size === "mini" ? "text-[10px]" : "text-sm"}`}>
+                                    {size === "mini" ? "멘토 피드백" : "📝 멘토링 총평 리포트"}
+                                </span>
+                            </div>
+                            {onEditReview && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onEditReview();
+                                    }}
+                                    className="text-xs font-bold text-gray-400 hover:text-indigo-600 transition-colors flex items-center gap-1"
+                                >
+                                    {mentorReview ? "수정" : "작성하기"}
+                                </button>
+                            )}
+                        </div>
+
+                        {mentorReview ? (
+                            <div
+                                className={`${size === "mini" ? "text-[9px]" : "text-sm"} text-gray-700 font-medium leading-relaxed whitespace-pre-wrap break-words ${onEditReview ? "cursor-pointer hover:text-indigo-900" : ""}`}
+                                onClick={() => onEditReview && onEditReview()}
+                            >
+                                {size === "mini" && mentorReview.length > 50
+                                    ? `"${mentorReview.slice(0, 50)}..."`
+                                    : `"${mentorReview}"`}
+                            </div>
+                        ) : onEditReview ? (
+                            <div
+                                className={`${size === "mini" ? "text-[9px]" : "text-sm"} text-gray-400 font-medium italic cursor-pointer hover:text-indigo-500 py-2 text-center border border-dashed border-gray-200 rounded-lg hover:border-indigo-200 hover:bg-white transition-all`}
+                                onClick={() => onEditReview && onEditReview()}
+                            >
+                                + 오늘의 학습에 대한 총평을 남겨주세요
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            )}
                     </div>
                 </div>
 
