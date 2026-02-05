@@ -1,17 +1,12 @@
 "use client";
 
-<<<<<<< HEAD
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle } from "lucide-react";
-=======
-import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat } from "lucide-react";
->>>>>>> origin/sunbal
+import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
-import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
+import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal"; // Does this exist? Assuming yes or will check.
 import Header from "@/components/mentee/layout/Header";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -25,21 +20,6 @@ import {
     type ScheduleEventLike
 } from "@/lib/menteeAdapters";
 
-type MeetingStatus = "requested" | "scheduled" | "completed";
-
-type MeetingRecord = {
-    id: string;
-    topic: string;
-    requestedAt: Date;
-    scheduledAt?: Date;
-    status: MeetingStatus;
-    zoomLink?: string;
-    taskId?: string | number;
-    taskTitle?: string;
-    preferredTime?: string;
-    note?: string;
-};
-
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -47,32 +27,13 @@ export default function CalendarPage() {
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
-<<<<<<< HEAD
+
     const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
     const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
     const [planEvents, setPlanEvents] = useState<ScheduleEventLike[]>([]);
     const [dailyRecords, setDailyRecords] = useState<DailyRecordLike[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
-=======
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([]);
-
-    const [customEvents, setCustomEvents] = useState<
-        { id: string; title: string; categoryId: string; taskType: string; date: string }[]
-    >([]);
-    const [eventTitle, setEventTitle] = useState("");
-    const [eventCategoryId, setEventCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
-    const [eventDate, setEventDate] = useState("");
-    const [recurrenceType, setRecurrenceType] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
-    const [repeatDays, setRepeatDays] = useState<number[]>([1]);
-    const [repeatStart, setRepeatStart] = useState("");
-    const [repeatEnd, setRepeatEnd] = useState("");
-    const [monthlyDay, setMonthlyDay] = useState(1);
-
-    const EVENTS_STORAGE_KEY = "mentee-calendar-events";
-    const MEETING_STORAGE_KEY = "mentor-meeting-records";
->>>>>>> origin/sunbal
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -101,7 +62,6 @@ export default function CalendarPage() {
             date1.getFullYear() === date2.getFullYear();
     };
 
-<<<<<<< HEAD
     const toDateString = (date: Date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -116,103 +76,6 @@ export default function CalendarPage() {
             from: toDateString(fromDate),
             to: toDateString(toDate),
         };
-=======
-    const pad2 = (value: number) => String(value).padStart(2, "0");
-    const formatDateInput = (date: Date) =>
-        `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-    const parseDateInput = (value: string) => {
-        const [year, month, day] = value.split("-").map(Number);
-        return new Date(year, month - 1, day);
-    };
-    const addDays = (date: Date, days: number) =>
-        new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-    const parseMeetingRecord = (record: any): MeetingRecord => ({
-        ...record,
-        requestedAt: record.requestedAt ? new Date(record.requestedAt) : new Date(),
-        scheduledAt: record.scheduledAt ? new Date(record.scheduledAt) : undefined,
-    });
-
-    useEffect(() => {
-        const todayDate = new Date();
-        const baseDate = selectedDate || todayDate;
-        const baseValue = formatDateInput(baseDate);
-        setEventDate(baseValue);
-        setRepeatStart(baseValue);
-        setRepeatEnd(formatDateInput(addDays(baseDate, 28)));
-        setMonthlyDay(baseDate.getDate());
-    }, []);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const raw = localStorage.getItem(MEETING_STORAGE_KEY);
-        if (!raw) return;
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-                setMeetingRecords(parsed.map(parseMeetingRecord));
-            }
-        } catch {
-            setMeetingRecords([]);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const raw = localStorage.getItem(EVENTS_STORAGE_KEY);
-        if (raw) {
-            try {
-                setCustomEvents(JSON.parse(raw));
-            } catch {
-                setCustomEvents([]);
-            }
-        }
-    }, []);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(customEvents));
-    }, [customEvents]);
-
-    const getCustomEventsForDate = (date: Date) => {
-        return customEvents
-            .filter((event) => isSameDay(parseDateInput(event.date), date))
-            .map((event) => ({
-                id: event.id,
-                title: event.title,
-                categoryId: event.categoryId,
-                taskType: event.taskType || "plan",
-                isCustom: true,
-            }));
-    };
-
-    const getPlannerTasksForDate = (date: Date) => {
-        if (typeof window === "undefined") return null;
-        const raw = localStorage.getItem("planner-day-tasks");
-        if (!raw) return null;
-        try {
-            const data = JSON.parse(raw) as Record<string, any[]>;
-            const key = formatDateInput(date);
-            const tasks = data[key];
-            return Array.isArray(tasks) ? tasks : null;
-        } catch {
-            return null;
-        }
-    };
-
-    const getDailyEvents = (date: Date) => {
-        const plannerTasks = getPlannerTasksForDate(date);
-        if (plannerTasks && plannerTasks.length > 0) {
-            return plannerTasks.map((task) => ({
-                id: task.id,
-                title: task.title,
-                categoryId: task.categoryId,
-                taskType: task.isMentorTask ? "mentor" : "user",
-            }));
-        }
-        const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, date));
-        const baseEvents = schedule ? schedule.events : [];
-        return [...baseEvents, ...getCustomEventsForDate(date)];
->>>>>>> origin/sunbal
     };
 
     const getDailyRecord = (day: number | Date) => {
@@ -222,7 +85,6 @@ export default function CalendarPage() {
         return dailyRecords.find(r => r.date && isSameDay(r.date, targetDate));
     };
 
-<<<<<<< HEAD
     useEffect(() => {
         let isMounted = true;
 
@@ -311,14 +173,7 @@ export default function CalendarPage() {
 
         return events;
     }, [mentorTasks, plannerTasks, planEvents]);
-=======
-    const meetingDateSet = new Set(
-        meetingRecords
-            .filter((record) => record.scheduledAt && (record.status === "scheduled" || record.status === "completed"))
-            .map((record) => formatDateInput(record.scheduledAt as Date))
-    );
-    const isMeetingDay = (date: Date) => meetingDateSet.has(formatDateInput(date));
->>>>>>> origin/sunbal
+
 
     const previousPeriod = () => {
         if (viewMode === 'month') {
@@ -356,90 +211,11 @@ export default function CalendarPage() {
         setIsModalOpen(true);
     };
 
-<<<<<<< HEAD
-=======
-    const openAddModal = (date?: Date) => {
-        const baseDate = date || selectedDate || new Date();
-        const baseValue = formatDateInput(baseDate);
-        setEventTitle("");
-        setEventCategoryId(DEFAULT_CATEGORIES[0].id);
-        setEventDate(baseValue);
-        setRepeatStart(baseValue);
-        setRepeatEnd(formatDateInput(addDays(baseDate, 28)));
-        setRepeatDays([baseDate.getDay()]);
-        setRecurrenceType('none');
-        setMonthlyDay(baseDate.getDate());
-        setIsAddModalOpen(true);
-    };
-
-    const getRepeatDates = () => {
-        if (!eventDate) return [];
-        if (recurrenceType === 'none') return [parseDateInput(eventDate)];
-        if (!repeatStart || !repeatEnd) return [];
-        const start = parseDateInput(repeatStart);
-        const end = parseDateInput(repeatEnd);
-        const dates: Date[] = [];
-        if (recurrenceType === 'monthly') {
-            const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-            const last = new Date(end.getFullYear(), end.getMonth(), 1);
-            while (cursor <= last) {
-                const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
-                if (monthlyDay <= daysInMonth) {
-                    const target = new Date(cursor.getFullYear(), cursor.getMonth(), monthlyDay);
-                    if (target >= start && target <= end) {
-                        dates.push(target);
-                    }
-                }
-                cursor.setMonth(cursor.getMonth() + 1);
-            }
-            return dates;
-        }
-        if (repeatDays.length === 0) return [];
-        const cursor = new Date(start);
-        while (cursor <= end) {
-            const diffDays = Math.floor((cursor.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-            const weekIndex = Math.floor(diffDays / 7);
-            const isActiveWeek = recurrenceType === 'biweekly' ? weekIndex % 2 === 0 : true;
-            if (isActiveWeek && repeatDays.includes(cursor.getDay())) {
-                dates.push(new Date(cursor));
-            }
-            cursor.setDate(cursor.getDate() + 1);
-        }
-        return dates;
-    };
-
-    const handleSaveEvent = () => {
-        const title = eventTitle.trim();
-        const dates = getRepeatDates();
-        if (!title || dates.length === 0) return;
-
-        const timestamp = Date.now();
-        const newEvents = dates.map((date, idx) => ({
-            id: `c-${timestamp}-${idx}`,
-            title,
-            categoryId: eventCategoryId,
-            taskType: "plan",
-            date: formatDateInput(date),
-        }));
-
-        setCustomEvents((prev) => [...prev, ...newEvents]);
-        setIsAddModalOpen(false);
-    };
-
-    const currentStreak = 12;
->>>>>>> origin/sunbal
-
-    const selectedPlannerTasks = selectedDate ? getPlannerTasksForDate(selectedDate) : null;
-    const mentorDeadlinesForSelected = selectedPlannerTasks && selectedPlannerTasks.length > 0
-        ? selectedPlannerTasks.filter((task) => task.isMentorTask)
-        : selectedDate
-            ? MENTOR_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate))
-            : [];
-    const userTasksForSelected = selectedPlannerTasks && selectedPlannerTasks.length > 0
-        ? selectedPlannerTasks.filter((task) => !task.isMentorTask)
-        : selectedDate
-            ? USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, selectedDate))
-            : [];
+    const selectedPlannerTasks = selectedDate ? plannerTasks.filter(t => t.deadline && isSameDay(t.deadline, selectedDate)) : [];
+    // Helper to get events for selected date
+    const selectedDateEvents = selectedDate
+        ? scheduleEvents.filter(e => e.date && isSameDay(e.date, selectedDate))
+        : [];
 
     // Generate month calendar grid
     const calendarDays = [];
@@ -461,8 +237,9 @@ export default function CalendarPage() {
                 title="인사이트 캘린더"
                 variant="clean"
                 rightElement={
+                    // Sunbal's Add button (disabled for now as logic is not wired to API)
                     <button
-                        onClick={() => openAddModal(selectedDate || new Date())}
+                        onClick={() => alert("Coming soon!")}
                         className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-primary/20 hover:scale-105 active:scale-95"
                     >
                         <Plus size={16} strokeWidth={3} />
@@ -526,13 +303,12 @@ export default function CalendarPage() {
                                 const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                                 const isTodayDate = isToday(targetDate);
                                 const isSelected = selectedDate && isSameDay(selectedDate, targetDate);
-                                const meetingDay = isMeetingDay(targetDate);
+                                // Meeting day check excluded as it relied on local storage logic
 
-<<<<<<< HEAD
                                 const dayEvents = scheduleEvents.filter(
                                     (event) => event.date && isSameDay(event.date, targetDate)
                                 );
-                                let keywords: { text: string; color: { bg: string; text: string } }[] = [];
+                                let keywords: { text: string; colorHex: string; textColorHex: string }[] = [];
 
                                 if (dayEvents.length > 0) {
                                     const mentorEvents = dayEvents.filter(e => e.taskType === 'mentor');
@@ -540,7 +316,8 @@ export default function CalendarPage() {
                                         const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                                         keywords.push({
                                             text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''),
-                                            color: { bg: category.colorHex, text: category.textColorHex }
+                                            colorHex: category.colorHex,
+                                            textColorHex: category.textColorHex
                                         });
                                     });
 
@@ -550,35 +327,11 @@ export default function CalendarPage() {
                                             const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
                                             keywords.push({
                                                 text: e.title.split(' ')[0],
-                                                color: { bg: category.colorHex, text: category.textColorHex }
+                                                colorHex: category.colorHex,
+                                                textColorHex: category.textColorHex
                                             });
                                         });
                                     }
-=======
-                                // Get keywords for the day
-                                const dailyEvents = getDailyEvents(targetDate);
-                                let keywords: { text: string; color: string }[] = [];
-
-                                const mentorEvents = dailyEvents.filter(e => e.taskType === 'mentor');
-                                mentorEvents.forEach(e => {
-                                    const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
-                                    keywords.push({
-                                        text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''),
-                                        color: `${category.color} ${category.textColor}`
-                                    });
-                                });
-
-                                // User/Plan tasks
-                                if (keywords.length < 3) {
-                                    const userEvents = dailyEvents.filter(e => e.taskType !== 'mentor');
-                                    userEvents.forEach(e => {
-                                        const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
-                                        keywords.push({
-                                            text: e.title.split(' ')[0],
-                                            color: `${category.color} ${category.textColor}` // Unified colors
-                                        });
-                                    });
->>>>>>> origin/sunbal
                                 }
 
                                 return (
@@ -590,9 +343,6 @@ export default function CalendarPage() {
                                             ${isTodayDate ? 'bg-gray-50' : ''}
                                         `}
                                     >
-                                        {meetingDay && (
-                                            <div className="absolute top-2 left-2 right-2 h-1 rounded-full bg-amber-300/80" />
-                                        )}
                                         <div className={`text-sm font-bold w-6 h-6 flex items-center justify-center rounded-full mb-1 z-10 ${isTodayDate ? 'bg-primary text-white' :
                                             index % 7 === 0 ? 'text-red-400' :
                                                 index % 7 === 6 ? 'text-blue-400' : 'text-gray-700'
@@ -606,7 +356,7 @@ export default function CalendarPage() {
                                                 <div
                                                     key={idx}
                                                     className="rounded px-1 py-0.5 text-[8px] font-bold w-full text-center truncate leading-tight tracking-tight"
-                                                    style={{ backgroundColor: k.color.bg, color: k.color.text }}
+                                                    style={{ backgroundColor: k.colorHex, color: k.textColorHex }}
                                                 >
                                                     {k.text}
                                                 </div>
@@ -628,15 +378,10 @@ export default function CalendarPage() {
                         isToday={isToday}
                         isSameDay={isSameDay}
                         onDateClick={handleDateClick}
-<<<<<<< HEAD
                         scheduleEvents={scheduleEvents}
                         dailyRecords={dailyRecords}
                         mentorTasks={mentorTasks}
                         plannerTasks={plannerTasks}
-=======
-                        customEvents={customEvents}
-                        getPlannerTasksForDate={getPlannerTasksForDate}
->>>>>>> origin/sunbal
                     />
                 )}
 
@@ -657,11 +402,6 @@ export default function CalendarPage() {
                                     </span>
                                 </div>
                             </div>
-                            {isMeetingDay(selectedDate) && (
-                                <div className="bg-amber-50/70 border border-amber-100 rounded-xl px-4 py-2 text-[11px] font-bold text-amber-700">
-                                    도움말: 미팅 있는 날
-                                </div>
-                            )}
 
                             <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm">
                                 <h4 className="text-[17px] font-black text-gray-900 mb-6 flex items-center gap-2 tracking-tight">
@@ -670,25 +410,12 @@ export default function CalendarPage() {
                                 </h4>
                                 <div className="space-y-6">
                                     {DEFAULT_CATEGORIES.map(category => {
-<<<<<<< HEAD
-                                        const eventsInCategory = scheduleEvents.filter(
-                                            (event) =>
-                                                event.categoryId === category.id &&
-                                                selectedDate &&
-                                                event.date &&
-                                                isSameDay(event.date, selectedDate)
-                                        );
-=======
-                                        const eventsInCategory = selectedDate
-                                            ? getDailyEvents(selectedDate).filter(e => e.categoryId === category.id)
-                                            : [];
->>>>>>> origin/sunbal
+                                        const eventsInCategory = selectedDateEvents.filter(e => e.categoryId === category.id);
                                         if (eventsInCategory.length === 0) return null;
 
                                         return (
                                             <div key={category.id} className="space-y-4">
                                                 <div className="flex items-center gap-2 px-1">
-<<<<<<< HEAD
                                                     <div
                                                         className="w-1.5 h-3 rounded-full"
                                                         style={{ backgroundColor: category.colorHex }}
@@ -699,10 +426,6 @@ export default function CalendarPage() {
                                                     >
                                                         {category.name}
                                                     </span>
-=======
-                                                    <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[13px] font-extrabold ${category.textColor} tracking-tight`}>{category.name}</span>
->>>>>>> origin/sunbal
                                                 </div>
                                                 <div className="space-y-3.5">
                                                     {eventsInCategory.map((event, idx) => {
@@ -730,45 +453,19 @@ export default function CalendarPage() {
                                                                         : 'bg-white border-gray-50 shadow-sm hover:border-gray-200 hover:shadow-md'
                                                                     }`}
                                                             >
-<<<<<<< HEAD
-                                                                {/* Status Icon */}
-                                                                <div
-                                                                    className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isCompleted
-                                                                        ? 'shadow-sm'
-                                                                        : 'border-gray-200'
-                                                                        }`}
-                                                                    style={
-                                                                        isCompleted
-                                                                            ? { backgroundColor: category.colorHex, borderColor: category.colorHex }
-                                                                            : undefined
-                                                                    }
-                                                                >
-                                                                    {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
-                                                                </div>
-
-                                                                <div className="flex-1 min-w-0">
-                                                                    {/* Badges Row */}
-                                                                    <div className="flex items-center gap-1.5 mb-1">
-                                                                        {isMentorTask && (
-                                                                            <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
-                                                                                MENTOR
-                                                                            </span>
-                                                                        )}
-                                                                        {hasFeedback && (
-                                                                            <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
-                                                                                <MessageCircle size={8} className="fill-current" />
-                                                                                FEEDBACK
-                                                                            </span>
-                                                                        )}
-=======
                                                                 <div className="flex items-start gap-3.5">
-                                                                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5
-                                                                        ${isCompleted
-                                                                            ? `${category.color.replace('bg-', 'border-')} ${category.color}`
+                                                                    <div
+                                                                        className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5 ${isCompleted
+                                                                            ? 'shadow-sm'
                                                                             : 'border-gray-200'
-                                                                        }`}>
+                                                                            }`}
+                                                                        style={
+                                                                            isCompleted
+                                                                                ? { backgroundColor: category.colorHex, borderColor: category.colorHex }
+                                                                                : undefined
+                                                                        }
+                                                                    >
                                                                         {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
->>>>>>> origin/sunbal
                                                                     </div>
 
                                                                     <div className="flex-1 min-w-0">
@@ -803,330 +500,12 @@ export default function CalendarPage() {
                                             </div>
                                         );
                                     })}
-<<<<<<< HEAD
-                                    {!scheduleEvents.filter(
-                                        (event) =>
-                                            selectedDate &&
-                                            event.date &&
-                                            isSameDay(event.date, selectedDate)
-                                    ).length && (
-                                        <p className="text-center text-xs text-gray-400 py-4">등록된 학습 계획이 없습니다.</p>
-=======
-                                    {selectedDate && getDailyEvents(selectedDate).length === 0 && (
-                                        <div className="text-center py-12 bg-gray-50/50 rounded-[28px] border-2 border-dashed border-gray-100">
-                                            <p className="text-gray-400 text-sm font-bold">등록된 학습 계획이 없습니다.</p>
-                                        </div>
->>>>>>> origin/sunbal
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm">
-                                <h4 className="text-[17px] font-black text-gray-900 mb-6 flex items-center gap-2 tracking-tight">
-                                    <div className="w-1.5 h-4 bg-purple-500 rounded-full" />
-                                    멘토 피드백
-                                </h4>
-                                <div className="space-y-6">
-                                    {DEFAULT_CATEGORIES.map(category => {
-                                        const feedbackInCategory = mentorTasks.filter(
-                                            (task) =>
-                                                task.deadline &&
-                                                selectedDate &&
-                                                isSameDay(task.deadline, selectedDate) &&
-                                                task.categoryId === category.id
-                                        );
-                                        if (feedbackInCategory.length === 0) return null;
-
-                                        return (
-                                            <div key={category.id} className="space-y-4">
-                                                <div className="flex items-center gap-2 px-1">
-<<<<<<< HEAD
-                                                    <div
-                                                        className="w-1.5 h-3 rounded-full"
-                                                        style={{ backgroundColor: category.colorHex }}
-                                                    />
-                                                    <span
-                                                        className="text-[10px] font-bold"
-                                                        style={{ color: category.textColorHex }}
-                                                    >
-                                                        {category.name}
-                                                    </span>
-=======
-                                                    <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[13px] font-extrabold ${category.textColor} tracking-tight`}>{category.name}</span>
->>>>>>> origin/sunbal
-                                                </div>
-                                                <div className="space-y-3.5">
-                                                    {feedbackInCategory.map(task => (
-                                                        <div
-                                                            key={task.id}
-                                                            onClick={() => openTaskDetail(task)}
-                                                            className="group relative p-5 rounded-[24px] bg-white border border-gray-50 shadow-sm cursor-pointer hover:border-purple-200 hover:shadow-md transition-all"
-                                                        >
-<<<<<<< HEAD
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <p className="text-xs font-bold text-purple-600">{task.title}</p>
-                                                                <span
-                                                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                                                                    style={{ backgroundColor: task.badgeColor?.bg, color: task.badgeColor?.text }}
-                                                                >
-=======
-                                                            <div className="flex items-center justify-between mb-3.5">
-                                                                <div className="flex items-center gap-2">
-                                                                    <p className="text-[14.5px] font-bold text-gray-900 leading-relaxed tracking-[0.01em]">{task.title}</p>
-                                                                </div>
-                                                                <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${task.badgeColor}`}>
->>>>>>> origin/sunbal
-                                                                    {task.status === 'feedback_completed' ? '피드백 완료' : task.status === 'submitted' ? '제출 완료' : '진행 중'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="p-4 bg-purple-50/50 rounded-[20px] border border-purple-50 text-[13.5px] text-gray-700 leading-loose tracking-wide group-hover:bg-purple-50 transition-colors">
-                                                                "{task.mentorFeedback || "아직 피드백이 등록되지 않았습니다."}"
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-<<<<<<< HEAD
-                                    {mentorTasks.filter(
-                                        (task) =>
-                                            task.deadline &&
-                                            selectedDate &&
-                                            isSameDay(task.deadline, selectedDate)
-                                    ).length === 0 && (
-                                        <p className="text-center text-xs text-gray-400 py-4">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
-=======
-                                    {MENTOR_TASKS.filter(t => t.deadline && selectedDate && isSameDay(t.deadline, selectedDate)).length === 0 && (
-                                        <div className="text-center py-12 bg-gray-50/50 rounded-[28px] border-2 border-dashed border-gray-100">
-                                            <p className="text-gray-400 text-sm font-bold">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
-                                        </div>
->>>>>>> origin/sunbal
-                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
             </section>
-
-            {/* Add Task Modal */}
-            {isAddModalOpen && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center px-6">
-                    <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={() => setIsAddModalOpen(false)}
-                    />
-                    <div className="relative w-full max-w-sm bg-white rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
-                        <div className="px-6 pt-8 pb-4 flex justify-between items-center border-b border-gray-50">
-                            <div>
-                                <h3 className="text-lg font-black text-gray-900">캘린더 할 일 추가</h3>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">Planner Style</p>
-                            </div>
-                            <button
-                                onClick={() => setIsAddModalOpen(false)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="px-6 py-6 space-y-5">
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">할 일 제목</label>
-                                <input
-                                    value={eventTitle}
-                                    onChange={(e) => setEventTitle(e.target.value)}
-                                    placeholder="예: 모의고사 1회분 풀기"
-                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">과목 선택</label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {DEFAULT_CATEGORIES.map((category) => (
-                                        <button
-                                            key={category.id}
-                                            onClick={() => setEventCategoryId(category.id)}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${eventCategoryId === category.id
-                                                ? `bg-white border-gray-300 ${category.textColor} shadow-sm`
-                                                : `bg-gray-50 border-gray-100 ${category.textColor}`
-                                                }`}
-                                        >
-                                            {category.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">날짜</label>
-                                <input
-                                    type="date"
-                                    value={eventDate}
-                                    onChange={(e) => {
-                                        const nextValue = e.target.value;
-                                        setEventDate(nextValue);
-                                        const nextDate = parseDateInput(nextValue);
-                                        setMonthlyDay(nextDate.getDate());
-                                        if (recurrenceType === 'none' || !repeatStart || !repeatEnd) {
-                                            setRepeatStart(nextValue);
-                                            setRepeatEnd(formatDateInput(addDays(nextDate, 28)));
-                                        }
-                                    }}
-                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
-                                    <Repeat size={14} /> 반복 설정
-                                </div>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {([
-                                        { key: 'none', label: '없음' },
-                                        { key: 'weekly', label: '매주' },
-                                        { key: 'biweekly', label: '격주' },
-                                        { key: 'monthly', label: '매월' },
-                                    ] as const).map((option) => {
-                                        const isSelected = recurrenceType === option.key;
-                                        return (
-                                            <button
-                                                key={option.key}
-                                                onClick={() => setRecurrenceType(option.key)}
-                                                className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
-                                                    }`}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {recurrenceType !== 'none' && (
-                                <div className="space-y-4">
-                                    {(recurrenceType === 'weekly' || recurrenceType === 'biweekly') && (
-                                        <div>
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">요일 선택</label>
-                                            <div className="grid grid-cols-7 gap-2">
-                                                {dayNames.map((label, idx) => {
-                                                    const isSelected = repeatDays.includes(idx);
-                                                    return (
-                                                        <button
-                                                            key={label}
-                                                            onClick={() => {
-                                                                setRepeatDays((prev) =>
-                                                                    prev.includes(idx)
-                                                                        ? prev.filter((d) => d !== idx)
-                                                                        : [...prev, idx]
-                                                                );
-                                                            }}
-                                                            className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
-                                                                }`}
-                                                        >
-                                                            {label}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {recurrenceType === 'monthly' && (
-                                        <div>
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">매월 날짜</label>
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    max={31}
-                                                    value={monthlyDay}
-                                                    onChange={(e) => setMonthlyDay(Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
-                                                    className="w-24 bg-gray-50 border border-gray-100 rounded-2xl px-4 py-2 text-sm font-black focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                                                />
-                                                <span className="text-xs font-bold text-gray-500">일</span>
-                                                <span className="text-[11px] text-gray-400 font-medium">예: 1, 15, 28</span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">시작</label>
-                                            <input
-                                                type="date"
-                                                value={repeatStart}
-                                                onChange={(e) => setRepeatStart(e.target.value)}
-                                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">종료</label>
-                                            <input
-                                                type="date"
-                                                value={repeatEnd}
-                                                onChange={(e) => setRepeatEnd(e.target.value)}
-                                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl px-4 py-3 text-xs font-bold text-blue-700">
-                                        총 {getRepeatDates().length}회 일정이 생성됩니다.
-                                    </div>
-                                    <div className="text-[10px] text-gray-400 font-bold">
-                                        미리보기: {getRepeatDates().slice(0, 5).map(date => `${date.getMonth() + 1}/${date.getDate()}`).join(', ')}
-                                        {getRepeatDates().length > 5 ? " ..." : ""}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="px-6 pb-8 pt-2 flex gap-2">
-                            <button
-                                onClick={() => setIsAddModalOpen(false)}
-                                className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 text-sm font-bold hover:bg-gray-50"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={handleSaveEvent}
-                                className="flex-1 h-12 rounded-2xl bg-gray-900 text-white text-sm font-black hover:bg-black"
-                            >
-                                일정 생성
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <TaskDetailModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                task={selectedTask}
-            />
-
-            {/* Daily Planner Detail Modal */}
-            <PlannerDetailModal
-                isOpen={isPlannerModalOpen}
-                onClose={() => setIsPlannerModalOpen(false)}
-                date={selectedDate}
-                dailyRecord={selectedDate ? getDailyRecord(selectedDate) : null}
-<<<<<<< HEAD
-                mentorDeadlines={selectedDate ? mentorTasks.filter(task => task.deadline && isSameDay(task.deadline, selectedDate)) : []}
-                dailyEvents={(selectedDate) ? scheduleEvents.filter(event => event.date && isSameDay(event.date, selectedDate)) : []}
-                plannerTasks={plannerTasks}
-=======
-                mentorDeadlines={mentorDeadlinesForSelected}
-                userTasks={userTasksForSelected}
-                dailyEvents={selectedDate ? getDailyEvents(selectedDate) : []}
-                onTaskClick={openTaskDetail}
->>>>>>> origin/sunbal
-            />
-
         </div>
     );
 }

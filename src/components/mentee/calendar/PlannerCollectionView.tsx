@@ -1,15 +1,11 @@
 import DailyPlannerCard from "./DailyPlannerCard";
-<<<<<<< HEAD
 import type {
     DailyRecordLike,
     MentorTaskLike,
     PlannerTaskLike,
     ScheduleEventLike
 } from "@/lib/menteeAdapters";
-=======
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
-import { WEEKLY_SCHEDULE, DAILY_RECORDS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
->>>>>>> origin/sunbal
 
 interface PlannerCollectionViewProps {
     currentDate: Date;
@@ -17,25 +13,17 @@ interface PlannerCollectionViewProps {
     isToday: (date: Date) => boolean;
     isSameDay: (d1: Date, d2: Date) => boolean;
     onDateClick: (date: Date) => void;
-<<<<<<< HEAD
     scheduleEvents: ScheduleEventLike[];
     dailyRecords: DailyRecordLike[];
     mentorTasks: MentorTaskLike[];
     plannerTasks: PlannerTaskLike[];
-=======
-    customEvents?: { id: string; title: string; categoryId: string; taskType: string; date: string; startTime?: string; endTime?: string; isMentorTask?: boolean }[];
-    getPlannerTasksForDate?: (date: Date) => any[] | null;
-    mentorTasks?: any[];
-    userTasks?: any[];
-    weeklySchedule?: Array<{ date: Date; events: any[] }>;
-    dailyRecords?: Array<{ date: Date; studyTime?: number; memo?: string; studyTimeBlocks?: { [key: string]: string } }>;
+    // Sunbal UI Props
     gridClassName?: string;
     cardClassName?: string;
     fillCard?: boolean;
     fillScale?: number;
     showDateLabel?: boolean;
     dateLabelClassName?: string;
->>>>>>> origin/sunbal
 }
 
 export default function PlannerCollectionView({
@@ -44,22 +32,10 @@ export default function PlannerCollectionView({
     isToday,
     isSameDay,
     onDateClick,
-<<<<<<< HEAD
     scheduleEvents,
     dailyRecords,
     mentorTasks,
-    plannerTasks
-}: PlannerCollectionViewProps) {
-
-    const getDailyRecord = (date: Date) => {
-         return dailyRecords.find(r => r.date && isSameDay(r.date, date));
-=======
-    customEvents = [],
-    getPlannerTasksForDate,
-    mentorTasks,
-    userTasks,
-    weeklySchedule,
-    dailyRecords,
+    plannerTasks,
     gridClassName,
     cardClassName,
     fillCard = false,
@@ -69,29 +45,7 @@ export default function PlannerCollectionView({
 }: PlannerCollectionViewProps) {
 
     const getDailyRecord = (date: Date) => {
-         const source = dailyRecords ?? DAILY_RECORDS;
-         return source.find(r => isSameDay(r.date, date));
-    };
-
-    const parseDateInput = (value: string) => {
-        const [year, month, day] = value.split("-").map(Number);
-        return new Date(year, month - 1, day);
-    };
-
-    const getCustomEventsForDate = (date: Date) => {
-        return customEvents
-            .filter((event) => isSameDay(parseDateInput(event.date), date))
-            .map((event) => ({
-                id: event.id,
-                title: event.title,
-                categoryId: event.categoryId,
-                taskType: event.taskType || "plan",
-                startTime: event.startTime,
-                endTime: event.endTime,
-                isMentorTask: event.isMentorTask ?? false,
-                isCustom: true,
-            }));
->>>>>>> origin/sunbal
+        return dailyRecords.find(r => r.date && isSameDay(r.date, date));
     };
 
     return (
@@ -102,59 +56,20 @@ export default function PlannerCollectionView({
                 {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                     const isTodayDate = isToday(date);
-<<<<<<< HEAD
                     const dailyEvents = scheduleEvents.filter(
                         (event) => event.date && isSameDay(event.date, date)
                     );
                     const mentorDeadlines = mentorTasks.filter(
                         (task) => task.deadline && isSameDay(task.deadline, date)
                     );
-                    const userTasks = plannerTasks.filter(
+                    const userTasksForDate = plannerTasks.filter(
                         (task) => task.deadline && isSameDay(task.deadline, date)
                     );
-=======
-                    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-                    const plannerTasks = getPlannerTasksForDate ? getPlannerTasksForDate(date) : null;
-                    const scheduleSource = weeklySchedule ?? WEEKLY_SCHEDULE;
-                    const baseEvents = scheduleSource.find(s => isSameDay(s.date, date))?.events || [];
-                    const schedulePlanTasks = baseEvents
-                        .filter((event) => event.taskType === "plan")
-                        .map((event) => ({
-                            id: `plan-${event.id}`,
-                            title: event.title,
-                            categoryId: event.categoryId,
-                            taskType: "plan",
-                            startTime: event.startTime,
-                            endTime: event.endTime,
-                            isMentorTask: event.isMentorTask ?? false,
-                            isCustomEvent: true,
-                        }));
-                    const customPlanTasks = getCustomEventsForDate(date).map((event) => ({
-                        id: String(event.id),
-                        title: event.title,
-                        categoryId: event.categoryId,
-                        taskType: "plan",
-                        startTime: event.startTime,
-                        endTime: event.endTime,
-                        isMentorTask: event.isMentorTask ?? false,
-                        isCustomEvent: true,
-                    }));
-                    const mentorSource = mentorTasks ?? MENTOR_TASKS;
-                    const userSource = userTasks ?? USER_TASKS;
-                    const mentorDeadlines = plannerTasks && plannerTasks.length > 0
-                        ? plannerTasks.filter((task) => task.isMentorTask && task.taskType !== "plan")
-                        : mentorSource.filter(t => t.deadline && isSameDay(t.deadline, date));
-                    const planTasksForDate = plannerTasks && plannerTasks.length > 0
-                        ? plannerTasks.filter((task) => task.taskType === "plan")
-                        : [...schedulePlanTasks, ...customPlanTasks];
-                    const userTasksForDate = plannerTasks && plannerTasks.length > 0
-                        ? plannerTasks.filter((task) => !task.isMentorTask && task.taskType !== "plan")
-                        : userSource.filter(t => t.deadline && isSameDay(t.deadline, date));
->>>>>>> origin/sunbal
                     const record = getDailyRecord(date);
-                    const studyTimeBlocks = plannerTasks && plannerTasks.length > 0
-                        ? generateTimeBlocksFromTasks(plannerTasks)
-                        : (record?.studyTimeBlocks as { [key: string]: string }) || {};
+
+                    // Generate time blocks from actual tasks for today
+                    const allTasksForDay = [...mentorDeadlines, ...userTasksForDate, ...dailyEvents.filter(e => e.taskType === 'plan')];
+                    const studyTimeBlocks = generateTimeBlocksFromTasks(allTasksForDay) || {};
 
                     const card = (
                         <DailyPlannerCard
@@ -165,7 +80,7 @@ export default function PlannerCollectionView({
                             memo={record?.memo}
                             mentorDeadlines={mentorDeadlines}
                             userTasks={userTasksForDate}
-                            dailyEvents={planTasksForDate}
+                            dailyEvents={dailyEvents}
                             studyTimeBlocks={studyTimeBlocks}
                             onClick={() => onDateClick(date)}
                             fill={fillCard}
@@ -175,6 +90,8 @@ export default function PlannerCollectionView({
                     );
 
                     if (!showDateLabel) return card;
+
+                    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
 
                     return (
                         <div key={day} className="relative h-full">

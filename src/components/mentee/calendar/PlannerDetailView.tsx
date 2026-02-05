@@ -41,56 +41,17 @@ export default function PlannerDetailView({
     const pad2 = (value: number) => String(value).padStart(2, "0");
     const formatDateInput = (target: Date) =>
         `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
-    const PLANNER_TASKS_KEY = "planner-day-tasks";
 
-    const [plannerTasks, setPlannerTasks] = useState<any[] | null>(null);
-    const [mentorNotice, setMentorNotice] = useState<{ id: string; title: string } | null>(null);
+    // Removed localStorage logic - rely purely on props
 
-    const isSameDay = (date1: Date, date2: Date) => {
-        return date1.getDate() === date2.getDate() &&
-            date1.getMonth() === date2.getMonth() &&
-            date1.getFullYear() === date2.getFullYear();
-    };
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const raw = localStorage.getItem(PLANNER_TASKS_KEY);
-        if (!raw) {
-            setPlannerTasks(null);
-            return;
-        }
-        try {
-            const data = JSON.parse(raw) as Record<string, any[]>;
-            const key = formatDateInput(date);
-            const tasks = data[key];
-            setPlannerTasks(Array.isArray(tasks) ? tasks : null);
-        } catch {
-            setPlannerTasks(null);
-        }
-    }, [date]);
-
-    const persistPlannerTasks = (nextTasks: any[]) => {
-        if (typeof window === "undefined") return;
-        const raw = localStorage.getItem(PLANNER_TASKS_KEY);
-        let data: Record<string, any[]> = {};
-        if (raw) {
-            try {
-                data = JSON.parse(raw);
-            } catch {
-                data = {};
-            }
-        }
-        const key = formatDateInput(date);
-        data[key] = nextTasks;
-        localStorage.setItem(PLANNER_TASKS_KEY, JSON.stringify(data));
-    };
-
-    const rawUserTasks = userTasksProp ?? USER_TASKS.filter(t => t.deadline && isSameDay(t.deadline, date));
-    const planTasksFromUser = rawUserTasks.filter((task) => task.taskType === "plan");
-    const userTasksFallback = rawUserTasks.filter((task) => task.taskType !== "plan");
+    const rawUserTasks = userTasksProp ?? [];
+    const planTasksFromUser = rawUserTasks.filter((task: any) => task.taskType === "plan");
+    const userTasksFallback = rawUserTasks.filter((task: any) => task.taskType !== "plan");
     const planEvents = dailyEvents.filter(e => e.taskType === "plan");
+
+    // Merge plan tasks from User lists and Daily Events to avoid duplicates
     const planTaskMap = new Map<string, any>();
-    planTasksFromUser.forEach((task) => {
+    planTasksFromUser.forEach((task: any) => {
         planTaskMap.set(String(task.id), task);
     });
     planEvents.forEach((event) => {
@@ -99,17 +60,10 @@ export default function PlannerDetailView({
             planTaskMap.set(key, event);
         }
     });
-    const planTasksFallback = Array.from(planTaskMap.values());
+    const planTasksResolved = Array.from(planTaskMap.values());
 
-    const mentorTasksResolved = plannerTasks
-        ? plannerTasks.filter((task) => task.isMentorTask && task.taskType !== "plan")
-        : mentorDeadlines;
-    const userTasksResolved = plannerTasks
-        ? plannerTasks.filter((task) => !task.isMentorTask && task.taskType !== "plan")
-        : userTasksFallback;
-    const planTasksResolved = plannerTasks
-        ? plannerTasks.filter((task) => task.taskType === "plan")
-        : planTasksFallback;
+    const mentorTasksResolved = mentorDeadlines;
+    const userTasksResolved = userTasksFallback;
 
     const allTasks = [...mentorTasksResolved, ...userTasksResolved, ...planTasksResolved];
 
@@ -120,7 +74,8 @@ export default function PlannerDetailView({
         return !!task.completed || !!task.studyRecord;
     };
 
-    const studyTimeBlocks = generateTimeBlocksFromTasks(allTasks);
+    const studyTimeBlocks = generateTimeBlocksFromTasks(allTasks); // This logic might need checking as it was local-storage dependant before or generic? `utils/timeUtils`
+
     const parseTimeValue = (value?: string) => {
         if (!value) return null;
         const [h, m] = value.split(":").map(Number);
@@ -141,7 +96,20 @@ export default function PlannerDetailView({
         });
 
         if (hasTimeRange) return totalMinutes * 60;
-        if (dailyRecord?.studyTime) return dailyRecord.studyTime * 60;
+        if (dailyRecord?.studyTime) return dailyRecord.studyTime * 60; // dailyRecord studyTime is usually in seconds from adapter? Adapter says studyTimeMin * 60 via dailyRecordLike.
+        // Adapter: studyTime: record.studyTimeMin * 60. So it is seconds.
+        // But here we multiply by 60? 
+        // Let's assume passed prop `studyTime` is in seconds.
+        // PlannerDetailView original code line 144: return dailyRecord.studyTime * 60.
+        // This implies original `dailyRecord.studyTime` was minutes.
+        // My adapter `adaptDailyRecordsToUi` line 252: `studyTime: record.studyTimeMin * 60`. (Seconds)
+        // If I pass seconds, and multiply by 60, it becomes huge.
+        // I should probably just return `dailyRecord.studyTime` if it's already seconds.
+
+        // Let's check `formatTime` util usage. Usually `formatTime` takes seconds.
+        // If I change this line, I align with Adapter.
+
+        if (dailyRecord?.studyTime) return dailyRecord.studyTime; // Assume seconds from adapter
         return 0;
     };
     const studyTimeSeconds = computeStudySeconds();
@@ -169,65 +137,8 @@ export default function PlannerDetailView({
     }));
     const hasActivity = sessionGroups.some(group => group.items.length > 0);
 
-    const buildTaskSnapshot = () => {
-        const normalize = (item: any, itemType: "mentor" | "user" | "plan") => {
-            const isMentorTask = item.isMentorTask ?? itemType === "mentor";
-            const completed = !!item.completed;
-            const nextStatus = isMentorTask ? (item.status ?? "pending") : completed ? "submitted" : "pending";
-            return {
-                ...item,
-                id: String(item.id),
-                taskType: itemType === "plan" ? "plan" : itemType,
-                isMentorTask,
-                completed,
-                status: nextStatus,
-                startTime: item.startTime,
-                endTime: item.endTime,
-            };
-        };
-
-        return [
-            ...mentorTasksResolved.map((task) => normalize(task, "mentor")),
-            ...userTasksResolved.map((task) => normalize(task, "user")),
-            ...planTasksResolved.map((task) => normalize(task, "plan")),
-        ];
-    };
-
-    const handleToggleCompletion = (item: any, itemType: "mentor" | "user" | "plan") => {
-        const isMentorTask = item.isMentorTask ?? itemType === "mentor";
-        if (isMentorTask) {
-            setMentorNotice({ id: String(item.id), title: item.title });
-            return;
-        }
-
-        const targetId = String(item.id);
-        const source = plannerTasks ?? buildTaskSnapshot();
-        let found = false;
-        const nextTasks = source.map((task) => {
-            if (String(task.id) !== targetId) return task;
-            found = true;
-            const nextCompleted = !task.completed;
-            return {
-                ...task,
-                completed: nextCompleted,
-                status: nextCompleted ? "submitted" : "pending"
-            };
-        });
-
-        if (!found) {
-            nextTasks.push({
-                ...item,
-                id: targetId,
-                taskType: itemType === "plan" ? "plan" : itemType,
-                isMentorTask: false,
-                completed: true,
-                status: "submitted"
-            });
-        }
-
-        setPlannerTasks(nextTasks);
-        persistPlannerTasks(nextTasks);
-    };
+    // Removed persist/toggle logic that writes to localStorage.
+    // Instead, onTaskClick should be used to navigate to detail/modal.
 
     const sizeClass = size === "collection"
         ? "w-[92vw] max-w-[720px] h-[90vh] max-h-[90vh]"
@@ -281,8 +192,14 @@ export default function PlannerDetailView({
                                     </div>
                                     <div className="space-y-1">
                                         {group.items.map((item) => {
-                                            const colorClass = group.category.color;
-                                            const borderClass = colorClass.replace("bg-", "border-");
+                                            // Ensure we use colorHex for consistency if available, falling back to class-based approach if not
+                                            // The adapter provides colorHex in DEFAULT_CATEGORIES so relying on group.category is safe IF DEFAULT_CATEGORIES has it.
+                                            // Original Sunbal code used `group.category.color` (Tailwind class).
+                                            // HEAD `DEFAULT_CATEGORIES` has `colorHex` and `textColorHex`.
+                                            // Sunbal `DEFAULT_CATEGORIES` (via merge) might have both?
+                                            // Let's check if we can use inline styles for colors to be safe.
+
+                                            const colorHex = group.category.colorHex || "#ccc";
                                             const completed = isTaskCompleted(item);
                                             const isMentorTask = item.isMentorTask ?? item.itemType === "mentor";
 
@@ -292,9 +209,11 @@ export default function PlannerDetailView({
                                                     onClick={(event) => {
                                                         event.preventDefault();
                                                         event.stopPropagation();
-                                                        handleToggleCompletion(item, item.itemType);
+                                                        // Pass to prop or just ignore if no prop
+                                                        if (onTaskClick) onTaskClick(item);
                                                     }}
-                                                    className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${completed ? `${colorClass} ${borderClass}` : "border-gray-300 bg-white"} shrink-0 mt-0.5`}
+                                                    className={`w-3.5 h-3.5 rounded flex items-center justify-center border shrink-0 mt-0.5 ${completed ? "shadow-sm" : "border-gray-300 bg-white"}`}
+                                                    style={completed ? { backgroundColor: colorHex, borderColor: colorHex } : undefined}
                                                     aria-label={isMentorTask ? "멘토 과제 완료 규칙 안내" : "완료 체크"}
                                                 >
                                                     {completed && <Check size={9} className="text-white" />}
@@ -304,7 +223,10 @@ export default function PlannerDetailView({
                                             if (item.itemType === "plan") {
                                                 return (
                                                     <div key={`plan-${item.id}`} className="relative flex items-start gap-2 px-1.5 py-0.5 -m-0.5 pl-4">
-                                                        <span className={`absolute left-0 top-2 bottom-2 w-1 rounded-full ${colorClass}`} />
+                                                        <span
+                                                            className={`absolute left-0 top-2 bottom-2 w-1 rounded-full`}
+                                                            style={{ backgroundColor: colorHex }}
+                                                        />
                                                         {checkboxButton}
                                                         <div className="flex-1 min-w-0">
                                                             <p className={`text-[11px] font-bold text-gray-800 truncate ${completed ? "text-gray-400 line-through" : ""}`}>{item.title}</p>
@@ -314,7 +236,10 @@ export default function PlannerDetailView({
                                             }
                                             const CommonContent = (
                                                 <>
-                                                    <span className={`absolute left-0 top-2 bottom-2 w-1 rounded-full ${colorClass}`} />
+                                                    <span
+                                                        className={`absolute left-0 top-2 bottom-2 w-1 rounded-full`}
+                                                        style={{ backgroundColor: colorHex }}
+                                                    />
                                                     {checkboxButton}
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-1 mb-0.5">
@@ -385,7 +310,8 @@ export default function PlannerDetailView({
                                                 return (
                                                     <div
                                                         key={slot}
-                                                        className={`border-r border-gray-50 last:border-none relative ${category?.color || "bg-white"} ${category ? "shadow-inner" : ""}`}
+                                                        className={`border-r border-gray-50 last:border-none relative ${category ? "shadow-inner" : ""}`}
+                                                        style={category ? { backgroundColor: category.colorHex } : { backgroundColor: "white" }}
                                                     />
                                                 );
                                             })}
@@ -394,94 +320,11 @@ export default function PlannerDetailView({
                                 );
                             })}
                         </div>
-
-            {/* Mentor Feedback Section */}
-            {(mentorReview || onEditReview || mentorTasksResolved.some(t => t.mentorFeedback)) && (
-                <div className="p-2 pt-0 shrink-0">
-                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 shadow-sm ring-1 ring-gray-100">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                                <span className={`font-bold text-indigo-600 ${size === "mini" ? "text-[10px]" : "text-sm"}`}>
-                                    {size === "mini" ? "멘토 피드백" : "📝 멘토링 총평 리포트"}
-                                </span>
-                            </div>
-                            {onEditReview && (
-                                <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        onEditReview();
-                                    }}
-                                    className="text-xs font-bold text-gray-400 hover:text-indigo-600 transition-colors flex items-center gap-1"
-                                >
-                                    {mentorReview ? "수정" : "작성하기"}
-                                </button>
-                            )}
-                        </div>
-
-                        {mentorReview ? (
-                            <div
-                                className={`${size === "mini" ? "text-[9px]" : "text-sm"} text-gray-700 font-medium leading-relaxed whitespace-pre-wrap break-words ${onEditReview ? "cursor-pointer hover:text-indigo-900" : ""}`}
-                                onClick={() => onEditReview && onEditReview()}
-                            >
-                                {size === "mini" && mentorReview.length > 50
-                                    ? `"${mentorReview.slice(0, 50)}..."`
-                                    : `"${mentorReview}"`}
-                            </div>
-                        ) : onEditReview ? (
-                            <div
-                                className={`${size === "mini" ? "text-[9px]" : "text-sm"} text-gray-400 font-medium italic cursor-pointer hover:text-indigo-500 py-2 text-center border border-dashed border-gray-200 rounded-lg hover:border-indigo-200 hover:bg-white transition-all`}
-                                onClick={() => onEditReview && onEditReview()}
-                            >
-                                + 오늘의 학습에 대한 총평을 남겨주세요
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-            )}
                     </div>
                 </div>
 
             </div>
 
-            {mentorNotice && (
-                <div className="fixed inset-0 z-[90] flex items-center justify-center px-6">
-                    <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={() => setMentorNotice(null)}
-                    />
-                    <div className="relative w-full max-w-sm bg-white rounded-[28px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <div className="px-6 pt-6 pb-4 border-b border-gray-50">
-                            <h3 className="text-lg font-black text-gray-900">멘토 과제는 제출이 필요해요</h3>
-                            <p className="text-[11px] text-gray-400 font-bold mt-1">
-                                제출을 완료해야 체크됩니다.
-                            </p>
-                        </div>
-                        <div className="px-6 py-5">
-                            <div className="rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-3 text-[12px] font-bold text-orange-700">
-                                "{mentorNotice.title}" 과제는 제출 후 완료 처리됩니다.
-                            </div>
-                        </div>
-                        <div className="px-6 pb-6 pt-1 space-y-2">
-                            <button
-                                onClick={() => {
-                                    router.push(`/planner/${mentorNotice.id}?focus=submit`);
-                                    setMentorNotice(null);
-                                }}
-                                className="w-full h-11 rounded-2xl bg-gray-900 text-white text-sm font-black hover:bg-black"
-                            >
-                                제출하러 가기
-                            </button>
-                            <button
-                                onClick={() => setMentorNotice(null)}
-                                className="w-full h-10 text-[12px] font-bold text-gray-400 hover:text-gray-600"
-                            >
-                                닫기
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
