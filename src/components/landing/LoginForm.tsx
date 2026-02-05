@@ -58,7 +58,7 @@ export default function LoginForm() {
       return;
     }
 
-    router.push(role === "mentor" || role === "admin" ? "/mentor" : "/home");
+    router.push(role === "mentor" || role === "admin" ? "/dashboard" : "/home");
     setIsLoading(false);
   };
 

@@ -59,7 +59,7 @@ export default function CalendarPage() {
     const isSameDay = (date1: Date, date2: Date) => {
         return date1.getDate() === date2.getDate() &&
             date1.getMonth() === date2.getMonth() &&
-            date.getFullYear() === date2.getFullYear();
+            date1.getFullYear() === date2.getFullYear();
     };
 
     const toDateString = (date: Date) => {
