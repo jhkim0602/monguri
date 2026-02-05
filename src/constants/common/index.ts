@@ -3,7 +3,7 @@ export const USER_PROFILE = {
   name: "김서연",
   role: "고3 수험생",
   dDay: 230,
-  avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+  avatar: "/avatar-1.png",
 };
 
 export const DEFAULT_CATEGORIES = [

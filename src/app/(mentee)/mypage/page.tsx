@@ -21,7 +21,8 @@ import {
     Calendar,
     Video,
     Clock,
-    Plus
+    Plus,
+    BookOpen,
 } from "lucide-react";
 import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
 import { MENTOR_TASKS } from "@/constants/mentee";
@@ -45,6 +46,83 @@ type MeetingRecord = {
 export default function MyPage() {
     const router = useRouter();
 
+    const ACHIEVEMENT_MENTOR_TASKS = [
+        {
+            id: 101,
+            title: "국어 문학 핵심 정리",
+            status: "submitted",
+            categoryId: "korean",
+            deadline: new Date(2026, 1, 2),
+            mentorFeedback: "핵심 개념 정리가 명확합니다.",
+            mentorComment: "지문 요약이 좋아요. 다음엔 비교 포인트도 적어보세요.",
+        },
+        {
+            id: 102,
+            title: "수학 함수 그래프 15문항",
+            status: "pending",
+            categoryId: "math",
+            deadline: new Date(2026, 1, 2),
+            mentorFeedback: "아직 피드백이 등록되지 않았습니다.",
+            mentorComment: "",
+        },
+        {
+            id: 103,
+            title: "영어 순서배열 집중 풀이",
+            status: "feedback_completed",
+            categoryId: "english",
+            deadline: new Date(2026, 1, 1),
+            mentorFeedback: "연결어 선택이 안정적입니다.",
+            mentorComment: "문장 간 흐름 잡는 속도가 빨라졌어요.",
+        },
+        {
+            id: 104,
+            title: "국어 비문학 2지문 풀이",
+            status: "submitted",
+            categoryId: "korean",
+            deadline: new Date(2026, 1, 3),
+            mentorFeedback: "요약이 정확합니다.",
+            mentorComment: "근거 문장을 표시한 부분이 좋아요.",
+        },
+        {
+            id: 105,
+            title: "수학 기출 오답 정리",
+            status: "submitted",
+            categoryId: "math",
+            deadline: new Date(2026, 1, 4),
+            mentorFeedback: "오답 이유가 명확합니다.",
+            mentorComment: "유형별 실수 패턴을 더 모아보세요.",
+        },
+    ];
+
+    const ACHIEVEMENT_USER_TASKS = [
+        {
+            id: "au1",
+            title: "영어 단어 60개 암기",
+            status: "submitted",
+            categoryId: "english",
+            deadline: new Date(2026, 1, 2),
+            mentorComment: "단어 암기 루틴이 안정적이에요.",
+        },
+        {
+            id: "au2",
+            title: "수학 실전 문제풀이 10문항",
+            status: "submitted",
+            categoryId: "math",
+            deadline: new Date(2026, 1, 1),
+            mentorComment: "풀이 속도가 빨라졌어요.",
+        },
+        {
+            id: "au3",
+            title: "국어 문법 핵심 체크",
+            status: "pending",
+            categoryId: "korean",
+            deadline: new Date(2026, 1, 3),
+            mentorComment: "",
+        },
+    ];
+
+    const achievementTasks = [...ACHIEVEMENT_MENTOR_TASKS, ...ACHIEVEMENT_USER_TASKS];
+
     // Profile Edit States
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [profileName, setProfileName] = useState(USER_PROFILE.name);
@@ -67,6 +145,7 @@ export default function MyPage() {
     const [meetingTaskId, setMeetingTaskId] = useState("");
     const [meetingPreferredTime, setMeetingPreferredTime] = useState("");
     const [meetingNote, setMeetingNote] = useState("");
+    const [isMeetingSectionOpen, setIsMeetingSectionOpen] = useState(true);
     const [isMeetingRequestOpen, setIsMeetingRequestOpen] = useState(false);
     const [isMeetingRequestHistoryOpen, setIsMeetingRequestHistoryOpen] = useState(false);
     const [isMeetingHistoryOpen, setIsMeetingHistoryOpen] = useState(false);
@@ -117,14 +196,16 @@ export default function MyPage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Filter Tasks based on period
+    const ACHIEVEMENT_TODAY = new Date(2026, 1, 2);
+
+    // Filter Tasks based on period (mock achievement data)
     const getFilteredTasks = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
-        const today = new Date();
+        const today = ACHIEVEMENT_TODAY;
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-        return MENTOR_TASKS.filter(t => {
+        return achievementTasks.filter(t => {
             if (t.categoryId !== categoryId) return false;
             if (!t.deadline) return false;
 
@@ -269,7 +350,7 @@ export default function MyPage() {
     const getFeedbackItems = () => {
         const items: any[] = [];
 
-        MENTOR_TASKS.forEach((task) => {
+        ACHIEVEMENT_MENTOR_TASKS.forEach((task) => {
             const hasComment = isRealFeedback(task.mentorComment);
             const hasFeedback = isRealFeedback(task.mentorFeedback);
             if (!hasComment && !hasFeedback) return;
@@ -307,6 +388,25 @@ export default function MyPage() {
             });
         });
 
+        ACHIEVEMENT_USER_TASKS.forEach((task) => {
+            if (!isRealFeedback(task.mentorComment)) return;
+
+            const category = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
+            items.push({
+                id: `u-${task.id}`,
+                type: 'user',
+                taskId: task.id,
+                title: task.title,
+                categoryId: task.categoryId,
+                subjectLabel: category?.name || '과목',
+                subjectClass: category ? `${category.color} ${category.textColor}` : 'bg-gray-100 text-gray-600',
+                feedback: task.mentorComment,
+                deadline: task.deadline,
+                statusLabel: '멘토 답변',
+                statusClass: 'bg-purple-50 text-purple-600',
+            });
+        });
+
         return items.sort((a, b) => {
             const aTime = a.deadline ? new Date(a.deadline).getTime() : 0;
             const bTime = b.deadline ? new Date(b.deadline).getTime() : 0;
@@ -316,7 +416,7 @@ export default function MyPage() {
 
     const feedbackItems = getFeedbackItems();
     const filterItemsByPeriod = (items: any[], period: 'daily' | 'weekly' | 'monthly') => {
-        const today = new Date();
+        const today = ACHIEVEMENT_TODAY;
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -399,6 +499,11 @@ export default function MyPage() {
     const subjectUnreadCount = subjectFeedbackItems.filter(i => !readFeedbackIds.includes(i.id)).length;
     const latestSubjectFeedback = subjectFeedbackItems[0];
     const groupedSubjectFeedbackItems = groupFeedbackItems(subjectFeedbackItems, selectedPeriod);
+    const periodLabel = selectedPeriod === 'daily'
+        ? `${ACHIEVEMENT_TODAY.getMonth() + 1}/${ACHIEVEMENT_TODAY.getDate()} 오늘`
+        : selectedPeriod === 'weekly'
+            ? formatWeekRange(ACHIEVEMENT_TODAY)
+            : `${ACHIEVEMENT_TODAY.getMonth() + 1}월`;
     const allMonthKeys = groupedSubjectFeedbackItems.map(group => group.key);
     const normalizedOpenMonthKeys = openMonthKeys.filter(key => allMonthKeys.includes(key));
     const isMonthOpen = (key: string) => normalizedOpenMonthKeys.includes(key);
@@ -453,6 +558,7 @@ export default function MyPage() {
     };
 
     const menuItems = [
+        { icon: BookOpen, label: "서울대쌤 칼럼", color: "text-indigo-500", bg: "bg-indigo-50", href: "/columns" },
         { icon: HelpCircle, label: "고객센터", color: "text-orange-500", bg: "bg-orange-50" },
     ];
 
@@ -546,7 +652,7 @@ export default function MyPage() {
                     })}
                 </div>
 
-                {/* Compact Achievement Card */}
+                {/* Compact Achievement Card (MVP Redesign) */}
                 <div
                     onClick={() => {
                         setDetailTab('tasks');
@@ -554,73 +660,85 @@ export default function MyPage() {
                     }}
                     className="cursor-pointer group animate-in fade-in slide-in-from-bottom-4 duration-500"
                 >
-                    <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-xl shadow-gray-200/50 relative overflow-hidden active:scale-[0.98] transition-all">
-                        {/* Background Decor */}
-                        <div className={`absolute -top-10 -right-10 w-32 h-32 bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-50 rounded-full blur-3xl opacity-60`} />
+                    <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.99] relative overflow-hidden">
 
-                        <div className="relative z-10 flex items-center justify-between mb-6">
-                            <div>
-                                <h4 className="text-[18px] font-black text-gray-900 mb-1">
-                                    {subjects.find(s => s.id === selectedStatSubject)?.name} 성취 리포트
-                                </h4>
-                                <p className="text-xs text-gray-400 font-medium">터치하여 상세 리스트 확인</p>
+                        {/* Header: Subject + Remaining Count */}
+                        <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-2">
+                                {/* Dynamic Icon Rendering */}
+                                {(() => {
+                                    const subject = subjects.find(s => s.id === selectedStatSubject);
+                                    const Icon = subject?.icon;
+                                    return (
+                                        <div className={`w-10 h-10 rounded-2xl bg-${subject?.color}-50 flex items-center justify-center text-${subject?.color}-500`}>
+                                            {Icon && <Icon size={20} />}
+                                        </div>
+                                    );
+                                })()}
+                                <div>
+                                    <h4 className="text-[17px] font-black text-gray-900 leading-none mb-1">
+                                        {subjects.find(s => s.id === selectedStatSubject)?.name}
+                                    </h4>
+                                    <p className="text-[11px] text-gray-400 font-bold">성취도 리포트</p>
+                                </div>
                             </div>
-                            <div className="text-right">
-                                <span className={`text-[28px] font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 leading-none`}>
-                                    {getSubjectStats(selectedStatSubject, selectedPeriod)}%
+                            <div className="flex flex-col items-end">
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-0.5">남은 과제</span>
+                                <span className={`text-xl font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500`}>
+                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length}개
                                 </span>
                             </div>
                         </div>
 
-                        {/* Progress Bar */}
-                        <div className="h-3 w-full bg-gray-50 rounded-full mb-6 overflow-hidden p-0.5 border border-gray-100">
-                            <div
-                                className={`h-full bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 rounded-full transition-all duration-1000 ease-out shadow-sm`}
-                                style={{ width: `${getSubjectStats(selectedStatSubject, selectedPeriod)}%` }}
-                            />
+                        {/* Progress Section */}
+                        <div className="mb-6">
+                            <div className="flex justify-between text-[11px] font-bold text-gray-500 mb-2">
+                                <span>진행률 {getSubjectStats(selectedStatSubject, selectedPeriod)}%</span>
+                                <span>
+                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}
+                                    <span className="text-gray-300 mx-0.5">/</span>
+                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).length} 완료
+                                </span>
+                            </div>
+                            <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
+                                <div
+                                    className={`h-full bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 rounded-full transition-all duration-500`}
+                                    style={{ width: `${getSubjectStats(selectedStatSubject, selectedPeriod)}%` }}
+                                />
+                            </div>
                         </div>
 
-                        {/* Feedback Summary (Inline) */}
-                        <div className="mb-5 bg-gray-50/70 border border-gray-100 rounded-2xl p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
-                                    <MessageCircle size={14} className="text-purple-500" />
-                                    피드백 {subjectFeedbackItems.length}개
-                                    {subjectUnreadCount > 0 && (
-                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 text-[9px] font-black">NEW {subjectUnreadCount}</span>
-                                    )}
-                                </div>
-                                <span className="text-[10px] text-gray-400 font-bold">탭하면 상세 확인</span>
+                        {/* Feedback Snippet (Latest) */}
+                        <div className="bg-gray-50 rounded-2xl p-4 flex gap-3 items-start border border-gray-100/50">
+                             <div className="mt-0.5 min-w-[16px]">
+                                <MessageCircle size={16} className="text-gray-400" />
                             </div>
                             {latestSubjectFeedback ? (
-                                <p className="text-[12px] text-gray-600 font-medium line-clamp-2">
-                                    "{latestSubjectFeedback.feedback}"
-                                </p>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                         <span className="text-[11px] font-black text-gray-900">최신 멘토 피드백</span>
+                                         <span className="text-[10px] text-gray-400 font-bold">
+                                            {formatFeedbackDate(latestSubjectFeedback.deadline)}
+                                         </span>
+                                    </div>
+                                    <p className="text-[12px] text-gray-600 font-medium leading-relaxed line-clamp-2">
+                                        "{latestSubjectFeedback.feedback}"
+                                    </p>
+                                </div>
                             ) : (
-                                <p className="text-[12px] text-gray-400 font-medium">아직 도착한 피드백이 없습니다.</p>
+                                <p className="text-[12px] text-gray-400 font-medium py-1">
+                                    아직 등록된 피드백이 없습니다.
+                                </p>
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between px-2">
-                            <div className="flex items-center gap-4">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Todo</span>
-                                    <span className="text-lg font-black text-gray-700">
-                                        {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length}
-                                    </span>
-                                </div>
-                                <div className="w-[1px] h-8 bg-gray-100" />
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Done</span>
-                                    <span className="text-lg font-black text-blue-500">
-                                        {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className={`w-10 h-10 rounded-2xl bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-50 flex items-center justify-center text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 group-hover:bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 group-hover:text-white transition-all`}>
-                                <ArrowRight size={18} />
+                        {/* Action Hint */}
+                        <div className="mt-4 flex justify-end">
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-gray-300 group-hover:text-primary transition-colors">
+                                상세 내역 확인하기 <ArrowRight size={12} />
                             </div>
                         </div>
+
                     </div>
                 </div>
             </section>
@@ -674,17 +792,15 @@ export default function MyPage() {
                         </header>
 
                         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                            {/* Summary Card in Modal */}
-                            <div className={`bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-50/50 rounded-[28px] p-6 border border-${subjects.find(s => s.id === selectedStatSubject)?.color}-100 flex flex-col items-center text-center`}>
-                                <div className={`w-16 h-16 rounded-full bg-white flex items-center justify-center mb-3 shadow-sm border border-${subjects.find(s => s.id === selectedStatSubject)?.color}-100`}>
-                                    <span className={`text-xl font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500`}>
-                                        {getSubjectStats(selectedStatSubject, selectedPeriod)}%
-                                    </span>
-                                </div>
-                                <h3 className="font-black text-gray-900 mb-1">성취도 리포트</h3>
-                                <p className="text-xs text-gray-500 font-medium">
-                                    총 {getFilteredTasks(selectedStatSubject, selectedPeriod).length}개 중 {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}개 완료
-                                </p>
+                            {/* Simplified Text Summary (Text Only) */}
+                            <div className="flex items-center gap-2 px-1 mb-1">
+                                <span className={`text-lg font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500`}>
+                                    진행률 {getSubjectStats(selectedStatSubject, selectedPeriod)}%
+                                </span>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-sm font-bold text-gray-500">
+                                    전체 {getFilteredTasks(selectedStatSubject, selectedPeriod).length}개 중 {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}개 완료
+                                </span>
                             </div>
 
                             {detailTab === 'tasks' ? (
@@ -847,14 +963,25 @@ export default function MyPage() {
                             미팅 신청 후 멘토가 줌 링크를 보내면 확정돼요.
                         </p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-gray-400 font-black">
-                        <Calendar size={14} className="text-gray-300" />
-                        요청 {requestedMeetings.length}건 · 확정 {confirmedMeetings.length}건
+                    <div className="flex items-center gap-2">
+                        <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-gray-400 font-black">
+                            <Calendar size={14} className="text-gray-300" />
+                            요청 {requestedMeetings.length}건 · 확정 {confirmedMeetings.length}건
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsMeetingSectionOpen(prev => !prev)}
+                            className="p-2 rounded-full bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                            aria-label="멘토 미팅 섹션 토글"
+                        >
+                            {isMeetingSectionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
                     </div>
                 </div>
 
-                <div className="space-y-4">
+                {isMeetingSectionOpen && (
                     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                        <div className="space-y-4">
                         <div className="flex items-center justify-between gap-3 mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
@@ -955,7 +1082,9 @@ export default function MyPage() {
                         )}
                     </div>
 
-                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                    <div className="h-px bg-gray-100 my-6" />
+
+                    <div className="space-y-4">
                         <div className="flex items-center justify-between mb-4">
                             <div>
                                 <h4 className="text-sm font-black text-gray-900">미팅 신청 기록</h4>
@@ -1024,7 +1153,9 @@ export default function MyPage() {
                         )}
                     </div>
 
-                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                    <div className="h-px bg-gray-100 my-6" />
+
+                    <div className="space-y-4">
                         <div className="flex items-center justify-between mb-4">
                             <div>
                                 <h4 className="text-sm font-black text-gray-900">미팅 기록</h4>
@@ -1111,6 +1242,7 @@ export default function MyPage() {
                         )}
                     </div>
                 </div>
+                )}
             </section>
 
             {/* Menu List */}
@@ -1121,6 +1253,7 @@ export default function MyPage() {
                         return (
                             <button
                                 key={idx}
+                                onClick={() => item.href && router.push(item.href)}
                                 className="w-full flex items-center gap-4 p-5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-none"
                             >
                                 <div className={`w-10 h-10 ${item.bg} ${item.color} rounded-xl flex items-center justify-center`}>
