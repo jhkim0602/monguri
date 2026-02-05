@@ -6,7 +6,7 @@ import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
-import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal"; // Does this exist? Assuming yes or will check.
+import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import Header from "@/components/mentee/layout/Header";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -59,7 +59,7 @@ export default function CalendarPage() {
     const isSameDay = (date1: Date, date2: Date) => {
         return date1.getDate() === date2.getDate() &&
             date1.getMonth() === date2.getMonth() &&
-            date1.getFullYear() === date2.getFullYear();
+            date.getFullYear() === date2.getFullYear();
     };
 
     const toDateString = (date: Date) => {
@@ -211,8 +211,19 @@ export default function CalendarPage() {
         setIsModalOpen(true);
     };
 
-    const selectedPlannerTasks = selectedDate ? plannerTasks.filter(t => t.deadline && isSameDay(t.deadline, selectedDate)) : [];
-    // Helper to get events for selected date
+    // Derived State for Planner Detail Modal
+    // We need to pass data for the SELECTED date to the modal
+    const selectedDailyRecord = selectedDate ? getDailyRecord(selectedDate) : null;
+    const selectedMentorDeadlines = selectedDate
+        ? mentorTasks.filter(t => t.deadline && isSameDay(t.deadline, selectedDate))
+        : [];
+    const selectedDailyEvents = selectedDate
+        ? scheduleEvents.filter(e => e.date && isSameDay(e.date, selectedDate))
+        : [];
+
+    // selectedPlannerTasks are passed as raw to Modal, Modal filters them.
+    // Or we could pass filtered. The Modal expects raw `plannerTasks` per my previous file edit.
+
     const selectedDateEvents = selectedDate
         ? scheduleEvents.filter(e => e.date && isSameDay(e.date, selectedDate))
         : [];
@@ -237,7 +248,6 @@ export default function CalendarPage() {
                 title="인사이트 캘린더"
                 variant="clean"
                 rightElement={
-                    // Sunbal's Add button (disabled for now as logic is not wired to API)
                     <button
                         onClick={() => alert("Coming soon!")}
                         className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-primary/20 hover:scale-105 active:scale-95"
@@ -303,7 +313,6 @@ export default function CalendarPage() {
                                 const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                                 const isTodayDate = isToday(targetDate);
                                 const isSelected = selectedDate && isSameDay(selectedDate, targetDate);
-                                // Meeting day check excluded as it relied on local storage logic
 
                                 const dayEvents = scheduleEvents.filter(
                                     (event) => event.date && isSameDay(event.date, targetDate)
@@ -437,7 +446,6 @@ export default function CalendarPage() {
                                                             fullTask = plannerTasks.find(t => String(t.id) === String(event.id));
                                                         }
 
-                                                        // Default checks if fullTask is found, otherwise fallback to basic event data
                                                         const isMentorTask = event.taskType === 'mentor';
                                                         const isSubmitted = fullTask?.status === 'submitted' || fullTask?.status === 'feedback_completed' || !!fullTask?.studyRecord;
                                                         const isCompleted = isMentorTask ? isSubmitted : (!!fullTask?.completed || isSubmitted);
@@ -506,6 +514,29 @@ export default function CalendarPage() {
                     </div>
                 )}
             </section>
+
+            {/* Modals */}
+            <PlannerDetailModal
+                isOpen={isPlannerModalOpen}
+                onClose={() => setIsPlannerModalOpen(false)}
+                date={selectedDate} // Pass selected date
+                dailyRecord={selectedDailyRecord}
+                mentorDeadlines={selectedMentorDeadlines}
+                dailyEvents={selectedDailyEvents}
+                plannerTasks={plannerTasks}
+                onTaskClick={(task) => {
+                    setIsPlannerModalOpen(false);
+                    openTaskDetail(task);
+                }}
+            />
+
+            {selectedTask && (
+                <TaskDetailModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    task={selectedTask}
+                />
+            )}
         </div>
     );
 }
