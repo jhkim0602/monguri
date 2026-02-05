@@ -9,7 +9,7 @@ import {
     X
 } from "lucide-react";
 import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
-import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
+import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS, WEEKLY_SCHEDULE } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import Header from "@/components/mentee/layout/Header";
@@ -76,7 +76,7 @@ export default function PlannerPage() {
         const raw = localStorage.getItem(CALENDAR_EVENTS_KEY);
         if (!raw) return [];
         try {
-            const events = JSON.parse(raw) as { id: string; title: string; categoryId: string; date: string }[];
+            const events = JSON.parse(raw) as { id: string; title: string; categoryId: string; date: string; startTime?: string; endTime?: string; taskType?: string; isMentorTask?: boolean }[];
             return events.filter((event) => isSameDay(parseDateInput(event.date), date));
         } catch {
             return [];
@@ -84,6 +84,53 @@ export default function PlannerPage() {
     };
 
     useEffect(() => {
+        const buildPlanTasks = () => {
+            const schedule = WEEKLY_SCHEDULE.find(s => isSameDay(s.date, currentDate));
+            const scheduleEvents = schedule ? schedule.events : [];
+            return scheduleEvents.filter((event) => event.taskType === "plan").map((event) => {
+                const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
+                return {
+                    id: `plan-${event.id}`,
+                    title: event.title,
+                    categoryId: event.categoryId,
+                    description: "주간 플래너 일정",
+                    status: "pending",
+                    badgeColor: `${category.color} ${category.textColor}`,
+                    completed: false,
+                    timeSpent: 0,
+                    isRunning: false,
+                    isMentorTask: event.isMentorTask ?? false,
+                    studyRecord: null,
+                    isCustomEvent: true,
+                    taskType: "plan",
+                    startTime: event.startTime || "00:00",
+                    endTime: event.endTime || "00:00"
+                };
+            });
+        };
+
+        const planTasks = buildPlanTasks();
+        const customEvents = getCustomEventsForDate(currentDate).map((event) => {
+            const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
+            return {
+                id: String(event.id),
+                title: event.title,
+                categoryId: event.categoryId,
+                description: "캘린더에서 추가한 반복 일정",
+                status: "pending",
+                badgeColor: `${category.color} ${category.textColor}`,
+                completed: false,
+                timeSpent: 0,
+                isRunning: false,
+                isMentorTask: event.isMentorTask ?? false,
+                studyRecord: null,
+                isCustomEvent: true,
+                taskType: "plan",
+                startTime: event.startTime || "00:00",
+                endTime: event.endTime || "00:00"
+            };
+        });
+
         if (typeof window !== "undefined") {
             const raw = localStorage.getItem(PLANNER_TASKS_KEY);
             if (raw) {
@@ -91,7 +138,15 @@ export default function PlannerPage() {
                     const data = JSON.parse(raw) as Record<string, any[]>;
                     const saved = data[formatDateInput(currentDate)];
                     if (Array.isArray(saved) && saved.length > 0) {
-                        setTasks(saved);
+                        const merged = [...saved];
+                        const existingIds = new Set(merged.map((task) => String(task.id)));
+                        [...planTasks, ...customEvents].forEach((task) => {
+                            if (!existingIds.has(String(task.id))) {
+                                merged.push(task);
+                                existingIds.add(String(task.id));
+                            }
+                        });
+                        setTasks(merged);
                         return;
                     }
                 } catch {
@@ -119,25 +174,7 @@ export default function PlannerPage() {
             isRunning: false
         }));
 
-        const customEvents = getCustomEventsForDate(currentDate).map((event) => {
-            const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
-            return {
-                id: String(event.id),
-                title: event.title,
-                categoryId: event.categoryId,
-                description: "캘린더에서 추가한 반복 일정",
-                status: "pending",
-                badgeColor: `${category.color} ${category.textColor}`,
-                completed: false,
-                timeSpent: 0,
-                isRunning: false,
-                isMentorTask: false,
-                studyRecord: null,
-                isCustomEvent: true,
-            };
-        });
-
-        setTasks([...initialMentorTasks, ...initialUserTasks, ...customEvents]);
+        setTasks([...initialMentorTasks, ...initialUserTasks, ...planTasks, ...customEvents]);
     }, [currentDate]);
 
     useEffect(() => {

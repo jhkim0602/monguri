@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BottomNav from "@/components/mentee/common/BottomNav";
+import "./mentee.css";
 
 export default function MenteeLayout({
   children,

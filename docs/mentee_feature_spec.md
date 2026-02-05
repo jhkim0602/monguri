@@ -12,6 +12,7 @@
 - 플래너: `/planner`, `/planner/[id]`
 - 캘린더: `/calendar`
 - 마이페이지: `/mypage`
+- 마이페이지 피드백 모아보기: `/mypage/feedbacks`
 - 루트(`/`)는 현재 `/landing`으로 redirect
 - 로그인 상태 저장/세션은 아직 미구현 (Mock/조건부 라우팅 예정)
 
@@ -172,15 +173,16 @@
 - **구현 상태**
   - 로컬 상태만 반영 (저장/업로드 없음)
 
-### 4-2. 과목별 성취도
+### 4-2. 피드백 모아보기 (신규)
 - **기능**
-  - 일간/주간/월간 탭
-  - 과목별 성취율 계산
-  - 상세 모달(과제/피드백 탭)
+  - 날짜 이동형 플래너 요약(좌: Task, 우: Timeline)
+  - Task 클릭 → `/planner/[id]` 상세 이동
+  - 플래너(하루) 단위 종합 피드백/코멘트 표시
 - **데이터 소스**
-  - `MENTOR_TASKS`, `USER_TASKS` (mock)
+  - `MENTOR_TASKS`, `USER_TASKS`, `PLANNER_FEEDBACKS` (mock)
+  - `planner-day-tasks` (로컬스토리지 우선)
 - **구현 상태**
-  - UI/로직 완료
+  - UI/로직 완료 (멘토 입력/연동 없음)
 
 ### 4-3. 멘토 미팅
 - **기능**

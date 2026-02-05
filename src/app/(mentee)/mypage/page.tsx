@@ -5,17 +5,13 @@ import { useRouter } from "next/navigation";
 import {
     Settings,
     ChevronRight,
-    ChevronRight as ArrowRight,
     CheckCircle2,
-    MessageCircle,
     HelpCircle,
     LogOut,
     Camera,
     X,
     Check,
-    Library,
-    Calculator,
-    Languages,
+    MessageSquare,
     ChevronDown,
     ChevronUp,
     Calendar,
@@ -25,7 +21,7 @@ import {
     BookOpen,
 } from "lucide-react";
 import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
-import { MENTOR_TASKS } from "@/constants/mentee";
+import { MENTOR_TASKS, PLANNER_FEEDBACKS } from "@/constants/mentee";
 import Header from "@/components/mentee/layout/Header";
 
 type MeetingStatus = "requested" | "scheduled" | "completed";
@@ -46,99 +42,11 @@ type MeetingRecord = {
 export default function MyPage() {
     const router = useRouter();
 
-    const ACHIEVEMENT_MENTOR_TASKS = [
-        {
-            id: 101,
-            title: "국어 문학 핵심 정리",
-            status: "submitted",
-            categoryId: "korean",
-            deadline: new Date(2026, 1, 2),
-            mentorFeedback: "핵심 개념 정리가 명확합니다.",
-            mentorComment: "지문 요약이 좋아요. 다음엔 비교 포인트도 적어보세요.",
-        },
-        {
-            id: 102,
-            title: "수학 함수 그래프 15문항",
-            status: "pending",
-            categoryId: "math",
-            deadline: new Date(2026, 1, 2),
-            mentorFeedback: "아직 피드백이 등록되지 않았습니다.",
-            mentorComment: "",
-        },
-        {
-            id: 103,
-            title: "영어 순서배열 집중 풀이",
-            status: "feedback_completed",
-            categoryId: "english",
-            deadline: new Date(2026, 1, 1),
-            mentorFeedback: "연결어 선택이 안정적입니다.",
-            mentorComment: "문장 간 흐름 잡는 속도가 빨라졌어요.",
-        },
-        {
-            id: 104,
-            title: "국어 비문학 2지문 풀이",
-            status: "submitted",
-            categoryId: "korean",
-            deadline: new Date(2026, 1, 3),
-            mentorFeedback: "요약이 정확합니다.",
-            mentorComment: "근거 문장을 표시한 부분이 좋아요.",
-        },
-        {
-            id: 105,
-            title: "수학 기출 오답 정리",
-            status: "submitted",
-            categoryId: "math",
-            deadline: new Date(2026, 1, 4),
-            mentorFeedback: "오답 이유가 명확합니다.",
-            mentorComment: "유형별 실수 패턴을 더 모아보세요.",
-        },
-    ];
-
-    const ACHIEVEMENT_USER_TASKS = [
-        {
-            id: "au1",
-            title: "영어 단어 60개 암기",
-            status: "submitted",
-            categoryId: "english",
-            deadline: new Date(2026, 1, 2),
-            mentorComment: "단어 암기 루틴이 안정적이에요.",
-        },
-        {
-            id: "au2",
-            title: "수학 실전 문제풀이 10문항",
-            status: "submitted",
-            categoryId: "math",
-            deadline: new Date(2026, 1, 1),
-            mentorComment: "풀이 속도가 빨라졌어요.",
-        },
-        {
-            id: "au3",
-            title: "국어 문법 핵심 체크",
-            status: "pending",
-            categoryId: "korean",
-            deadline: new Date(2026, 1, 3),
-            mentorComment: "",
-        },
-    ];
-
-    const achievementTasks = [...ACHIEVEMENT_MENTOR_TASKS, ...ACHIEVEMENT_USER_TASKS];
-
     // Profile Edit States
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [profileName, setProfileName] = useState(USER_PROFILE.name);
     const [profileIntro, setProfileIntro] = useState("서울대학교 입학을 목표로 열공 중 ✨");
     const [profileAvatar, setProfileAvatar] = useState(USER_PROFILE.avatar);
-
-    // Achievement Detail State
-    const [selectedStatSubject, setSelectedStatSubject] = useState<string>('korean');
-    const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
-    // Feedback Aggregation State (Merged into subject detail)
-    const [openMonthKeys, setOpenMonthKeys] = useState<string[]>([]);
-    const [selectedFeedback, setSelectedFeedback] = useState<any | null>(null);
-    const [readFeedbackIds, setReadFeedbackIds] = useState<string[]>([]);
-    const [detailTab, setDetailTab] = useState<'tasks' | 'feedback'>('tasks');
 
     // Mentor Meeting States
     const [meetingTopic, setMeetingTopic] = useState("");
@@ -196,40 +104,6 @@ export default function MyPage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const ACHIEVEMENT_TODAY = new Date(2026, 1, 2);
-
-    // Filter Tasks based on period (mock achievement data)
-    const getFilteredTasks = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
-        const today = ACHIEVEMENT_TODAY;
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-        return achievementTasks.filter(t => {
-            if (t.categoryId !== categoryId) return false;
-            if (!t.deadline) return false;
-
-            const taskDate = new Date(t.deadline);
-            if (period === 'daily') {
-                return taskDate.getDate() === today.getDate() &&
-                    taskDate.getMonth() === today.getMonth() &&
-                    taskDate.getFullYear() === today.getFullYear();
-            } else if (period === 'weekly') {
-                return taskDate >= startOfWeek && taskDate <= today;
-            } else {
-                return taskDate >= startOfMonth && taskDate <= today;
-            }
-        });
-    };
-
-    // Calculate subject-wise achievement
-    const getSubjectStats = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
-        const subjectTasks = getFilteredTasks(categoryId, period);
-        if (subjectTasks.length === 0) return 0;
-        const completed = subjectTasks.filter(t => t.status !== 'pending').length;
-        return Math.round((completed / subjectTasks.length) * 100);
-    };
-
     // Temp states for modal
     const [tempName, setTempName] = useState(profileName);
     const [tempIntro, setTempIntro] = useState(profileIntro);
@@ -243,11 +117,11 @@ export default function MyPage() {
         }
     };
 
-    const subjects = [
-        { id: 'korean', name: '국어', color: 'emerald', icon: Library },
-        { id: 'math', name: '수학', color: 'blue', icon: Calculator },
-        { id: 'english', name: '영어', color: 'purple', icon: Languages },
-    ];
+    const latestPlannerFeedback = [...PLANNER_FEEDBACKS].sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+    const formatPlannerFeedbackDate = (date?: Date) => {
+        if (!date) return "날짜 미정";
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    };
 
     const allTasks = MENTOR_TASKS;
     const getTaskSubjectLabel = (task: any) => {
@@ -340,198 +214,6 @@ export default function MyPage() {
     const formatMeetingDateTime = (date: Date) =>
         date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-    const isRealFeedback = (text?: string) => {
-        if (!text) return false;
-        const trimmed = text.trim();
-        if (!trimmed) return false;
-        return !trimmed.includes("아직 피드백이 등록되지 않았습니다.");
-    };
-
-    const getFeedbackItems = () => {
-        const items: any[] = [];
-
-        ACHIEVEMENT_MENTOR_TASKS.forEach((task) => {
-            const hasComment = isRealFeedback(task.mentorComment);
-            const hasFeedback = isRealFeedback(task.mentorFeedback);
-            if (!hasComment && !hasFeedback) return;
-
-            const category = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
-            const statusLabel = task.status === 'feedback_completed'
-                ? '피드백 완료'
-                : task.status === 'submitted'
-                    ? '제출 확인'
-                    : '진행중';
-            const statusClass = task.status === 'feedback_completed'
-                ? 'bg-emerald-50 text-emerald-600'
-                : task.status === 'submitted'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'bg-gray-100 text-gray-500';
-
-            const primary = hasComment ? task.mentorComment : task.mentorFeedback;
-            const secondary = hasComment && hasFeedback && task.mentorComment !== task.mentorFeedback
-                ? task.mentorFeedback
-                : undefined;
-
-            items.push({
-                id: `m-${task.id}`,
-                type: 'mentor',
-                taskId: task.id,
-                title: task.title,
-                categoryId: task.categoryId,
-                subjectLabel: category?.name || '과목',
-                subjectClass: category ? `${category.color} ${category.textColor}` : 'bg-gray-100 text-gray-600',
-                feedback: primary,
-                feedbackAlt: secondary,
-                deadline: task.deadline,
-                statusLabel,
-                statusClass,
-            });
-        });
-
-        ACHIEVEMENT_USER_TASKS.forEach((task) => {
-            if (!isRealFeedback(task.mentorComment)) return;
-
-            const category = DEFAULT_CATEGORIES.find(c => c.id === task.categoryId);
-            items.push({
-                id: `u-${task.id}`,
-                type: 'user',
-                taskId: task.id,
-                title: task.title,
-                categoryId: task.categoryId,
-                subjectLabel: category?.name || '과목',
-                subjectClass: category ? `${category.color} ${category.textColor}` : 'bg-gray-100 text-gray-600',
-                feedback: task.mentorComment,
-                deadline: task.deadline,
-                statusLabel: '멘토 답변',
-                statusClass: 'bg-purple-50 text-purple-600',
-            });
-        });
-
-        return items.sort((a, b) => {
-            const aTime = a.deadline ? new Date(a.deadline).getTime() : 0;
-            const bTime = b.deadline ? new Date(b.deadline).getTime() : 0;
-            return bTime - aTime;
-        });
-    };
-
-    const feedbackItems = getFeedbackItems();
-    const filterItemsByPeriod = (items: any[], period: 'daily' | 'weekly' | 'monthly') => {
-        const today = ACHIEVEMENT_TODAY;
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-        return items.filter(item => {
-            if (!item.deadline) return false;
-            const itemDate = new Date(item.deadline);
-            if (period === 'daily') {
-                return itemDate.getDate() === today.getDate() &&
-                    itemDate.getMonth() === today.getMonth() &&
-                    itemDate.getFullYear() === today.getFullYear();
-            } else if (period === 'weekly') {
-                return itemDate >= startOfWeek && itemDate <= today;
-            } else {
-                return itemDate >= startOfMonth && itemDate <= today;
-            }
-        });
-    };
-    const getSubjectFeedbackItems = (categoryId: string, period: 'daily' | 'weekly' | 'monthly') => {
-        const bySubject = feedbackItems.filter(item => item.categoryId === categoryId);
-        return filterItemsByPeriod(bySubject, period);
-    };
-    const formatFeedbackDate = (date?: Date) => {
-        if (!date) return '날짜 미정';
-        return `${date.getMonth() + 1}/${date.getDate()}`;
-    };
-
-    const getWeekStart = (date: Date) => {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() - d.getDay());
-        return d;
-    };
-
-    const formatWeekRange = (date: Date) => {
-        const start = getWeekStart(date);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        return `${start.getMonth() + 1}/${start.getDate()} ~ ${end.getMonth() + 1}/${end.getDate()}`;
-    };
-
-    const groupFeedbackItems = (items: any[], period: 'daily' | 'weekly' | 'monthly') => {
-        const groups = new Map<string, { label: string; date: Date; items: any[] }>();
-
-        items.forEach((item) => {
-            const date = item.deadline ? new Date(item.deadline) : new Date();
-            if (period === 'daily') {
-                const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-                const label = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
-                if (!groups.has(key)) {
-                    const groupDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                    groups.set(key, { label, date: groupDate, items: [] });
-                }
-                groups.get(key)?.items.push(item);
-            } else if (period === 'weekly') {
-                const start = getWeekStart(date);
-                const key = `${start.getFullYear()}-${start.getMonth() + 1}-${start.getDate()}`;
-                const label = formatWeekRange(date);
-                if (!groups.has(key)) {
-                    groups.set(key, { label, date: start, items: [] });
-                }
-                groups.get(key)?.items.push(item);
-            } else {
-                const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-                const label = `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
-                if (!groups.has(key)) {
-                    const groupDate = new Date(date.getFullYear(), date.getMonth(), 1);
-                    groups.set(key, { label, date: groupDate, items: [] });
-                }
-                groups.get(key)?.items.push(item);
-            }
-        });
-
-        return Array.from(groups.values())
-            .sort((a, b) => b.date.getTime() - a.date.getTime())
-            .map((group) => ({ key: group.label, label: group.label, items: group.items }));
-    };
-
-    const subjectFeedbackItems = getSubjectFeedbackItems(selectedStatSubject, selectedPeriod);
-    const subjectUnreadCount = subjectFeedbackItems.filter(i => !readFeedbackIds.includes(i.id)).length;
-    const latestSubjectFeedback = subjectFeedbackItems[0];
-    const groupedSubjectFeedbackItems = groupFeedbackItems(subjectFeedbackItems, selectedPeriod);
-    const periodLabel = selectedPeriod === 'daily'
-        ? `${ACHIEVEMENT_TODAY.getMonth() + 1}/${ACHIEVEMENT_TODAY.getDate()} 오늘`
-        : selectedPeriod === 'weekly'
-            ? formatWeekRange(ACHIEVEMENT_TODAY)
-            : `${ACHIEVEMENT_TODAY.getMonth() + 1}월`;
-    const allMonthKeys = groupedSubjectFeedbackItems.map(group => group.key);
-    const normalizedOpenMonthKeys = openMonthKeys.filter(key => allMonthKeys.includes(key));
-    const isMonthOpen = (key: string) => normalizedOpenMonthKeys.includes(key);
-    const toggleMonthGroup = (key: string) => {
-        if (normalizedOpenMonthKeys.includes(key)) {
-            setOpenMonthKeys(normalizedOpenMonthKeys.filter(k => k !== key));
-        } else {
-            setOpenMonthKeys([...normalizedOpenMonthKeys, key]);
-        }
-    };
-    const allMonthsOpen = allMonthKeys.length > 0 && normalizedOpenMonthKeys.length === allMonthKeys.length;
-    const toggleAllMonths = () => {
-        if (allMonthsOpen) {
-            setOpenMonthKeys([]);
-        } else {
-            setOpenMonthKeys(allMonthKeys);
-        }
-    };
-
-    useEffect(() => {
-        setOpenMonthKeys([]);
-    }, [selectedStatSubject, selectedPeriod]);
-
-    const openFeedback = (item: any) => {
-        setSelectedFeedback(item);
-        setReadFeedbackIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
-    };
-
     const handleMeetingRequest = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const trimmedTopic = meetingTopic.trim();
@@ -609,350 +291,48 @@ export default function MyPage() {
                 </div>
             </section>
 
-            {/* Achievement Summary - Tabbed View */}
+            {/* Feedback Collection */}
             <section className="px-6 mb-8">
                 <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-[17px] font-black text-gray-900 tracking-tight">과목별 성취도</h3>
-                    <div className="flex bg-gray-100 p-1 rounded-xl">
-                        {(['daily', 'weekly', 'monthly'] as const).map((period) => (
-                            <button
-                                key={period}
-                                onClick={() => setSelectedPeriod(period)}
-                                className={`px-3 py-1 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all ${selectedPeriod === period ? 'bg-white text-primary shadow-sm' : 'text-gray-400'
-                                    }`}
-                            >
-                                {period === 'daily' ? '오늘' : period === 'weekly' ? '주간' : '월간'}
-                            </button>
-                        ))}
+                    <div>
+                        <h3 className="text-[17px] font-black text-gray-900 tracking-tight">피드백 모아보기</h3>
+                        <p className="text-[11px] text-gray-400 font-medium mt-1">
+                            완성된 플래너 기준으로 종합 피드백을 확인해요.
+                        </p>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/mypage/feedbacks")}
+                        className="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                        전체 보기
+                    </button>
                 </div>
 
-                {/* Subject Tab Bar */}
-                <div className="flex gap-2 bg-gray-100/50 p-1.5 rounded-[20px] mb-6">
-                    {subjects.map(subject => {
-                        const isSelected = selectedStatSubject === subject.id;
-                        const Icon = subject.icon;
-                        const stat = getSubjectStats(subject.id, selectedPeriod);
-                        return (
-                            <button
-                                key={subject.id}
-                                onClick={() => setSelectedStatSubject(subject.id)}
-                                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-[16px] transition-all duration-300 relative ${isSelected
-                                    ? 'bg-white shadow-md text-gray-900'
-                                    : 'text-gray-400 hover:text-gray-600'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-1.5">
-                                    <Icon size={14} className={isSelected ? `text-${subject.color}-500` : ''} />
-                                    <span className="text-[13px] font-bold">{subject.name}</span>
-                                </div>
-                                <span className={`text-[10px] font-black ${isSelected ? `text-${subject.color}-500` : 'text-gray-300'}`}>{stat}%</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Compact Achievement Card (MVP Redesign) */}
-                <div
-                    onClick={() => {
-                        setDetailTab('tasks');
-                        setIsDetailModalOpen(true);
-                    }}
-                    className="cursor-pointer group animate-in fade-in slide-in-from-bottom-4 duration-500"
+                <button
+                    type="button"
+                    onClick={() => router.push("/mypage/feedbacks")}
+                    className="w-full text-left bg-white rounded-3xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-all"
                 >
-                    <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.99] relative overflow-hidden">
-
-                        {/* Header: Subject + Remaining Count */}
-                        <div className="flex items-center justify-between mb-5">
-                            <div className="flex items-center gap-2">
-                                {/* Dynamic Icon Rendering */}
-                                {(() => {
-                                    const subject = subjects.find(s => s.id === selectedStatSubject);
-                                    const Icon = subject?.icon;
-                                    return (
-                                        <div className={`w-10 h-10 rounded-2xl bg-${subject?.color}-50 flex items-center justify-center text-${subject?.color}-500`}>
-                                            {Icon && <Icon size={20} />}
-                                        </div>
-                                    );
-                                })()}
-                                <div>
-                                    <h4 className="text-[17px] font-black text-gray-900 leading-none mb-1">
-                                        {subjects.find(s => s.id === selectedStatSubject)?.name}
-                                    </h4>
-                                    <p className="text-[11px] text-gray-400 font-bold">성취도 리포트</p>
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-end">
-                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-0.5">남은 과제</span>
-                                <span className={`text-xl font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500`}>
-                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length}개
+                    <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-500 flex items-center justify-center">
+                            <MessageSquare size={18} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[11px] font-black text-gray-900">최근 종합 피드백</span>
+                                <span className="text-[10px] font-bold text-gray-400">
+                                    {latestPlannerFeedback ? formatPlannerFeedbackDate(latestPlannerFeedback.date) : "없음"}
                                 </span>
                             </div>
+                            <p className="text-[12px] text-gray-500 font-medium leading-relaxed line-clamp-2">
+                                {latestPlannerFeedback?.summary || "등록된 종합 피드백이 없습니다. 플래너 완료 후 확인할 수 있어요."}
+                            </p>
                         </div>
-
-                        {/* Progress Section */}
-                        <div className="mb-6">
-                            <div className="flex justify-between text-[11px] font-bold text-gray-500 mb-2">
-                                <span>진행률 {getSubjectStats(selectedStatSubject, selectedPeriod)}%</span>
-                                <span>
-                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}
-                                    <span className="text-gray-300 mx-0.5">/</span>
-                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).length} 완료
-                                </span>
-                            </div>
-                            <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
-                                <div
-                                    className={`h-full bg-${subjects.find(s => s.id === selectedStatSubject)?.color}-500 rounded-full transition-all duration-500`}
-                                    style={{ width: `${getSubjectStats(selectedStatSubject, selectedPeriod)}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Feedback Snippet (Latest) */}
-                        <div className="bg-gray-50 rounded-2xl p-4 flex gap-3 items-start border border-gray-100/50">
-                             <div className="mt-0.5 min-w-[16px]">
-                                <MessageCircle size={16} className="text-gray-400" />
-                            </div>
-                            {latestSubjectFeedback ? (
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                         <span className="text-[11px] font-black text-gray-900">최신 멘토 피드백</span>
-                                         <span className="text-[10px] text-gray-400 font-bold">
-                                            {formatFeedbackDate(latestSubjectFeedback.deadline)}
-                                         </span>
-                                    </div>
-                                    <p className="text-[12px] text-gray-600 font-medium leading-relaxed line-clamp-2">
-                                        "{latestSubjectFeedback.feedback}"
-                                    </p>
-                                </div>
-                            ) : (
-                                <p className="text-[12px] text-gray-400 font-medium py-1">
-                                    아직 등록된 피드백이 없습니다.
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Action Hint */}
-                        <div className="mt-4 flex justify-end">
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-gray-300 group-hover:text-primary transition-colors">
-                                상세 내역 확인하기 <ArrowRight size={12} />
-                            </div>
-                        </div>
-
+                        <ChevronRight size={16} className="text-gray-300 mt-1" />
                     </div>
-                </div>
+                </button>
             </section>
-
-            {/* Achievement Detail Overlay Modal (Centered Popup) */}
-            {isDetailModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
-                    {/* Dark Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-                        onClick={() => setIsDetailModalOpen(false)}
-                    />
-
-                    {/* Centered Modal Content */}
-                    <div className="relative w-full max-w-sm bg-white rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[85vh]">
-                        <header className="px-6 pt-8 pb-4 border-b border-gray-50 flex-shrink-0">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <h2 className="text-lg font-black text-gray-900">
-                                        {subjects.find(s => s.id === selectedStatSubject)?.name} 상세 내역
-                                    </h2>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">
-                                        {selectedPeriod === 'daily' ? 'Today' : selectedPeriod === 'weekly' ? 'Weekly' : 'Monthly'} Breakdown
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setIsDetailModalOpen(false)}
-                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <div className="mt-4 flex bg-gray-100 p-1 rounded-xl">
-                                <button
-                                    onClick={() => setDetailTab('tasks')}
-                                    className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${
-                                        detailTab === 'tasks' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'
-                                    }`}
-                                >
-                                    과제
-                                </button>
-                                <button
-                                    onClick={() => setDetailTab('feedback')}
-                                    className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${
-                                        detailTab === 'feedback' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'
-                                    }`}
-                                >
-                                    피드백 {subjectFeedbackItems.length}
-                                </button>
-                            </div>
-                        </header>
-
-                        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                            {/* Simplified Text Summary (Text Only) */}
-                            <div className="flex items-center gap-2 px-1 mb-1">
-                                <span className={`text-lg font-black text-${subjects.find(s => s.id === selectedStatSubject)?.color}-500`}>
-                                    진행률 {getSubjectStats(selectedStatSubject, selectedPeriod)}%
-                                </span>
-                                <span className="text-gray-300">|</span>
-                                <span className="text-sm font-bold text-gray-500">
-                                    전체 {getFilteredTasks(selectedStatSubject, selectedPeriod).length}개 중 {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}개 완료
-                                </span>
-                            </div>
-
-                            {detailTab === 'tasks' ? (
-                                <>
-                                    {/* Todo List */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-3 px-1">
-                                            <h4 className="text-[13px] font-black text-gray-900 flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                                                미완료 과제
-                                            </h4>
-                                            <span className="text-[10px] font-black text-gray-400">
-                                                {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length}개
-                                            </span>
-                                        </div>
-                                        <div className="space-y-2.5">
-                                            {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').map(task => (
-                                                <div key={task.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                                    <p className="text-[13px] font-bold text-gray-800 leading-snug">{task.title}</p>
-                                                </div>
-                                            ))}
-                                            {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status === 'pending').length === 0 && (
-                                                <div className="py-6 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-                                                    <p className="text-xs font-bold text-gray-300">
-                                                        {getFilteredTasks(selectedStatSubject, selectedPeriod).length === 0
-                                                            ? "아직 등록된 과제가 없습니다."
-                                                            : "모두 완료했습니다! ✨"}
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Done List */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-3 px-1">
-                                            <h4 className="text-[13px] font-black text-gray-900 flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                                완료된 과제
-                                            </h4>
-                                            <span className="text-[10px] font-black text-gray-400">
-                                                {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length}개
-                                            </span>
-                                        </div>
-                                        <div className="space-y-2.5">
-                                            {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').map(task => (
-                                                <div key={task.id} className="bg-white border border-gray-50 rounded-2xl p-4 flex items-center gap-3">
-                                                    <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-500">
-                                                        <Check size={12} />
-                                                    </div>
-                                                    <p className="text-[13px] font-medium text-gray-400 line-through line-clamp-1">{task.title}</p>
-                                                </div>
-                                            ))}
-                                            {getFilteredTasks(selectedStatSubject, selectedPeriod).filter(t => t.status !== 'pending').length === 0 && (
-                                                <div className="py-6 text-center text-xs font-bold text-gray-300">
-                                                    {getFilteredTasks(selectedStatSubject, selectedPeriod).length === 0
-                                                        ? ""
-                                                        : "아직 완료된 과제가 없습니다."}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="space-y-4">
-                                    {subjectFeedbackItems.length === 0 ? (
-                                        <div className="bg-white rounded-3xl border border-dashed border-gray-200 p-8 text-center">
-                                            <p className="text-sm font-bold text-gray-300">아직 모아볼 피드백이 없어요.</p>
-                                            <p className="text-[11px] text-gray-400 mt-2">과제를 제출하면 멘토 피드백이 여기 모여요.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <div className="flex justify-end">
-                                                <button
-                                                    onClick={toggleAllMonths}
-                                                    className="px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-[9px] font-black hover:text-gray-700 transition-colors"
-                                                >
-                                                    {allMonthsOpen ? "모두 접기" : "모두 펼치기"}
-                                                </button>
-                                            </div>
-                                            {groupedSubjectFeedbackItems.map((group) => (
-                                                <div key={group.key} className="space-y-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2 text-[11px] font-black text-gray-500">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                                                            {group.label}
-                                                            <span className="text-[10px] font-black text-gray-300">({group.items.length})</span>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => toggleMonthGroup(group.key)}
-                                                            className="p-2 rounded-full bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                                                        >
-                                                            {isMonthOpen(group.key) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                                        </button>
-                                                    </div>
-                                                    {isMonthOpen(group.key) && (
-                                                        <div className="space-y-3">
-                                                            {group.items.map((item: any) => {
-                                                                const isUnread = !readFeedbackIds.includes(item.id);
-                                                                return (
-                                                                    <button
-                                                                        key={item.id}
-                                                                        onClick={() => openFeedback(item)}
-                                                                        className="w-full text-left bg-white rounded-2xl border border-gray-100 p-4 shadow-sm hover:shadow-md hover:border-purple-100 transition-all"
-                                                                    >
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${item.subjectClass}`}>
-                                                                                {item.subjectLabel}
-                                                                            </span>
-                                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${item.statusClass}`}>
-                                                                                {item.statusLabel}
-                                                                            </span>
-                                                                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                                                                                {item.type === 'mentor' ? '멘토 과제' : '나의 과제'}
-                                                                            </span>
-                                                                            {isUnread && (
-                                                                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-500">NEW</span>
-                                                                            )}
-                                                                            <span className="ml-auto text-[10px] text-gray-400 font-bold">
-                                                                                {formatFeedbackDate(item.deadline)}
-                                                                            </span>
-                                                                        </div>
-                                                                        <h4 className="text-sm font-bold text-gray-900 mt-2 truncate">{item.title}</h4>
-                                                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">"{item.feedback}"</p>
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="px-6 pb-8 pt-4 border-t border-gray-50 flex-shrink-0">
-                            <button
-                                onClick={() => {
-                                    setIsDetailModalOpen(false);
-                                    router.push('/planner');
-                                }}
-                                className="w-full h-14 bg-gray-900 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-xl shadow-gray-200"
-                            >
-                                플래너에서 수정하기
-                                <ArrowRight size={18} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Mentor Meeting Section */}
             <section className="px-6 mb-8">
@@ -1544,74 +924,6 @@ export default function MyPage() {
                 </div>
             )}
 
-            {/* Feedback Detail Modal */}
-            {selectedFeedback && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center px-6">
-                    <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-                        onClick={() => setSelectedFeedback(null)}
-                    />
-                    <div className="relative w-full max-w-sm bg-white rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
-                        <div className="px-6 pt-8 pb-4 flex justify-between items-start border-b border-gray-50">
-                            <div>
-                                <h3 className="text-lg font-black text-gray-900">피드백 상세</h3>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">
-                                    {selectedFeedback.type === 'mentor' ? 'Mentor Task Feedback' : 'Self Task Feedback'}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setSelectedFeedback(null)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="px-6 py-6 space-y-4">
-                            <div className="flex items-center gap-2">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-black ${selectedFeedback.subjectClass}`}>
-                                    {selectedFeedback.subjectLabel}
-                                </span>
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-black ${selectedFeedback.statusClass}`}>
-                                    {selectedFeedback.statusLabel}
-                                </span>
-                                <span className="text-[10px] font-black px-2 py-0.5 rounded bg-gray-100 text-gray-500">
-                                    {selectedFeedback.type === 'mentor' ? '멘토 과제' : '나의 과제'}
-                                </span>
-                                <span className="ml-auto text-[10px] text-gray-400 font-bold">
-                                    {formatFeedbackDate(selectedFeedback.deadline)}
-                                </span>
-                            </div>
-
-                            <div>
-                                <h4 className="text-[15px] font-black text-gray-900">{selectedFeedback.title}</h4>
-                            </div>
-
-                            <div className="bg-purple-50/50 border border-purple-100 rounded-2xl p-4">
-                                <p className="text-[11px] font-black text-purple-600 mb-2">멘토 피드백</p>
-                                <p className="text-[13px] text-gray-700 font-medium leading-relaxed">
-                                    {selectedFeedback.feedback}
-                                </p>
-                                {selectedFeedback.feedbackAlt && (
-                                    <p className="text-[12px] text-gray-500 font-medium leading-relaxed mt-3 border-t border-purple-100 pt-3">
-                                        {selectedFeedback.feedbackAlt}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="px-6 pb-8">
-                            <button
-                                onClick={() => router.push(`/planner/${selectedFeedback.taskId}`)}
-                                className="w-full bg-gray-900 text-white h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all hover:bg-black"
-                            >
-                                플래너에서 확인하기
-                                <ArrowRight size={16} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

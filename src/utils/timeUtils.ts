@@ -9,6 +9,7 @@ export const formatTime = (seconds: number): string => {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
+
 export const generateTimeBlocksFromTasks = (tasks: any[]) => {
     const blocks: { [key: string]: string } = {};
 

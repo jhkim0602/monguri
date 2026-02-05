@@ -1,304 +1,275 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-} from "@/components/ui";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Clock } from "lucide-react";
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useMentorStore } from "@/features/mentor/context/MentorStoreProvider";
+import TaskDetailPanel from "@/components/mentor/TaskDetailPanel";
 
-function ClientDate() {
-  const [date, setDate] = useState("");
+const QUEUE_STATUS_LABEL: Record<
+  "all" | "pending" | "submitted" | "feedback_completed",
+  string
+> = {
+  all: "전체",
+  pending: "대기",
+  submitted: "제출됨",
+  feedback_completed: "피드백 완료",
+};
+
+export default function MentorDashboardPage() {
+  const { store, updateTaskComment, updateTaskStatus } = useMentorStore();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | number | null>(
+    null,
+  );
+  const [queueStatus, setQueueStatus] = useState<
+    "all" | "pending" | "submitted" | "feedback_completed"
+  >("submitted");
+  const [queueMenteeId, setQueueMenteeId] = useState<string>("all");
+
+  const pending = store.tasks.filter((task) => task.status === "pending").length;
+  const submitted = store.tasks.filter((task) => task.status === "submitted").length;
+  const feedbackCompleted = store.tasks.filter(
+    (task) => task.status === "feedback_completed",
+  ).length;
+  const menteeMap = useMemo(
+    () => new Map(store.mentees.map((mentee) => [mentee.id, mentee.name])),
+    [store.mentees],
+  );
+
+  const feedbackQueue = useMemo(() => {
+    return [...store.tasks]
+      .filter((task) =>
+        queueStatus === "all" ? true : task.status === queueStatus,
+      )
+      .filter((task) =>
+        queueMenteeId === "all" ? true : task.menteeId === queueMenteeId,
+      )
+      .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+  }, [store.tasks, queueStatus, queueMenteeId]);
+
+  const selectedTask = useMemo(
+    () => store.tasks.find((task) => task.id === selectedTaskId) ?? null,
+    [store.tasks, selectedTaskId],
+  );
+
+  const menteeSummary = useMemo(() => {
+    return store.mentees.map((mentee) => {
+      const tasks = store.tasks.filter((task) => task.menteeId === mentee.id);
+      const submittedCount = tasks.filter((task) => task.status === "submitted")
+        .length;
+      const pendingCount = tasks.filter((task) => task.status === "pending").length;
+      const completedCount = tasks.filter(
+        (task) => task.status === "feedback_completed",
+      ).length;
+      return {
+        mentee,
+        submittedCount,
+        pendingCount,
+        completedCount,
+      };
+    });
+  }, [store.mentees, store.tasks]);
 
   useEffect(() => {
-    setDate(
-      new Date().toLocaleDateString("ko-KR", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-    );
-  }, []);
-
-  if (!date) return null;
-  return <>{date}</>;
-}
-
-export default function MentorDashboard() {
-  // Mock Data
-  const stats = [
-    {
-      label: "활동 중인 학생",
-      value: "12",
-      trend: "이번 달 +2명",
-      icon: UsersIcon,
-      color: "bg-blue-100 text-blue-600",
-    },
-    {
-      label: "검토한 학습 시간",
-      value: "24.5",
-      trend: "지난주보다 12% 증가",
-      icon: Clock,
-      color: "bg-orange-100 text-orange-600",
-    },
-    {
-      label: "피드백 제공",
-      value: "48",
-      trend: "마지막: 2시간 전",
-      icon: BookOpen,
-      color: "bg-green-100 text-green-600",
-    },
-  ];
-
-  const students = [
-    {
-      id: 1,
-      name: "김민지",
-      grade: "고2",
-      status: "공부 중",
-      subject: "수학",
-      lastActive: "10분 전",
-      avatar: "/avatar-1.png",
-    },
-    {
-      id: 2,
-      name: "이준호",
-      grade: "고3",
-      status: "오프라인",
-      subject: "-",
-      lastActive: "2시간 전",
-      avatar: "/avatar-2.png",
-    },
-    {
-      id: 3,
-      name: "박소은",
-      grade: "고1",
-      status: "공부 중",
-      subject: "영어",
-      lastActive: "5분 전",
-      avatar: "/avatar-3.png",
-    },
-    {
-      id: 4,
-      name: "최우진",
-      grade: "고3",
-      status: "오프라인",
-      subject: "-",
-      lastActive: "1일 전",
-      avatar: "/avatar-4.png",
-    },
-  ];
-
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const item = {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1 },
-  };
+    if (feedbackQueue.length === 0) {
+      setSelectedTaskId(null);
+      return;
+    }
+    if (!selectedTaskId) {
+      setSelectedTaskId(feedbackQueue[0].id);
+      return;
+    }
+    const exists = feedbackQueue.some((task) => task.id === selectedTaskId);
+    if (!exists) setSelectedTaskId(feedbackQueue[0].id);
+  }, [feedbackQueue, selectedTaskId]);
+  const todayLabel = new Date().toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
 
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="space-y-8 p-6"
-    >
-      <motion.div
-        variants={item}
-        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-      >
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            안녕하세요, 김멘토 선생님! 👋
-          </h1>
-          <p className="text-gray-500 mt-1">오늘 학생들의 학습 현황입니다.</p>
-        </div>
-        <div className="text-sm text-gray-600 glass-card px-4 py-2 rounded-full font-medium">
-          <ClientDate />
-        </div>
-      </motion.div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat) => (
-          <motion.div
-            key={stat.label}
-            variants={item}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Card className="glass-card border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">
-                  {stat.label}
-                </CardTitle>
-                <div className={stat.color + " p-2 rounded-lg"}>
-                  <stat.icon className="h-4 w-4" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-gray-400 mt-1">{stat.trend}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+          Mentor Workspace
+        </p>
+        <h1 className="text-2xl font-bold text-gray-900">
+          멘토 대시보드
+        </h1>
+        <p className="text-sm text-gray-500">{todayLabel}</p>
       </div>
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Live Students */}
-        <motion.div variants={item} className="lg:col-span-2">
-          <Card className="glass-card border-0 h-full">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">담당 학생</CardTitle>
-                <p className="text-sm text-gray-400 font-normal mt-1">
-                  실시간 학습 상태 개요
-                </p>
+      <section className="grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-400">대기 중 피드백</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{pending}</p>
+        </div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-400">제출됨</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{submitted}</p>
+        </div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-400">피드백 완료</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {feedbackCompleted}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-400">전체 과제</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {store.tasks.length}
+          </p>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">
+                피드백 대기 큐
+              </h2>
+              <span className="text-xs text-gray-400">
+                {feedbackQueue.length}건
+              </span>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(QUEUE_STATUS_LABEL) as Array<
+                  keyof typeof QUEUE_STATUS_LABEL
+                >).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setQueueStatus(status)}
+                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                      queueStatus === status
+                        ? "border-gray-300 bg-gray-50 text-gray-700"
+                        : "border-gray-200 text-gray-400 hover:border-gray-300"
+                    }`}
+                  >
+                    {QUEUE_STATUS_LABEL[status]}
+                  </button>
+                ))}
               </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQueueMenteeId("all")}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                    queueMenteeId === "all"
+                      ? "border-gray-300 bg-gray-50 text-gray-700"
+                      : "border-gray-200 text-gray-400 hover:border-gray-300"
+                  }`}
+                >
+                  전체 학생
+                </button>
+                {store.mentees.map((mentee) => (
+                  <button
+                    key={mentee.id}
+                    type="button"
+                    onClick={() => setQueueMenteeId(mentee.id)}
+                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                      queueMenteeId === mentee.id
+                        ? "border-gray-300 bg-gray-50 text-gray-700"
+                        : "border-gray-200 text-gray-400 hover:border-gray-300"
+                    }`}
+                  >
+                    {mentee.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 space-y-2">
+              {feedbackQueue.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
+                  피드백 대기 과제가 없습니다.
+                </div>
+              ) : (
+                feedbackQueue.map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    onClick={() => setSelectedTaskId(task.id)}
+                    className={`grid w-full grid-cols-1 gap-2 rounded-2xl border px-4 py-3 text-left text-sm transition md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-center ${
+                      selectedTaskId === task.id
+                        ? "border-gray-300 bg-gray-50"
+                        : "border-gray-100 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900">
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-gray-400">{task.subject}</p>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {menteeMap.get(task.menteeId) ?? "멘티"}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {task.deadline.toLocaleDateString("ko-KR")}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">학생별 현황</h2>
               <Link
                 href="/mentor/students"
-                className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1 transition-colors"
+                className="text-xs font-semibold text-blue-600"
               >
-                전체 보기 <ArrowRight className="w-3 h-3" />
+                전체 보기
               </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {students.map((student) => (
-                  <Link
-                    href={`/mentor/students/${student.id}`}
-                    key={student.id}
-                  >
-                    <motion.div
-                      whileHover={{
-                        scale: 1.02,
-                        backgroundColor: "rgba(255,255,255,0.4)",
-                      }}
-                      whileTap={{ scale: 0.98 }}
-                      className="group flex items-center gap-4 p-4 rounded-xl border border-gray-100/50 bg-white/40 backdrop-blur-sm hover:border-indigo-100 transition-all cursor-pointer"
-                    >
-                      <div className="relative">
-                        <Avatar>
-                          <AvatarImage src={student.avatar} />
-                          <AvatarFallback>{student.name[0]}</AvatarFallback>
-                        </Avatar>
-                        {student.status === "공부 중" && (
-                          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse"></span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-semibold text-gray-900 group-hover:text-indigo-700 truncate">
-                            {student.name}
-                          </h4>
-                          <Badge
-                            variant={
-                              student.status === "공부 중"
-                                ? "default"
-                                : "secondary"
-                            }
-                            className={
-                              student.status === "공부 중"
-                                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                : "bg-gray-100 text-gray-500"
-                            }
-                          >
-                            {student.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-0.5">
-                          {student.grade} •{" "}
-                          {student.subject !== "-"
-                            ? `${student.subject} 공부 중`
-                            : `마지막 활동 ${student.lastActive}`}
-                        </p>
-                      </div>
-                    </motion.div>
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Recent Activity / Feed */}
-        <motion.div variants={item}>
-          <Card className="glass-card border-0 h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">최근 활동</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {[1, 2, 3].map((i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.1 }}
-                    className="flex gap-4 relative pl-4 border-l border-indigo-100"
-                  >
-                    <div className="absolute -left-1.5 top-1 w-3 h-3 rounded-full bg-indigo-100 border-2 border-white"></div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-900">
-                        <span className="font-semibold">김민지</span> 학생이
-                        과제를 제출했습니다.
+            </div>
+            <div className="mt-4 space-y-3">
+              {menteeSummary.map(({ mentee, submittedCount, pendingCount, completedCount }) => (
+                <div
+                  key={mentee.id}
+                  className="rounded-2xl border border-gray-100 px-4 py-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {mentee.name}
                       </p>
-                      <p className="text-xs text-gray-400">2분 전</p>
-                      {i === 1 && (
-                        <div className="mt-2 text-xs bg-white/50 border border-gray-100 p-3 rounded-lg text-gray-600 italic">
-                          &quot;4번 문제에서 막혔는데, 확인해주실 수
-                          있나요?&quot;
-                        </div>
-                      )}
+                      <p className="text-xs text-gray-400">
+                        {mentee.grade} · {mentee.goal}
+                      </p>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    </motion.div>
-  );
-}
+                    <Link
+                      href={`/mentor/planner?menteeId=${mentee.id}`}
+                      className="text-xs text-gray-500"
+                    >
+                      플래너 보기
+                    </Link>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                    <span>대기 {pendingCount}</span>
+                    <span>제출 {submittedCount}</span>
+                    <span>완료 {completedCount}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-function UsersIcon(props: React.ComponentProps<"svg">) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
+        <TaskDetailPanel
+          task={selectedTask}
+          menteeName={selectedTask ? menteeMap.get(selectedTask.menteeId) : undefined}
+          onUpdateStatus={(status) =>
+            selectedTask ? updateTaskStatus(selectedTask.id, status) : null
+          }
+          onSaveComment={(comment) =>
+            selectedTask ? updateTaskComment(selectedTask.id, comment) : null
+          }
+        />
+      </section>
+    </div>
   );
 }

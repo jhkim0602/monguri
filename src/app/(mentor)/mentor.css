@@ -1,0 +1,5 @@
+/* Mentor-only global overrides */
+
+body {
+  overflow: auto;
+}
