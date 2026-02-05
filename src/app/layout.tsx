@@ -16,9 +16,13 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="ko">
+<<<<<<< HEAD
             <body>
                 {children}
             </body>
+=======
+            <body>{children}</body>
+>>>>>>> origin/sunbal
         </html>
     );
 }

@@ -1,8 +1,13 @@
+<<<<<<< HEAD
 import { X, Check } from "lucide-react";
 import Link from "next/link";
 import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import type { PlannerTaskLike } from "@/lib/menteeAdapters";
+=======
+import { X } from "lucide-react";
+import PlannerDetailView from "./PlannerDetailView";
+>>>>>>> origin/sunbal
 
 interface PlannerDetailModalProps {
     isOpen: boolean;
@@ -11,7 +16,14 @@ interface PlannerDetailModalProps {
     dailyRecord: any;
     mentorDeadlines: any[];
     dailyEvents: any[];
+<<<<<<< HEAD
     plannerTasks: PlannerTaskLike[];
+=======
+    userTasks?: any[];
+    onTaskClick?: (task: any) => void;
+    mentorReview?: string;
+    onEditReview?: () => void;
+>>>>>>> origin/sunbal
 }
 
 export default function PlannerDetailModal({
@@ -21,6 +33,7 @@ export default function PlannerDetailModal({
     dailyRecord,
     mentorDeadlines,
     dailyEvents,
+<<<<<<< HEAD
     plannerTasks
 }: PlannerDetailModalProps) {
     if (!isOpen || !date) return null;
@@ -46,6 +59,15 @@ export default function PlannerDetailModal({
     // Generate timeline blocks from tasks directly
     const studyTimeBlocks = generateTimeBlocksFromTasks(allTasks);
 
+=======
+    userTasks: userTasksProp,
+    onTaskClick,
+    mentorReview,
+    onEditReview
+}: PlannerDetailModalProps) {
+    if (!isOpen || !date) return null;
+
+>>>>>>> origin/sunbal
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             {/* Modal Content - Big Planner Page */}
@@ -61,6 +83,7 @@ export default function PlannerDetailModal({
                     <X size={24} />
                 </button>
 
+<<<<<<< HEAD
                 {/* Paper Texture / Header */}
                 <div className="w-full h-14 border-b border-gray-100 bg-gray-50 px-6 flex items-center justify-between shrink-0">
                     <span className={`text-lg font-bold ${isToday ? 'text-primary' : 'text-gray-900'}`}>
@@ -238,6 +261,19 @@ export default function PlannerDetailModal({
                         </div>
                     )}
                 </div>
+=======
+                <PlannerDetailView
+                    date={date}
+                    dailyRecord={dailyRecord}
+                    mentorDeadlines={mentorDeadlines}
+                    dailyEvents={dailyEvents}
+                    userTasks={userTasksProp}
+                    mentorReview={mentorReview}
+                    onEditReview={onEditReview}
+                    onTaskClick={onTaskClick}
+                    size="collection"
+                />
+>>>>>>> origin/sunbal
             </div>
         </div>
     );

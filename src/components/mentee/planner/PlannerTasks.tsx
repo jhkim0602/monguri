@@ -289,7 +289,6 @@ interface PlannerTasksProps {
     onToggleCompletion: (id: string | number) => void;
     onUpdateTaskTimeRange: (id: string | number, startTime: string, endTime: string) => void;
     onDelete: (id: string | number) => void;
-    onOpenSubmission: (task: any) => void;
     newTaskTitle: string;
     setNewTaskTitle: (val: string) => void;
     selectedCategoryId: string;
@@ -304,7 +303,6 @@ export default function PlannerTasks({
     onToggleCompletion,
     onUpdateTaskTimeRange,
     onDelete,
-    onOpenSubmission,
     newTaskTitle,
     setNewTaskTitle,
     selectedCategoryId,
@@ -315,6 +313,13 @@ export default function PlannerTasks({
     const router = useRouter();
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState("");
+
+    const isTaskCompleted = (task: any) => {
+        const isMentorTask = task.isMentorTask;
+        const isSubmitted = task.status === "submitted" || task.status === "feedback_completed" || !!task.studyRecord;
+        if (isMentorTask) return isSubmitted;
+        return !!task.completed || !!task.studyRecord;
+    };
 
     const handleAddCategorySubmit = () => {
         if (!newCategoryName.trim()) return;
@@ -335,7 +340,7 @@ export default function PlannerTasks({
                 </div>
                 <div className="flex gap-2">
                     <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
-                        {tasks.filter(t => t.completed).length}/{tasks.length} 완료
+                        {tasks.filter(t => isTaskCompleted(t)).length}/{tasks.length} 완료
                     </span>
                 </div>
             </div>
@@ -448,10 +453,17 @@ export default function PlannerTasks({
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    if (task.isMentorTask) {
+                                                        const taskId = String(task.id);
+                                                        router.push(`/planner/${taskId}?focus=submit`);
+                                                        return;
+                                                    }
                                                     onToggleCompletion(task.id);
                                                 }}
                                                 className="mt-0.5 relative z-10"
+                                                title={task.isMentorTask ? "멘토 과제는 제출 완료 시 체크됩니다." : "완료 체크"}
                                             >
+<<<<<<< HEAD
                                                 <div
                                                     className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${task.completed
                                                         ? 'shadow-sm'
@@ -467,69 +479,92 @@ export default function PlannerTasks({
                                                     }
                                                 >
                                                     {task.completed && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
-                                                </div>
-                                            </button>
+=======
+                                                <div
+            className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${isTaskCompleted(task)
+                ? 'shadow-sm'
+                : 'border-gray-200 hover:border-gray-300'
+                }`}
+            style={isTaskCompleted(task) ? { backgroundColor: category.colorHex, borderColor: category.colorHex } : undefined}
+        >
+            {isTaskCompleted(task) && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
+>>>>>>> origin/sunbal
+        </div>
+    </button>
 
-                                            <button
-                                                className="flex-1 min-w-0 cursor-pointer select-none py-1 text-left hover:opacity-75 transition-opacity active:scale-95 border-none bg-transparent p-0"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    const taskId = String(task.id);
-                                                    router.push(`/planner/${taskId}`);
-                                                }}
-                                                type="button"
-                                            >
-                                                <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                                    {task.isMentorTask && (
-                                                        <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
-                                                            Mentor
-                                                        </span>
-                                                    )}
-                                                    <p className={`text-[14px] font-bold truncate ${task.completed ? 'text-gray-300 line-through' : 'text-gray-900 font-bold'}`}>
-                                                        {task.title}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <span className={`text-[10px] tabular-nums font-bold ${task.isRunning ? 'text-red-500' : 'text-gray-400'}`}>
-                                                        {formatTime(task.timeSpent)}
-                                                    </span>
-                                                    {task.studyRecord && (
-                                                        <span className="text-[9px] text-emerald-500 font-black bg-emerald-50 px-1.5 py-0.5 rounded">기록 제출됨</span>
-                                                    )}
-                                                </div>
-                                            </button>
+        <button
+            className="flex-1 min-w-0 cursor-pointer select-none py-1 text-left hover:opacity-75 transition-opacity active:scale-95 border-none bg-transparent p-0"
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const taskId = String(task.id);
+                router.push(`/planner/${taskId}`);
+            }}
+            type="button"
+        >
+            <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                {task.isMentorTask && (
+                    <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
+                        Mentor
+                    </span>
+                )}
+                {task.isMentorTask && !isTaskCompleted(task) && (
+                    <span className="text-[9px] text-orange-600 font-black bg-orange-50 px-1.5 py-0.5 rounded">
+                        제출 필요
+                    </span>
+                )}
+                {task.isMentorTask && isTaskCompleted(task) && (
+                    <span className="text-[9px] text-emerald-600 font-black bg-emerald-50 px-1.5 py-0.5 rounded">
+                        제출 완료
+                    </span>
+                )}
+                <p className={`text-[14px] font-bold truncate ${isTaskCompleted(task) ? 'text-gray-300 line-through' : 'text-gray-900 font-bold'}`}>
+                    {task.title}
+                </p>
+            </div>
+            <div className="flex items-center gap-3">
+                <span className={`text-[10px] tabular-nums font-bold ${task.isRunning ? 'text-red-500' : 'text-gray-400'}`}>
+                    {formatTime(task.timeSpent)}
+                </span>
+                {task.studyRecord && (
+                    <span className="text-[9px] text-emerald-500 font-black bg-emerald-50 px-1.5 py-0.5 rounded">기록 제출됨</span>
+                )}
+            </div>
+        </button>
 
-                                            <div className="flex items-center gap-1 relative">
-                                                <TimeRangeInput
-                                                    startTime={task.startTime}
-                                                    endTime={task.endTime}
-                                                    onSave={(start, end) => onUpdateTaskTimeRange(task.id, start, end)}
-                                                />
-                                            </div>
-                                        </div>
+        <div className="flex items-center gap-1 relative">
+            <TimeRangeInput
+                startTime={task.startTime}
+                endTime={task.endTime}
+                onSave={(start, end) => onUpdateTaskTimeRange(task.id, start, end)}
+            />
+        </div>
+                                        </div >
 
-                                        {!task.isMentorTask && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                                                className="absolute -right-2 -top-2 w-6 h-6 bg-white rounded-full shadow-lg border border-gray-100 text-gray-300 opacity-0 group-hover:opacity-100 transition-all hover:text-red-500 flex items-center justify-center z-10"
-                                            >
-                                                <Trash2 size={12} />
-                                            </button>
-                                        )}
-                                    </div>
+        {!task.isMentorTask && (
+            <button
+                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                className="absolute -right-2 -top-2 w-6 h-6 bg-white rounded-full shadow-lg border border-gray-100 text-gray-300 opacity-0 group-hover:opacity-100 transition-all hover:text-red-500 flex items-center justify-center z-10"
+            >
+                <Trash2 size={12} />
+            </button>
+        )
+}
+                                    </div >
                                 ))}
-                            </div>
-                        </div>
+                            </div >
+                        </div >
                     );
                 })}
 
-                {tasks.length === 0 && (
-                    <div className="text-center py-16 bg-gray-50/50 rounded-[32px] border-2 border-dashed border-gray-100">
-                        <p className="text-gray-400 text-sm font-bold">등록된 할 일이 없습니다.<br /><span className="text-[10px] mt-1 block">첫 계획을 세워보세요!</span></p>
-                    </div>
-                )}
-            </div>
+{
+    tasks.length === 0 && (
+        <div className="text-center py-16 bg-gray-50/50 rounded-[32px] border-2 border-dashed border-gray-100">
+            <p className="text-gray-400 text-sm font-bold">등록된 할 일이 없습니다.<br /><span className="text-[10px] mt-1 block">첫 계획을 세워보세요!</span></p>
         </div>
+    )
+}
+            </div >
+        </div >
     );
 }

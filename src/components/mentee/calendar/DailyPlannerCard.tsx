@@ -1,6 +1,4 @@
-import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { formatTime } from "@/utils/timeUtils";
-import { Check } from "lucide-react";
+import PlannerDetailView from "./PlannerDetailView";
 
 interface DailyPlannerCardProps {
     date: Date;
@@ -11,51 +9,58 @@ interface DailyPlannerCardProps {
     userTasks: any[];
     dailyEvents: any[];
     studyTimeBlocks: { [key: string]: string };
+    mentorReview?: string;
     onClick?: () => void;
+    fill?: boolean;
+    fillScale?: number;
+    className?: string;
 }
 
 export default function DailyPlannerCard({
     date,
-    isToday,
     studyTime = 0,
     memo = "",
     mentorDeadlines = [],
     userTasks = [],
     dailyEvents = [],
-    studyTimeBlocks = {},
-    onClick
+    mentorReview,
+    onClick,
+    fill = false,
+    fillScale,
+    className = ""
 }: DailyPlannerCardProps) {
-    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const allTasks = [...mentorDeadlines, ...userTasks];
-    const hasActivity = dailyEvents.length > 0 || allTasks.length > 0;
-    const tasksWithFeedback = mentorDeadlines.filter(t => t.mentorFeedback && t.mentorComment);
+    const sizeClass = fill ? "h-full" : "aspect-[3/5]";
+    const scale = fill ? (fillScale ?? 0.34) : 0.28;
+    const scaledSize = fill ? `${100 / scale}%` : undefined;
+
+    const derivedReview = mentorReview || dailyEvents.find((e: any) => e.taskType === "daily_review")?.comment || dailyEvents.find((e: any) => e.kind === "daily_review")?.comment;
 
     return (
         <div
             onClick={onClick}
-            className="aspect-[3/4] relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm rounded-sm flex flex-col"
+            className={`relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm rounded-sm flex flex-col ${sizeClass} ${className}`}
         >
-            {/* Header (Scaled down Modal Header) */}
-            <div className="w-full h-5 border-b border-gray-100 bg-gray-50 px-2 flex items-center justify-between shrink-0">
-                <span className={`text-[9px] font-bold ${isToday ? 'text-primary' : 'text-gray-900'}`}>
-                    {date.getDate()} ({dayNames[date.getDay()]})
-                </span>
-                {studyTime > 0 && (
-                    <span className="text-[7px] tabular-nums text-gray-500 font-bold">{formatTime(studyTime)}</span>
-                )}
-            </div>
-
-            {/* Body Content - High Density Miniature */}
-            <div className="flex-1 p-1.5 flex flex-col gap-1.5 overflow-hidden">
-
-                {/* 1. Memo (Blue Box) */}
-                <div className="w-full bg-sky-50/50 rounded-[3px] p-1 border border-sky-100/50 shrink-0">
-                    <span className="text-[5px] font-bold text-sky-600 block leading-tight mb-0.5">Daily Memo</span>
-                    <div className="w-full h-[1px] bg-sky-100/50 mb-0.5" />
-                    <p className="text-[5px] text-gray-400 italic leading-tight truncate">
-                        {memo || "기록된 메모가 없습니다."}
-                    </p>
+            {fill ? (
+                <div
+                    className="absolute inset-0 origin-top-left pointer-events-none"
+                    style={{
+                        transform: `scale(${scale})`,
+                        width: scaledSize,
+                        height: scaledSize,
+                    }}
+                >
+                    <PlannerDetailView
+                        date={date}
+                        dailyRecord={{ studyTime, memo }}
+                        mentorDeadlines={mentorDeadlines}
+                        userTasks={userTasks}
+                        dailyEvents={dailyEvents}
+                        mentorReview={derivedReview}
+                        size="mini"
+                        showHeader={false}
+                    />
                 </div>
+<<<<<<< HEAD
 
                 {/* 2. Main Split View */}
                 <div className="flex-1 flex gap-1.5 w-full min-h-0">
@@ -191,29 +196,23 @@ export default function DailyPlannerCard({
                             })}
                         </div>
                     </div>
+=======
+            ) : (
+            <div className="absolute inset-0 origin-top-left scale-[0.24] pointer-events-none">
+                <div className="w-[520px]">
+                    <PlannerDetailView
+                        date={date}
+                        dailyRecord={{ studyTime, memo }}
+                        mentorDeadlines={mentorDeadlines}
+                        userTasks={userTasks}
+                        dailyEvents={dailyEvents}
+                        mentorReview={derivedReview}
+                        size="page"
+                    />
+>>>>>>> origin/sunbal
                 </div>
-
-                {/* 3. Mentor Feedback (Bottom Box) - Neutral Style */}
-                {tasksWithFeedback.length > 0 && (
-                    <div className="bg-gray-50 border border-gray-100 rounded-[3px] p-1 shrink-0 mt-auto">
-                        <div className="flex items-center gap-0.5 mb-0.5">
-                            <div className="w-1 h-1 rounded-full bg-gray-400" />
-                            <span className="text-[5px] font-bold text-gray-500">멘토 쌤의 피드백</span>
-                        </div>
-                        {tasksWithFeedback.slice(0, 1).map(task => (
-                            <div key={task.id} className="text-[4px] text-gray-400 leading-tight truncate">
-                                <span className="font-bold text-gray-500 mr-0.5">To. {task.title.slice(0, 5)}...:</span>
-                                "{task.mentorFeedback?.slice(0, 15)}..."
-                            </div>
-                        ))}
-                        {tasksWithFeedback.length > 1 && (
-                            <div className="text-[4px] text-gray-300 mt-[1px] text-right">
-                                +{tasksWithFeedback.length - 1} more
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
+            )}
         </div>
     );
 }

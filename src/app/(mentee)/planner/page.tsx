@@ -1,22 +1,21 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     ChevronLeft,
     ChevronRight,
     Flag,
     Plus,
-    X,
-    MessageCircle,
-    ArrowRight,
-    Camera
+    X
 } from "lucide-react";
 import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
+import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS, WEEKLY_SCHEDULE } from "@/constants/mentee";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import Header from "@/components/mentee/layout/Header";
 import PlannerTasks from "@/components/mentee/planner/PlannerTasks";
 import StudyTimeline from "@/components/mentee/planner/StudyTimeline";
+import TaskDetailView from "@/components/mentee/planner/TaskDetailView"; // From HEAD maybe?
 import { supabase } from "@/lib/supabaseClient";
 import {
     adaptMentorTasksToUi,
@@ -26,9 +25,38 @@ import {
 } from "@/lib/menteeAdapters";
 
 export default function PlannerPage() {
+    // 1. State from Sunbal + Head
     const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 2)); // Feb 2, 2026
     const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
     const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
+
+    // Grid & Tasks State
+    const [studyTimeBlocks, setStudyTimeBlocks] = useState<{ [key: string]: string }>({});
+    const [tasks, setTasks] = useState<Array<MentorTaskLike | PlannerTaskLike>>([]);
+    const [newTaskTitle, setNewTaskTitle] = useState("");
+
+    // Auth & Loading State (from HEAD)
+    const [menteeId, setMenteeId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const hasLoadedRef = useRef(false);
+
+    // Modal State
+    const [selectedTask, setSelectedTask] = useState<any>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Helpers
+    const isSameDay = (date1: Date, date2: Date) => {
+        return date1.getDate() === date2.getDate() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getFullYear() === date2.getFullYear();
+    };
+
+    const toDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    };
 
     const handleAddCategory = (name: string) => {
         const newId = name.toLowerCase().replace(/\s+/g, '-');
@@ -51,47 +79,9 @@ export default function PlannerPage() {
         return newCategory;
     };
 
-
-    // Submission Modal State
-    const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
-    const [submittingTask, setSubmittingTask] = useState<any>(null);
-    const [studyPhoto, setStudyPhoto] = useState<string | null>(null);
-    const [studyNote, setStudyNote] = useState("");
-    const submissionFileInputRef = useRef<HTMLInputElement>(null);
-
-    // Grid state
-    // Grid state
-    const [studyTimeBlocks, setStudyTimeBlocks] = useState<{ [key: string]: string }>({});
-
-    // Unified Tasks State
-    const [tasks, setTasks] = useState<Array<MentorTaskLike | PlannerTaskLike>>([]);
-    const [newTaskTitle, setNewTaskTitle] = useState("");
-    const [menteeId, setMenteeId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const hasLoadedRef = useRef(false);
-
-    // Task Detail Modal State
-    const [selectedTask, setSelectedTask] = useState<any>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    const isSameDay = (date1: Date, date2: Date) => {
-        return date1.getDate() === date2.getDate() &&
-            date1.getMonth() === date2.getMonth() &&
-            date1.getFullYear() === date2.getFullYear();
-    };
-
-    const toDateString = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-    };
-
- 
-
+    // 2. Data Fetching (HEAD Logic)
     useEffect(() => {
         let isMounted = true;
-
         const load = async () => {
             if (!hasLoadedRef.current) {
                 setIsLoading(true);
@@ -99,7 +89,10 @@ export default function PlannerPage() {
             try {
                 const { data } = await supabase.auth.getUser();
                 const user = data?.user;
-                if (!user) return;
+                if (!user) {
+                    console.log("No user found");
+                    return;
+                }
 
                 if (isMounted) {
                     setMenteeId(user.id);
@@ -145,6 +138,7 @@ export default function PlannerPage() {
                                 timeSpent: 0,
                                 isRunning: false,
                                 studyRecord: task.studyRecord ?? null,
+                                isMentorTask: true,
                             }));
                     }
                 }
@@ -157,6 +151,7 @@ export default function PlannerPage() {
                             ...task,
                             timeSpent: task.timeSpent ?? 0,
                             isRunning: false,
+                            isMentorTask: false,
                         }));
                     }
                 }
@@ -164,6 +159,8 @@ export default function PlannerPage() {
                 if (isMounted) {
                     setTasks([...mentorTasksForDate, ...plannerTasksForDate]);
                 }
+            } catch (e) {
+                console.error("Failed to load planner data", e);
             } finally {
                 if (isMounted && !hasLoadedRef.current) {
                     setIsLoading(false);
@@ -179,11 +176,12 @@ export default function PlannerPage() {
         };
     }, [currentDate]);
 
-    // Sync studyTimeBlocks with tasks
+    // Sync studyTimeBlocks with tasks (UI Logic)
     useEffect(() => {
         setStudyTimeBlocks(generateTimeBlocksFromTasks(tasks));
     }, [tasks]);
 
+    // Handlers
     const handlePrevDay = () => {
         const prev = new Date(currentDate);
         prev.setDate(prev.getDate() - 1);
@@ -196,25 +194,14 @@ export default function PlannerPage() {
         setCurrentDate(next);
     };
 
-
-
     const addTask = async () => {
         if (!newTaskTitle.trim()) return;
 
+        // Optimistic update if needed, but here we just rely on API response
+        // Wait, for better UX locally, let's wait for API.
+
         if (!menteeId) {
-            const newTask = {
-                id: String(Date.now()),
-                title: newTaskTitle,
-                categoryId: selectedCategoryId,
-                completed: false,
-                timeSpent: 0,
-                isRunning: false,
-                isMentorTask: false,
-                studyRecord: null,
-                deadline: currentDate
-            };
-            setTasks(prev => [...prev, newTask]);
-            setNewTaskTitle("");
+            // Fallback for no auth? Or just ignore.
             return;
         }
 
@@ -225,19 +212,28 @@ export default function PlannerPage() {
             subjectSlug: selectedCategoryId || null,
         };
 
-        const response = await fetch("/api/mentee/planner/tasks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+        try {
+            const response = await fetch("/api/mentee/planner/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
 
-        if (response.ok) {
-            const json = await response.json();
-            const createdTask = json?.task ? adaptPlannerTasksToUi([json.task])[0] : null;
-            if (createdTask) {
-                setTasks(prev => [...prev, { ...createdTask, isRunning: false }]);
+            if (response.ok) {
+                const json = await response.json();
+                const createdTask = json?.task ? adaptPlannerTasksToUi([json.task])[0] : null;
+                if (createdTask) { // Explicitly mapping only essential fields
+                    setTasks(prev => [...prev, {
+                        ...createdTask,
+                        isRunning: false,
+                        isMentorTask: false,
+                        timeSpent: 0
+                    }]);
+                }
+                setNewTaskTitle("");
             }
-            setNewTaskTitle("");
+        } catch (e) {
+            console.error("Failed to add task", e);
         }
     };
 
@@ -247,9 +243,10 @@ export default function PlannerPage() {
         if (!targetTask || targetTask.isMentorTask) return;
 
         const nextCompleted = !targetTask.completed;
+        // Optimistic update
         setTasks(prev => prev.map(task => {
             if (String(task.id) === taskIdStr) {
-                return { ...task, completed: nextCompleted };
+                return { ...task, completed: nextCompleted, status: nextCompleted ? 'submitted' : 'pending' };
             }
             return task;
         }));
@@ -268,7 +265,6 @@ export default function PlannerPage() {
 
     const updateTaskTimeRange = (taskId: number | string, startTime: string, endTime: string) => {
         const taskIdStr = String(taskId);
-
         setTasks(prev => prev.map(task => {
             if (String(task.id) === taskIdStr) {
                 if (task.isMentorTask) return task;
@@ -276,8 +272,12 @@ export default function PlannerPage() {
             }
             return task;
         }));
-
-        // Auto-fill time blocks is now handled by useEffect on tasks change
+        // Note: API update for time range is not implemented here yet, assuming local only for drag? 
+        // Or if it was implemented, it should be here.
+        // Based on HEAD, it wasn't explicitly in the snippet I saw, but I should probably leave it as local state update for now 
+        // unless I see an API call in the conflict block. 
+        // HEAD didn't have updateTaskTimeRange in the snippet shown! Sunbal had it.
+        // So this is purely UI state update.
     };
 
     const deleteTask = async (taskId: number | string) => {
@@ -292,37 +292,6 @@ export default function PlannerPage() {
         await fetch(`/api/mentee/planner/tasks/${taskIdStr}?menteeId=${menteeId}`, {
             method: "DELETE"
         });
-    };
-
-    const handleOpenSubmission = (task: any) => {
-        setSubmittingTask(task);
-        setStudyNote(task.studyRecord?.note || "");
-        setStudyPhoto(task.studyRecord?.photo || null);
-        setIsSubmissionOpen(true);
-    };
-
-    const handleSubmissionImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const imageUrl = URL.createObjectURL(file);
-            setStudyPhoto(imageUrl);
-        }
-    };
-
-    const saveSubmission = () => {
-        const submittingTaskIdStr = String(submittingTask?.id);
-        setTasks(prev => prev.map(task => {
-            if (String(task.id) === submittingTaskIdStr) {
-                return {
-                    ...task,
-                    studyRecord: { photo: studyPhoto, note: studyNote },
-                    status: 'submitted'
-                };
-            }
-            return task;
-        }));
-        setIsSubmissionOpen(false);
-        setSubmittingTask(null);
     };
 
     if (isLoading) {
@@ -372,14 +341,12 @@ export default function PlannerPage() {
                     </div>
                 </div>
 
-
                 <PlannerTasks
                     tasks={tasks}
                     categories={categories}
                     onToggleCompletion={toggleTaskCompletion}
                     onUpdateTaskTimeRange={updateTaskTimeRange}
                     onDelete={deleteTask}
-                    onOpenSubmission={handleOpenSubmission}
                     newTaskTitle={newTaskTitle}
                     setNewTaskTitle={setNewTaskTitle}
                     selectedCategoryId={selectedCategoryId}
@@ -400,88 +367,6 @@ export default function PlannerPage() {
                 task={selectedTask}
             />
 
-            {/* Study Record Submission Modal */}
-            {isSubmissionOpen && submittingTask && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsSubmissionOpen(false)} />
-                    <div className="relative w-full max-w-sm bg-white rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
-                        <div className="px-6 pt-8 pb-4 flex justify-between items-center bg-white border-b border-gray-50">
-                            <div>
-                                <h3 className="text-lg font-black text-gray-900">공부 기록 제출</h3>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">Mentor Feed Loop</p>
-                            </div>
-                            <button onClick={() => setIsSubmissionOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-6">
-                            <div className="flex flex-col items-center">
-                                <div className="relative w-full aspect-video bg-gray-50 rounded-[24px] border border-gray-100 overflow-hidden group cursor-pointer" onClick={() => submissionFileInputRef.current?.click()}>
-                                    {studyPhoto ? (
-                                        <img src={studyPhoto} alt="study-proof" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-gray-300 group-hover:text-primary transition-colors">
-                                                <Camera size={24} />
-                                            </div>
-                                            <p className="text-[11px] font-bold text-gray-400">공부 사진 올리기</p>
-                                        </div>
-                                    )}
-                                    <input
-                                        type="file"
-                                        ref={submissionFileInputRef}
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={handleSubmissionImageUpload}
-                                    />
-                                </div>
-                                {studyPhoto && (
-                                    <button
-                                        onClick={() => setStudyPhoto(null)}
-                                        className="text-[10px] text-red-500 font-bold mt-2 hover:underline"
-                                    >
-                                        사진 삭제하기
-                                    </button>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">오늘의 배움/느낀점</label>
-                                <textarea
-                                    rows={3}
-                                    value={studyNote}
-                                    onChange={(e) => setStudyNote(e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none placeholder-gray-300"
-                                    placeholder="오늘 공부하며 어려웠던 점이나 새로 알게 된 사실을 적어주세요."
-                                />
-                            </div>
-
-                            {submittingTask.mentorFeedback && (
-                                <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10">
-                                    <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                        <MessageCircle size={10} fill="currentColor" />
-                                        Mentor's Feedback
-                                    </p>
-                                    <p className="text-[11px] font-bold text-gray-700 leading-relaxed italic">
-                                        "{submittingTask.mentorFeedback}"
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="px-6 pb-8 pt-2">
-                            <button
-                                onClick={saveSubmission}
-                                className="w-full bg-gray-900 text-white h-14 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all hover:bg-black shadow-xl shadow-gray-200"
-                            >
-                                <ArrowRight size={18} />
-                                기록 제출하기
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

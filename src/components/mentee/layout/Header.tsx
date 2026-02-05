@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, Bell } from "lucide-react";
+import { Search, Bell, MessageCircle } from "lucide-react";
+import Link from "next/link";
 
 interface HeaderProps {
     title: string;
@@ -26,7 +27,10 @@ export default function Header({ title, rightElement, variant = 'default' }: Hea
             <h1 className="text-2xl font-bold text-blue-900">{title}</h1>
             <div className="flex items-center">
                 {rightElement || (
-                    <div className="flex gap-4 text-gray-400">
+                    <div className="flex gap-4 text-gray-400 items-center">
+                        <Link href="/chat" className="hover:text-primary transition-colors">
+                            <MessageCircle size={24} />
+                        </Link>
                         <Search size={24} />
                         <Bell size={24} />
                     </div>

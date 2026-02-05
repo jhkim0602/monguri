@@ -1,15 +1,41 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage, Input } from "@/components/ui";
+import { Search } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export function Header() {
+  const pathname = usePathname();
+  const header = (() => {
+    if (pathname.startsWith("/mentor/students/")) {
+      return {
+        title: "학생 상세",
+        subtitle: "학생의 과제/캘린더/플래너를 확인하세요.",
+      };
+    }
+    if (pathname.startsWith("/mentor/students")) {
+      return { title: "학생 관리", subtitle: "담당 학생 목록입니다." };
+    }
+    if (pathname.startsWith("/mentor/tasks")) {
+      return { title: "과제 관리", subtitle: "멘토 과제를 관리합니다." };
+    }
+    if (pathname.startsWith("/mentor/planner")) {
+      return { title: "플래너", subtitle: "멘티 플래너를 검토하고 피드백합니다." };
+    }
+    if (pathname.startsWith("/mentor/calendar")) {
+      return { title: "캘린더", subtitle: "멘토 일정(미팅/상담/모의고사)을 관리합니다." };
+    }
+    if (pathname.startsWith("/mentor/columns")) {
+      return { title: "칼럼 작성", subtitle: "멘토 칼럼을 작성합니다." };
+    }
+    return { title: "대시보드", subtitle: "오늘의 멘토링 현황입니다." };
+  })();
+
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold text-gray-800">대시보드</h1>
+        <h1 className="text-xl font-bold text-gray-800">{header.title}</h1>
         <div className="h-4 w-px bg-gray-300 mx-2" />
-        <span className="text-sm text-gray-500">오늘의 수업 일정입니다.</span>
+        <span className="text-sm text-gray-500">{header.subtitle}</span>
       </div>
 
       <div className="flex items-center gap-4">

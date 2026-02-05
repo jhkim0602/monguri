@@ -6,25 +6,20 @@ import {
   Home,
   Users,
   BookOpen,
-  Settings,
   LogOut,
-  Video,
-  Library,
-  Inbox,
   Calendar,
-  MessageCircle,
+  ClipboardList,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/components/ui/lib/utils";
 
 const NAV_ITEMS = [
   { label: "대시보드", href: "/mentor", icon: Home },
-  { label: "상담 신청", href: "/mentor/applications", icon: Inbox },
-  { label: "피드백", href: "/mentor/feedback", icon: MessageCircle },
-  { label: "채팅", href: "/mentor/chat", icon: Inbox },
+  { label: "과제 관리", href: "/mentor/tasks", icon: ClipboardList },
+  { label: "플래너", href: "/mentor/planner", icon: LayoutGrid },
+  { label: "캘린더", href: "/mentor/calendar", icon: Calendar },
+  { label: "칼럼 작성", href: "/mentor/columns", icon: BookOpen },
   { label: "학생 관리", href: "/mentor/students", icon: Users },
-  { label: "일정", href: "/mentor/schedule", icon: Calendar },
-  { label: "라이브 강의", href: "/mentor/live", icon: Video },
-  { label: "자료실", href: "/mentor/library", icon: BookOpen },
 ];
 
 export function Sidebar() {
@@ -61,13 +56,6 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-50 space-y-1">
-        <Link
-          href="/mentor/settings"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900"
-        >
-          <Settings className="w-4 h-4 text-gray-400" />
-          설정
-        </Link>
         <button
           onClick={() => (window.location.href = "/login")} // Mock logout
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 text-left"

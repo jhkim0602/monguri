@@ -17,19 +17,6 @@
   --ios-tertiary-label: #3c3c4399;
 }
 
-/* Hide scrollbar globally for iOS-style appearance */
-* {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
-}
-
-*::-webkit-scrollbar {
-  display: none;
-  /* Chrome, Safari and Opera */
-}
-
 body {
   color: rgb(var(--foreground-rgb));
   font-family:
@@ -119,6 +106,22 @@ body {
   background: var(--ios-gray-3);
 }
 
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  }
+
+  .dark .glass-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  }
+}
+
 /* Animations */
 @keyframes slideUp {
   from {
@@ -140,6 +143,7 @@ body {
 
   70% {
     transform: scale(1.02);
+    opacity: 1;
   }
 
   100% {
@@ -170,20 +174,4 @@ body {
 
 .animate-slide-in-right {
   animation: slideInRight 0.3s ease-out forwards;
-}
-
-@layer components {
-  .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-  }
-
-  .dark .glass-card {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  }
 }
