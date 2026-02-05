@@ -321,7 +321,15 @@ export default function CalendarPage() {
             <Header
                 title="인사이트 캘린더"
                 variant="clean"
-
+                rightElement={
+                    <button
+                        onClick={() => openAddModal(selectedDate || new Date())}
+                        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-primary/20 hover:scale-105 active:scale-95"
+                    >
+                        <Plus size={16} strokeWidth={3} />
+                        <span className="text-sm font-bold">추가</span>
+                    </button>
+                }
             />
 
             <div className="px-6 py-4">
@@ -457,25 +465,7 @@ export default function CalendarPage() {
                     />
                 )}
 
-                {/* Add Task Entry */}
-                <div className="mt-6 bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-sm font-bold text-gray-900">할 일 추가</h3>
-                            <p className="text-[11px] text-gray-400 mt-1">반복 일정까지 캘린더에서 한 번에 생성할 수 있어요.</p>
-                        </div>
-                        <button
-                            onClick={() => openAddModal(selectedDate || new Date())}
-                            className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold shadow-lg shadow-gray-200 flex items-center gap-1.5"
-                        >
-                            <Plus size={14} />
-                            추가하기
-                        </button>
-                    </div>
-                    <div className="mt-3 bg-blue-50/60 border border-blue-100 rounded-xl px-3 py-2 text-[10px] font-bold text-blue-700">
-                        도움말: 반복 일정은 시작~종료 범위 안에서 선택한 요일/날짜에 자동 생성됩니다.
-                    </div>
-                </div>
+
 
                 {/* Selected Date Details (Only visible in Month view for now) */}
                 {viewMode === 'month' && selectedDate && (
@@ -498,12 +488,12 @@ export default function CalendarPage() {
                                 </div>
                             )}
 
-                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                                <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm">
+                                <h4 className="text-[17px] font-black text-gray-900 mb-6 flex items-center gap-2 tracking-tight">
                                     <div className="w-1.5 h-4 bg-primary rounded-full" />
                                     오늘의 학습 계획
                                 </h4>
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     {DEFAULT_CATEGORIES.map(category => {
                                         const eventsInCategory = selectedDate
                                             ? getDailyEvents(selectedDate).filter(e => e.categoryId === category.id)
@@ -511,12 +501,12 @@ export default function CalendarPage() {
                                         if (eventsInCategory.length === 0) return null;
 
                                         return (
-                                            <div key={category.id} className="space-y-2">
+                                            <div key={category.id} className="space-y-4">
                                                 <div className="flex items-center gap-2 px-1">
                                                     <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[10px] font-bold ${category.textColor}`}>{category.name}</span>
+                                                    <span className={`text-[13px] font-extrabold ${category.textColor} tracking-tight`}>{category.name}</span>
                                                 </div>
-                                                <div className="space-y-2">
+                                                <div className="space-y-3.5">
                                                     {eventsInCategory.map((event, idx) => {
                                                         // 🔍 Resolve full task details
                                                         let fullTask: any = null;
@@ -536,48 +526,46 @@ export default function CalendarPage() {
                                                             <div
                                                                 key={idx}
                                                                 onClick={() => fullTask && openTaskDetail(fullTask)}
-                                                                className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group
+                                                                className={`group relative p-5 rounded-[24px] transition-all duration-300 border cursor-pointer
                                                                     ${isCompleted
-                                                                        ? 'bg-gray-50/50 border-gray-50 text-gray-400'
-                                                                        : 'bg-white border-gray-100 hover:border-primary/30 hover:shadow-sm text-gray-900'
+                                                                        ? 'bg-gray-50/50 border-gray-50'
+                                                                        : 'bg-white border-gray-50 shadow-sm hover:border-gray-200 hover:shadow-md'
                                                                     }`}
                                                             >
-                                                                {/* Status Icon */}
-                                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors
-                                                                    ${isCompleted
-                                                                        ? `${category.color.replace('bg-', 'border-')} ${category.color}`
-                                                                        : 'border-gray-200'
-                                                                    }`}>
-                                                                    {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
-                                                                </div>
-
-                                                                <div className="flex-1 min-w-0">
-                                                                    {/* Badges Row */}
-                                                                    <div className="flex items-center gap-1.5 mb-1">
-                                                                        {isMentorTask && (
-                                                                            <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
-                                                                                MENTOR
-                                                                            </span>
-                                                                        )}
-                                                                        {hasFeedback && (
-                                                                            <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
-                                                                                <MessageCircle size={8} className="fill-current" />
-                                                                                FEEDBACK
-                                                                            </span>
-                                                                        )}
+                                                                <div className="flex items-start gap-3.5">
+                                                                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5
+                                                                        ${isCompleted
+                                                                            ? `${category.color.replace('bg-', 'border-')} ${category.color}`
+                                                                            : 'border-gray-200'
+                                                                        }`}>
+                                                                        {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
                                                                     </div>
 
-                                                                    <p className={`text-sm font-bold truncate transition-colors ${isCompleted ? 'line-through opacity-80' : ''}`}>
-                                                                        {event.title}
-                                                                    </p>
-                                                                </div>
-
-                                                                {/* Right Arrow (Visual Cue) */}
-                                                                {!isCompleted && fullTask && (
-                                                                    <div className="text-gray-300 group-hover:text-primary transition-colors">
-                                                                        <ChevronRight size={16} />
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                                                                            {isMentorTask && (
+                                                                                <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
+                                                                                    MENTOR
+                                                                                </span>
+                                                                            )}
+                                                                            {hasFeedback && (
+                                                                                <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
+                                                                                    <MessageCircle size={8} className="fill-current" />
+                                                                                    FEEDBACK
+                                                                                </span>
+                                                                            )}
+                                                                            <p className={`text-[14.5px] font-bold truncate transition-colors leading-relaxed tracking-[0.01em] ${isCompleted ? 'text-gray-300 line-through' : 'text-gray-900'}`}>
+                                                                                {event.title}
+                                                                            </p>
+                                                                        </div>
                                                                     </div>
-                                                                )}
+
+                                                                    {!isCompleted && fullTask && (
+                                                                        <div className="text-gray-300 group-hover:text-primary transition-colors mt-0.5">
+                                                                            <ChevronRight size={18} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         );
                                                     })}
@@ -586,13 +574,15 @@ export default function CalendarPage() {
                                         );
                                     })}
                                     {selectedDate && getDailyEvents(selectedDate).length === 0 && (
-                                        <p className="text-center text-xs text-gray-400 py-4">등록된 학습 계획이 없습니다.</p>
+                                        <div className="text-center py-12 bg-gray-50/50 rounded-[28px] border-2 border-dashed border-gray-100">
+                                            <p className="text-gray-400 text-sm font-bold">등록된 학습 계획이 없습니다.</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                                <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm">
+                                <h4 className="text-[17px] font-black text-gray-900 mb-6 flex items-center gap-2 tracking-tight">
                                     <div className="w-1.5 h-4 bg-purple-500 rounded-full" />
                                     멘토 피드백
                                 </h4>
@@ -602,25 +592,27 @@ export default function CalendarPage() {
                                         if (feedbackInCategory.length === 0) return null;
 
                                         return (
-                                            <div key={category.id} className="space-y-3">
+                                            <div key={category.id} className="space-y-4">
                                                 <div className="flex items-center gap-2 px-1">
                                                     <div className={`w-1.5 h-3 rounded-full ${category.color}`} />
-                                                    <span className={`text-[10px] font-bold ${category.textColor}`}>{category.name}</span>
+                                                    <span className={`text-[13px] font-extrabold ${category.textColor} tracking-tight`}>{category.name}</span>
                                                 </div>
-                                                <div className="space-y-3">
+                                                <div className="space-y-3.5">
                                                     {feedbackInCategory.map(task => (
                                                         <div
                                                             key={task.id}
                                                             onClick={() => openTaskDetail(task)}
-                                                            className="bg-purple-50/30 rounded-2xl p-4 border border-purple-50 cursor-pointer hover:bg-purple-50/50 transition-colors shadow-sm"
+                                                            className="group relative p-5 rounded-[24px] bg-white border border-gray-50 shadow-sm cursor-pointer hover:border-purple-200 hover:shadow-md transition-all"
                                                         >
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <p className="text-xs font-bold text-purple-600">{task.title}</p>
-                                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${task.badgeColor}`}>
+                                                            <div className="flex items-center justify-between mb-3.5">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-[14.5px] font-bold text-gray-900 leading-relaxed tracking-[0.01em]">{task.title}</p>
+                                                                </div>
+                                                                <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${task.badgeColor}`}>
                                                                     {task.status === 'feedback_completed' ? '피드백 완료' : task.status === 'submitted' ? '제출 완료' : '진행 중'}
                                                                 </span>
                                                             </div>
-                                                            <div className="p-3 bg-white rounded-xl border border-purple-100 text-[13px] text-gray-700 leading-relaxed italic">
+                                                            <div className="p-4 bg-purple-50/50 rounded-[20px] border border-purple-50 text-[13.5px] text-gray-700 leading-loose tracking-wide group-hover:bg-purple-50 transition-colors">
                                                                 "{task.mentorFeedback || "아직 피드백이 등록되지 않았습니다."}"
                                                             </div>
                                                         </div>
@@ -630,7 +622,9 @@ export default function CalendarPage() {
                                         );
                                     })}
                                     {MENTOR_TASKS.filter(t => t.deadline && selectedDate && isSameDay(t.deadline, selectedDate)).length === 0 && (
-                                        <p className="text-center text-xs text-gray-400 py-4">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
+                                        <div className="text-center py-12 bg-gray-50/50 rounded-[28px] border-2 border-dashed border-gray-100">
+                                            <p className="text-gray-400 text-sm font-bold">해당 날짜에 등록된 멘토 태스크가 없습니다.</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -678,11 +672,10 @@ export default function CalendarPage() {
                                         <button
                                             key={category.id}
                                             onClick={() => setEventCategoryId(category.id)}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${
-                                                eventCategoryId === category.id
-                                                    ? `bg-white border-gray-300 ${category.textColor} shadow-sm`
-                                                    : `bg-gray-50 border-gray-100 ${category.textColor}`
-                                            }`}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${eventCategoryId === category.id
+                                                ? `bg-white border-gray-300 ${category.textColor} shadow-sm`
+                                                : `bg-gray-50 border-gray-100 ${category.textColor}`
+                                                }`}
                                         >
                                             {category.name}
                                         </button>
@@ -725,9 +718,8 @@ export default function CalendarPage() {
                                             <button
                                                 key={option.key}
                                                 onClick={() => setRecurrenceType(option.key)}
-                                                className={`h-9 rounded-xl text-[11px] font-black transition-all ${
-                                                    isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
-                                                }`}
+                                                className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+                                                    }`}
                                             >
                                                 {option.label}
                                             </button>
@@ -754,9 +746,8 @@ export default function CalendarPage() {
                                                                         : [...prev, idx]
                                                                 );
                                                             }}
-                                                            className={`h-9 rounded-xl text-[11px] font-black transition-all ${
-                                                                isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
-                                                            }`}
+                                                            className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+                                                                }`}
                                                         >
                                                             {label}
                                                         </button>
@@ -849,6 +840,7 @@ export default function CalendarPage() {
                 mentorDeadlines={mentorDeadlinesForSelected}
                 userTasks={userTasksForSelected}
                 dailyEvents={selectedDate ? getDailyEvents(selectedDate) : []}
+                onTaskClick={openTaskDetail}
             />
 
         </div>

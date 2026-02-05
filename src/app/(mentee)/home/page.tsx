@@ -6,10 +6,11 @@ import { USER_PROFILE } from "@/constants/common";
 import { MENTOR_TASKS } from "@/constants/mentee";
 import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";
-import HomeProgress from "@/components/mentee/home/HomeProgress";
+
 import HomeTasks from "@/components/mentee/home/HomeTasks";
 import { COLUMN_ARTICLES, COLUMN_SERIES } from "@/constants/mentee/columns";
 import Link from "next/link";
+import HomeProgress from "@/components/mentee/home/HomeProgress";
 
 export default function Home() {
     // Default to Feb 2 2026 for demo context
@@ -61,12 +62,16 @@ export default function Home() {
                 onDateChange={setSelectedDate}
             />
 
+
+
             <section className="px-6 mb-6">
                 <WeeklyCalendar
                     currentDate={selectedDate}
                     onDateSelect={setSelectedDate}
                 />
             </section>
+
+
 
 
 
@@ -123,9 +128,8 @@ export default function Home() {
                                                         <img
                                                             src={article.coverImage}
                                                             alt={article.title}
-                                                            className={`h-full w-full object-cover ${
-                                                                isComingSoon ? "grayscale" : ""
-                                                            }`}
+                                                            className={`h-full w-full object-cover ${isComingSoon ? "grayscale" : ""
+                                                                }`}
                                                         />
                                                     </div>
                                                     <div className="p-4 space-y-2">

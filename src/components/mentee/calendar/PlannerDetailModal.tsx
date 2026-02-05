@@ -13,6 +13,7 @@ interface PlannerDetailModalProps {
     mentorDeadlines: any[];
     dailyEvents: any[];
     userTasks?: any[];
+    onTaskClick?: (task: any) => void;
 }
 
 export default function PlannerDetailModal({
@@ -22,7 +23,8 @@ export default function PlannerDetailModal({
     dailyRecord,
     mentorDeadlines,
     dailyEvents,
-    userTasks: userTasksProp
+    userTasks: userTasksProp,
+    onTaskClick
 }: PlannerDetailModalProps) {
     if (!isOpen || !date) return null;
 
@@ -120,11 +122,13 @@ export default function PlannerDetailModal({
                                 const completed = isTaskCompleted(task);
 
                                 return (
-                                    <Link
+                                    <div
                                         key={task.id}
-                                        href={`/planner/${task.id}`}
-                                        className="flex items-start gap-2 hover:bg-purple-50/50 rounded-lg p-2 -m-2 transition-colors"
-                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-start gap-2 hover:bg-purple-50/50 rounded-lg p-2 -m-2 transition-colors cursor-pointer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onTaskClick?.(task);
+                                        }}
                                     >
                                         <button
                                             type="button"
@@ -155,7 +159,7 @@ export default function PlannerDetailModal({
                                             </div>
                                             <p className={`text-base font-bold truncate ${completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
                                         </div>
-                                    </Link>
+                                    </div>
                                 );
                             })}
 
@@ -167,11 +171,13 @@ export default function PlannerDetailModal({
                                 const completed = isTaskCompleted(task);
 
                                 return (
-                                    <Link
+                                    <div
                                         key={task.id}
-                                        href={`/planner/${task.id}`}
-                                        className="flex items-start gap-2 hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors"
-                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-start gap-2 hover:bg-blue-50/50 rounded-lg p-2 -m-2 transition-colors cursor-pointer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onTaskClick?.(task);
+                                        }}
                                     >
                                         <div className={`w-5 h-5 rounded flex items-center justify-center border ${completed ? `${colorClass} ${borderClass}` : 'border-gray-300 bg-white'} shrink-0 mt-0.5`}>
                                             {completed && <Check size={12} className="text-white" />}
@@ -184,7 +190,7 @@ export default function PlannerDetailModal({
                                             </div>
                                             <p className={`text-base font-bold truncate ${completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
                                         </div>
-                                    </Link>
+                                    </div>
                                 );
                             })}
 
