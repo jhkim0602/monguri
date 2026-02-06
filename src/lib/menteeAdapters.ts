@@ -143,7 +143,7 @@ export type PlannerTaskLike = {
   completed: boolean;
   timeSpent: number;
   isRunning: boolean;
-  isMentorTask: boolean;
+  isMentorTask: false;
   studyRecord: any;
   attachments?: any[];
   submissions?: any[];
@@ -186,7 +186,7 @@ export function adaptPlannerTasksToUi(
       completed: task.completed,
       timeSpent: task.timeSpentSec ?? 0,
       isRunning: false,
-      isMentorTask: (task as any).is_mentor_task ?? false,
+      isMentorTask: false,
       studyRecord: null,
       attachments: [],
       submissions: [],
