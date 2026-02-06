@@ -87,8 +87,14 @@ export default function HomeProgress({
             english: { total: 0, completed: 0 }
         };
 
-        // Use the passed mentorTasks prop instead of MENTOR_TASKS constant
+        // 1. Mentor Tasks Progress
         mentorTasks.forEach(task => {
+            // Filter by Selected Date
+            // Only include tasks that have a deadline on the selected date
+            if (!task.deadline || !isSameDay(new Date(task.deadline), selectedDate)) {
+                return;
+            }
+
             const key = task.categoryId;
             if (stats[key]) {
                 stats[key].total++;
@@ -99,6 +105,25 @@ export default function HomeProgress({
             }
         });
 
+        // [FUTURE EXTENSION: Mentee Personal Plan Integration]
+        // If you decide to include Personal Planner Tasks in the progress:
+        // 1. Add `plannerTasks` to the component props.
+        // 2. Uncomment and adapt the following logic:
+        /*
+        plannerTasks.forEach(task => {
+             // Filter by Date
+             if (!task.deadline || !isSameDay(new Date(task.deadline), selectedDate)) return;
+             
+             const key = task.categoryId; // Ensure planner tasks have mapped categoryIds ('korean', 'math', 'english')
+             if (stats[key]) {
+                 stats[key].total++;
+                 if (task.isCompleted) { // Assuming 'isCompleted' or similar status property
+                     stats[key].completed++;
+                 }
+             }
+        });
+        */
+
         const newProgress = {
             korean: stats.korean.total ? Math.round((stats.korean.completed / stats.korean.total) * 100) : 0,
             math: stats.math.total ? Math.round((stats.math.completed / stats.math.total) * 100) : 0,
@@ -106,7 +131,7 @@ export default function HomeProgress({
         };
 
         setProgressData(newProgress);
-    }, [mentorTasks]); // Updates when prop changes
+    }, [mentorTasks, selectedDate]); // Updates when prop or date changes
 
     const handlePrevDay = () => {
         const newDate = new Date(selectedDate);
