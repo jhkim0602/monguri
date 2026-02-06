@@ -284,7 +284,7 @@ export default function DashboardPage() {
               <h3 className="font-bold text-gray-900">최근 메시지</h3>
             </div>
             <Link
-              href="/chat"
+              href="/chat-mentor"
               className="text-xs font-bold text-gray-400 hover:text-gray-900 flex items-center gap-1"
             >
               채팅 가기 <ChevronRight size={14} />
