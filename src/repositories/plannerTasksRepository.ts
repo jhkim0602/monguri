@@ -18,6 +18,7 @@ export type PlannerTaskRow = {
   time_spent_sec: number | null;
   start_time: string | null;
   end_time: string | null;
+  recurring_group_id: string | null;
   created_at: string;
   subjects: PlannerTaskSubjectRow | null;
 };
@@ -45,6 +46,7 @@ export async function listPlannerTasksByMenteeId(
       time_spent_sec,
       start_time,
       end_time,
+      recurring_group_id,
       created_at,
       subjects (
         id,
@@ -76,7 +78,7 @@ export async function listPlannerTasksByMenteeId(
     throw new Error(error.message);
   }
 
-  return (data ?? []) as PlannerTaskRow[];
+  return (data ?? []) as unknown as PlannerTaskRow[];
 }
 
 export async function getPlannerTaskById(taskId: string) {
@@ -93,6 +95,7 @@ export async function getPlannerTaskById(taskId: string) {
       time_spent_sec,
       start_time,
       end_time,
+      recurring_group_id,
       created_at,
       subjects (
         id,
@@ -179,6 +182,7 @@ export async function createPlannerTask({
       time_spent_sec,
       start_time,
       end_time,
+      recurring_group_id,
       created_at,
       subjects (
         id,
@@ -259,6 +263,7 @@ export async function updatePlannerTask(
       time_spent_sec,
       start_time,
       end_time,
+      recurring_group_id,
       created_at,
       subjects (
         id,
@@ -291,4 +296,88 @@ export async function deletePlannerTask(taskId: string) {
   }
 
   return (data ?? null) as { id: string } | null;
+}
+
+export async function createPlannerRecurringGroup(
+  menteeId: string,
+  recurrenceRule: any
+) {
+  const { data, error } = await supabaseServer
+    .from("planner_recurring_groups")
+    .insert({
+      mentee_id: menteeId,
+      recurrence_rule: recurrenceRule,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function createPlannerTaskBatch(
+  tasks: CreatePlannerTaskInput[],
+  recurringGroupId?: string
+) {
+  if (tasks.length === 0) return [];
+
+  const payload = tasks.map((task) => ({
+    mentee_id: task.menteeId,
+    subject_id: task.subjectId,
+    title: task.title,
+    date: task.date,
+    completed: task.completed,
+    time_spent_sec: task.timeSpentSec,
+    start_time: task.startTime,
+    end_time: task.endTime,
+    recurring_group_id: recurringGroupId,
+  }));
+
+  const { data, error } = await supabaseServer
+    .from("planner_tasks")
+    .insert(payload)
+    .select(
+      `
+      id,
+      mentee_id,
+      subject_id,
+      title,
+      date,
+      completed,
+      time_spent_sec,
+      start_time,
+      end_time,
+      recurring_group_id,
+      created_at,
+      subjects (
+        id,
+        slug,
+        name,
+        color_hex,
+        text_color_hex
+      )
+    `
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as PlannerTaskRow[];
+}
+
+export async function deletePlannerRecurringGroup(groupId: string) {
+  const { error } = await supabaseServer
+    .from("planner_recurring_groups")
+    .delete()
+    .eq("id", groupId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return true;
 }

@@ -39,6 +39,7 @@ type PlannerTaskResponse = {
   startTime: string | null;
   endTime: string | null;
   createdAt: string;
+  recurringGroupId?: string | null;
 };
 
 const mapSubject = (subject: {
@@ -68,6 +69,7 @@ const mapPlannerTask = (task: {
   start_time: string | null;
   end_time: string | null;
   created_at: string;
+  recurring_group_id?: string | null;
   subjects: {
     id: string;
     slug: string;
@@ -86,6 +88,7 @@ const mapPlannerTask = (task: {
   startTime: task.start_time,
   endTime: task.end_time,
   createdAt: task.created_at,
+  recurringGroupId: task.recurring_group_id,
 });
 
 type PlannerTaskFilters = {

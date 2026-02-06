@@ -28,6 +28,7 @@ export default function CalendarPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     // Add Task Modal State
     const [eventTitle, setEventTitle] = useState("");
@@ -106,9 +107,57 @@ export default function CalendarPage() {
         return dates;
     };
 
-    const handleSaveEvent = () => {
-        alert("일정 생성 기능(DB 연동/Batch Insert)은 다음 단계에서 구현됩니다.");
-        setIsAddModalOpen(false);
+    const handleSaveEvent = async () => {
+        const title = eventTitle.trim();
+        const dates = getRepeatDates();
+        if (!title || dates.length === 0) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                alert("로그인이 필요합니다.");
+                return;
+            }
+
+            const tasksPayload = dates.map(date => ({
+                title,
+                subjectId: eventCategoryId === 'others' ? null : eventCategoryId,
+                date: formatDateInput(date),
+                completed: false,
+                timeSpentSec: 0,
+            }));
+
+            let recurrenceRule = undefined;
+            if (recurrenceType !== 'none') {
+                recurrenceRule = {
+                    type: recurrenceType,
+                    start: repeatStart,
+                    end: repeatEnd,
+                    days: repeatDays,
+                    monthlyDay
+                };
+            }
+
+            const res = await fetch(`/api/mentee/planner/tasks/batch?menteeId=${user.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tasks: tasksPayload,
+                    recurrenceRule
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to save");
+            }
+
+            setRefreshKey(prev => prev + 1);
+            setIsAddModalOpen(false);
+        } catch (e: any) {
+            console.error("Save error:", e);
+            alert(`일정 저장에 실패했습니다: ${e.message}`);
+        }
     };
 
     const getDaysInMonth = (date: Date) => {
@@ -215,7 +264,7 @@ export default function CalendarPage() {
         return () => {
             isMounted = false;
         };
-    }, [currentDate]);
+    }, [currentDate, refreshKey]);
 
     const scheduleEvents = useMemo<ScheduleEventLike[]>(() => {
         const events: ScheduleEventLike[] = [];

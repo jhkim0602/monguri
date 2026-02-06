@@ -59,6 +59,7 @@ export type MentorTaskLike = {
   hasMentorResponse: boolean;
   startTime?: string;
   endTime?: string;
+  recurringGroupId?: string | null;
 };
 
 const DEFAULT_BADGE = {
@@ -123,6 +124,7 @@ type ApiPlannerTask = {
   timeSpentSec: number | null;
   startTime: string | null;
   endTime: string | null;
+  recurringGroupId: string | null;
   createdAt: string;
 };
 
@@ -151,6 +153,7 @@ export type PlannerTaskLike = {
   hasMentorResponse?: boolean;
   startTime?: string;
   endTime?: string;
+  recurringGroupId?: string | null;
 };
 
 export function adaptPlannerTasksToUi(
@@ -191,6 +194,7 @@ export function adaptPlannerTasksToUi(
       hasMentorResponse: false,
       startTime: task.startTime ?? undefined,
       endTime: task.endTime ?? undefined,
+      recurringGroupId: task.recurringGroupId,
     };
   });
 }
