@@ -26,7 +26,7 @@ import {
 
 export default function PlannerPage() {
     // 1. State from Sunbal + Head
-    const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 2)); // Feb 2, 2026
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
     const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
 
