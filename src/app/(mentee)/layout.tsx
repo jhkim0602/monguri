@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { usePathname } from "next/navigation";
 import BottomNav from "@/components/mentee/common/BottomNav";
 import "./mentee.css";
 
@@ -7,14 +9,19 @@ export default function MenteeLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isChatRoute = pathname === "/chat";
+
   return (
     /* App-like UI: Prevent global scrolling */
     <div className="min-h-screen w-full bg-[#F2F2F7] flex justify-center shadow-2xl h-screen overflow-hidden">
-      <div className="mobile-container relative bg-white min-h-screen">
-        <main className="pb-24 min-h-screen">
+      <div
+        className={`mobile-container relative bg-white ${isChatRoute ? "h-full" : "min-h-screen"}`}
+      >
+        <main className={isChatRoute ? "h-full min-h-0" : "pb-24 min-h-screen"}>
           {children}
         </main>
-        <BottomNav />
+        {!isChatRoute && <BottomNav />}
       </div>
     </div>
   );
