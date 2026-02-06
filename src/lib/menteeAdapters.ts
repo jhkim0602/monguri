@@ -121,6 +121,8 @@ type ApiPlannerTask = {
   date: string;
   completed: boolean;
   timeSpentSec: number | null;
+  startTime: string | null;
+  endTime: string | null;
   createdAt: string;
 };
 
@@ -187,6 +189,8 @@ export function adaptPlannerTasksToUi(
       feedbackFiles: [],
       mentorComment: "",
       hasMentorResponse: false,
+      startTime: task.startTime ?? undefined,
+      endTime: task.endTime ?? undefined,
     };
   });
 }

@@ -74,6 +74,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         subjectSlug: bodyParsed.data.subjectSlug,
         completed: bodyParsed.data.completed,
         timeSpentSec: bodyParsed.data.timeSpentSec,
+        startTime: bodyParsed.data.startTime,
+        endTime: bodyParsed.data.endTime,
       }
     );
 

@@ -45,6 +45,8 @@ export const plannerTaskCreateBodySchema = z.object({
   subjectSlug: z.string().min(1).max(100).optional().nullable(),
   completed: z.boolean().optional(),
   timeSpentSec: z.number().int().nonnegative().optional().nullable(),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
 });
 
 export const plannerTaskUpdateBodySchema = z
@@ -55,6 +57,8 @@ export const plannerTaskUpdateBodySchema = z
     subjectSlug: z.string().min(1).max(100).optional().nullable(),
     completed: z.boolean().optional(),
     timeSpentSec: z.number().int().nonnegative().optional().nullable(),
+    startTime: z.string().optional().nullable(),
+    endTime: z.string().optional().nullable(),
   })
   .refine(
     (data) =>
@@ -62,7 +66,9 @@ export const plannerTaskUpdateBodySchema = z
       data.date !== undefined ||
       data.subjectSlug !== undefined ||
       data.completed !== undefined ||
-      data.timeSpentSec !== undefined,
+      data.timeSpentSec !== undefined ||
+      data.startTime !== undefined ||
+      data.endTime !== undefined,
     { message: "No fields to update." }
   );
 

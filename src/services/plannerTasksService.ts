@@ -36,6 +36,8 @@ type PlannerTaskResponse = {
   date: string;
   completed: boolean;
   timeSpentSec: number | null;
+  startTime: string | null;
+  endTime: string | null;
   createdAt: string;
 };
 
@@ -63,6 +65,8 @@ const mapPlannerTask = (task: {
   date: string;
   completed: boolean;
   time_spent_sec: number | null;
+  start_time: string | null;
+  end_time: string | null;
   created_at: string;
   subjects: {
     id: string;
@@ -79,6 +83,8 @@ const mapPlannerTask = (task: {
   date: task.date,
   completed: task.completed,
   timeSpentSec: task.time_spent_sec,
+  startTime: task.start_time,
+  endTime: task.end_time,
   createdAt: task.created_at,
 });
 
@@ -124,6 +130,8 @@ type PlannerTaskCreateInput = {
   subjectSlug?: string | null;
   completed?: boolean;
   timeSpentSec?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 export async function createPlannerTaskForMentee(
@@ -148,6 +156,8 @@ export async function createPlannerTaskForMentee(
     date: input.date,
     completed: input.completed,
     timeSpentSec: input.timeSpentSec,
+    startTime: input.startTime,
+    endTime: input.endTime,
   });
 
   if (!created) {
@@ -163,6 +173,8 @@ type PlannerTaskUpdateInput = {
   subjectSlug?: string | null;
   completed?: boolean;
   timeSpentSec?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 export async function updatePlannerTaskForMentee(
@@ -199,6 +211,8 @@ export async function updatePlannerTaskForMentee(
     subjectId,
     completed: updates.completed,
     timeSpentSec: updates.timeSpentSec,
+    startTime: updates.startTime,
+    endTime: updates.endTime,
   });
 
   if (!updated) {

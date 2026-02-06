@@ -263,7 +263,7 @@ export default function PlannerPage() {
         });
     };
 
-    const updateTaskTimeRange = (taskId: number | string, startTime: string, endTime: string) => {
+    const updateTaskTimeRange = async (taskId: number | string, startTime: string, endTime: string) => {
         const taskIdStr = String(taskId);
         setTasks(prev => prev.map(task => {
             if (String(task.id) === taskIdStr) {
@@ -272,12 +272,22 @@ export default function PlannerPage() {
             }
             return task;
         }));
-        // Note: API update for time range is not implemented here yet, assuming local only for drag? 
-        // Or if it was implemented, it should be here.
-        // Based on HEAD, it wasn't explicitly in the snippet I saw, but I should probably leave it as local state update for now 
-        // unless I see an API call in the conflict block. 
-        // HEAD didn't have updateTaskTimeRange in the snippet shown! Sunbal had it.
-        // So this is purely UI state update.
+
+        if (!menteeId) return;
+
+        try {
+            await fetch(`/api/mentee/planner/tasks/${taskIdStr}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    menteeId,
+                    startTime,
+                    endTime
+                })
+            });
+        } catch (e) {
+            console.error("Failed to update task time range", e);
+        }
     };
 
     const deleteTask = async (taskId: number | string) => {

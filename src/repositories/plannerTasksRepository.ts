@@ -16,6 +16,8 @@ export type PlannerTaskRow = {
   date: string;
   completed: boolean;
   time_spent_sec: number | null;
+  start_time: string | null;
+  end_time: string | null;
   created_at: string;
   subjects: PlannerTaskSubjectRow | null;
 };
@@ -41,6 +43,8 @@ export async function listPlannerTasksByMenteeId(
       date,
       completed,
       time_spent_sec,
+      start_time,
+      end_time,
       created_at,
       subjects (
         id,
@@ -87,6 +91,8 @@ export async function getPlannerTaskById(taskId: string) {
       date,
       completed,
       time_spent_sec,
+      start_time,
+      end_time,
       created_at,
       subjects (
         id,
@@ -114,6 +120,8 @@ type CreatePlannerTaskInput = {
   date: string;
   completed?: boolean;
   timeSpentSec?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 export async function createPlannerTask({
@@ -123,6 +131,8 @@ export async function createPlannerTask({
   date,
   completed,
   timeSpentSec,
+  startTime,
+  endTime,
 }: CreatePlannerTaskInput) {
   const payload: {
     mentee_id: string;
@@ -131,6 +141,8 @@ export async function createPlannerTask({
     date: string;
     completed?: boolean;
     time_spent_sec?: number | null;
+    start_time?: string | null;
+    end_time?: string | null;
   } = {
     mentee_id: menteeId,
     title,
@@ -146,6 +158,12 @@ export async function createPlannerTask({
   if (timeSpentSec !== undefined) {
     payload.time_spent_sec = timeSpentSec;
   }
+  if (startTime !== undefined) {
+    payload.start_time = startTime;
+  }
+  if (endTime !== undefined) {
+    payload.end_time = endTime;
+  }
 
   const { data, error } = await supabaseServer
     .from("planner_tasks")
@@ -159,6 +177,8 @@ export async function createPlannerTask({
       date,
       completed,
       time_spent_sec,
+      start_time,
+      end_time,
       created_at,
       subjects (
         id,
@@ -184,6 +204,8 @@ type UpdatePlannerTaskInput = {
   subjectId?: string | null;
   completed?: boolean;
   timeSpentSec?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 export async function updatePlannerTask(
@@ -196,6 +218,8 @@ export async function updatePlannerTask(
     subject_id?: string | null;
     completed?: boolean;
     time_spent_sec?: number | null;
+    start_time?: string | null;
+    end_time?: string | null;
   } = {};
 
   if (updates.title !== undefined) {
@@ -213,6 +237,12 @@ export async function updatePlannerTask(
   if (updates.timeSpentSec !== undefined) {
     payload.time_spent_sec = updates.timeSpentSec;
   }
+  if (updates.startTime !== undefined) {
+    payload.start_time = updates.startTime;
+  }
+  if (updates.endTime !== undefined) {
+    payload.end_time = updates.endTime;
+  }
 
   const { data, error } = await supabaseServer
     .from("planner_tasks")
@@ -227,6 +257,8 @@ export async function updatePlannerTask(
       date,
       completed,
       time_spent_sec,
+      start_time,
+      end_time,
       created_at,
       subjects (
         id,

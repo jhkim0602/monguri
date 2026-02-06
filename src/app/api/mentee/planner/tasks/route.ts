@@ -51,6 +51,8 @@ export async function POST(request: Request) {
       subjectSlug: parsed.data.subjectSlug ?? null,
       completed: parsed.data.completed,
       timeSpentSec: parsed.data.timeSpentSec ?? null,
+      startTime: parsed.data.startTime ?? null,
+      endTime: parsed.data.endTime ?? null,
     });
 
     return NextResponse.json({ task }, { status: 201 });
