@@ -18,18 +18,22 @@ export type MentorTaskRow = {
     color_hex: string | null;
     text_color_hex: string | null;
   } | null;
-  task_submissions: {
-    id: string;
-    submitted_at: string;
-    note: string | null;
-  }[] | null;
-  task_feedback: {
-    id: string;
-    comment: string | null;
-    rating: number | null;
-    status: "pending" | "reviewed";
-    created_at: string;
-  }[] | null;
+  task_submissions:
+    | {
+        id: string;
+        submitted_at: string;
+        note: string | null;
+      }[]
+    | null;
+  task_feedback:
+    | {
+        id: string;
+        comment: string | null;
+        rating: number | null;
+        status: "pending" | "reviewed";
+        created_at: string;
+      }[]
+    | null;
 };
 
 export type MentorTaskStatus = "pending" | "submitted" | "feedback_completed";
@@ -75,7 +79,7 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
         status,
         created_at
       )
-    `
+    `,
     )
     .eq("mentee_id", menteeId)
     .order("deadline", { ascending: true })
@@ -92,7 +96,7 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
     throw new Error(error.message);
   }
 
-  return (data ?? []) as MentorTaskRow[];
+  return (data ?? []) as unknown as MentorTaskRow[];
 }
 
 export async function getMentorTaskById(taskId: string) {
@@ -111,7 +115,7 @@ export async function getMentorTaskById(taskId: string) {
 
 export async function updateMentorTaskStatus(
   taskId: string,
-  status: MentorTaskStatus
+  status: MentorTaskStatus,
 ) {
   const { data, error } = await supabaseServer
     .from("mentor_tasks")
@@ -125,4 +129,163 @@ export async function updateMentorTaskStatus(
   }
 
   return (data ?? null) as { id: string; status: MentorTaskStatus } | null;
+}
+
+export async function getTasksByMentorId(mentorId: string) {
+  const { data, error } = await supabaseServer
+    .from("mentor_tasks")
+    .select(
+      `
+      id,
+      mentor_id,
+      mentee_id,
+      subject_id,
+      title,
+      description,
+      status,
+      deadline,
+      badge_color,
+      created_at,
+      subjects (
+        id,
+        slug,
+        name,
+        color_hex,
+        text_color_hex
+      ),
+      task_submissions (
+        id,
+        submitted_at,
+        note
+      ),
+      task_feedback (
+        id,
+        comment,
+        rating,
+        status,
+        created_at
+      ),
+      mentee:profiles!mentor_tasks_mentee_id_fkey(
+        id,
+        name,
+        avatar_url
+      )
+    `,
+    )
+    .eq("mentor_id", mentorId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as (MentorTaskRow & {
+    mentee: { id: string; name: string; avatar_url: string | null } | null;
+  })[];
+}
+
+export async function getTasksWithSubmissionsByMentorId(mentorId: string) {
+  const { data, error } = await supabaseServer
+    .from("mentor_tasks")
+    .select(
+      `
+      id,
+      mentor_id,
+      mentee_id,
+      subject_id,
+      title,
+      description,
+      status,
+      deadline,
+      badge_color,
+      created_at,
+      subjects (
+        id,
+        slug,
+        name,
+        color_hex,
+        text_color_hex
+      ),
+      task_submissions (
+        id,
+        submitted_at,
+        note
+      ),
+      task_feedback (
+        id,
+        comment,
+        rating,
+        status,
+        created_at
+      ),
+      mentee:profiles!mentor_tasks_mentee_id_fkey(
+        id,
+        name,
+        avatar_url
+      )
+    `,
+    )
+    .eq("mentor_id", mentorId)
+    .eq("status", "submitted") // Only fetch tasks that are submitted and pending feedback
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as (MentorTaskRow & {
+    mentee: { id: string; name: string; avatar_url: string | null } | null;
+  })[];
+}
+
+export async function createTaskFeedback(
+  taskId: string,
+  mentorId: string,
+  feedback: { comment: string; rating: number },
+) {
+  // 1. Insert feedback
+  const { error: insertError } = await supabaseServer
+    .from("task_feedback")
+    .insert({
+      task_id: taskId,
+      mentor_id: mentorId,
+      comment: feedback.comment,
+      rating: feedback.rating,
+      status: "reviewed",
+    });
+
+  if (insertError) throw new Error(insertError.message);
+
+  // 2. Update task status
+  const { error: updateError } = await supabaseServer
+    .from("mentor_tasks")
+    .update({ status: "feedback_completed" })
+    .eq("id", taskId);
+
+  if (updateError) throw new Error(updateError.message);
+
+  return true;
+}
+
+export async function createMentorTask(payload: {
+  mentor_id: string;
+  mentee_id: string;
+  subject_id: string | null;
+  title: string;
+  description: string | null;
+  status: "pending";
+  deadline: string | null; // ISO timestamp
+  materials?: any; // JSONB
+}) {
+  const { data, error } = await supabaseServer
+    .from("mentor_tasks")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 }

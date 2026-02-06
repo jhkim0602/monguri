@@ -76,10 +76,12 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
   return tasks.map((task) => {
     const subject = task.subject;
     const fallbackCategory =
-      (subject?.slug && DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
+      (subject?.slug &&
+        DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
       DEFAULT_CATEGORIES[0];
     const subjectName = subject?.name ?? fallbackCategory?.name ?? "과목";
-    const subjectColor = subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
+    const subjectColor =
+      subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
     const subjectTextColor =
       subject?.textColorHex ?? fallbackCategory?.textColorHex ?? null;
     const badgeColor = task.badgeColor || {
@@ -141,7 +143,7 @@ export type PlannerTaskLike = {
   completed: boolean;
   timeSpent: number;
   isRunning: boolean;
-  isMentorTask: false;
+  isMentorTask: boolean;
   studyRecord: any;
   attachments?: any[];
   submissions?: any[];
@@ -154,15 +156,17 @@ export type PlannerTaskLike = {
 };
 
 export function adaptPlannerTasksToUi(
-  tasks: ApiPlannerTask[]
+  tasks: ApiPlannerTask[],
 ): PlannerTaskLike[] {
   return tasks.map((task) => {
     const subject = task.subject;
     const fallbackCategory =
-      (subject?.slug && DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
+      (subject?.slug &&
+        DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
       DEFAULT_CATEGORIES[0];
     const subjectName = subject?.name ?? fallbackCategory?.name ?? "과목";
-    const subjectColor = subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
+    const subjectColor =
+      subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
     const subjectTextColor =
       subject?.textColorHex ?? fallbackCategory?.textColorHex ?? null;
     const badgeColor = {
@@ -182,7 +186,7 @@ export function adaptPlannerTasksToUi(
       completed: task.completed,
       timeSpent: task.timeSpentSec ?? 0,
       isRunning: false,
-      isMentorTask: false,
+      isMentorTask: (task as any).is_mentor_task ?? false,
       studyRecord: null,
       attachments: [],
       submissions: [],
@@ -212,12 +216,13 @@ export type ScheduleEventLike = {
 };
 
 export function adaptPlanEventsToUi(
-  events: ApiPlanEvent[]
+  events: ApiPlanEvent[],
 ): ScheduleEventLike[] {
   return events.map((event) => {
     const subject = event.subject;
     const fallbackCategory =
-      (subject?.slug && DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
+      (subject?.slug &&
+        DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
       DEFAULT_CATEGORIES[0];
 
     return {
@@ -248,7 +253,7 @@ export type DailyRecordLike = {
 };
 
 export function adaptDailyRecordsToUi(
-  records: ApiDailyRecord[]
+  records: ApiDailyRecord[],
 ): DailyRecordLike[] {
   return records.map((record) => ({
     id: record.id,
@@ -275,9 +280,7 @@ export type UiProfile = {
   avatar: string;
 };
 
-export function adaptProfileToUi(
-  profile: ApiProfile | null
-): UiProfile | null {
+export function adaptProfileToUi(profile: ApiProfile | null): UiProfile | null {
   if (!profile) return null;
 
   return {

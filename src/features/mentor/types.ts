@@ -5,7 +5,7 @@ export type MentorMentee = {
   track?: string;
   goal?: string;
   avatarUrl?: string;
-  stats?: {
+  stats: {
     studyHours: number;
     attendanceRate: string;
     tasksCompleted: number;
@@ -26,6 +26,8 @@ export type MentorTask = {
   endTime?: string;
   hasMentorResponse?: boolean;
   mentorComment?: string;
+  menteeName?: string;
+  menteeAvatarUrl?: string;
 };
 
 export type MentorTaskInput = {

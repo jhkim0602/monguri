@@ -32,7 +32,7 @@ export async function getMentorByMenteeId(menteeId: string) {
         avatar_url,
         intro
       )
-    `
+    `,
     )
     .eq("mentee_id", menteeId)
     .order("started_at", { ascending: false })
@@ -44,4 +44,75 @@ export async function getMentorByMenteeId(menteeId: string) {
   }
 
   return (data ?? null) as MentorMenteeRow | null;
+}
+
+export async function getMenteesByMentorId(mentorId: string) {
+  const { data, error } = await supabaseServer
+    .from("mentor_mentee")
+    .select(
+      `
+      id,
+      mentor_id,
+      mentee_id,
+      status,
+      started_at,
+      mentee:profiles!mentor_mentee_mentee_id_fkey(
+        id,
+        role,
+        name,
+        avatar_url,
+        intro
+      )
+    `,
+    )
+    .eq("mentor_id", mentorId)
+    .eq("status", "active")
+    .order("started_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  // Map the nested 'mentee' object to a top-level 'mentee' property consistent with MentorMenteeRow structure if needed,
+  // or acturally we need to return a type that includes mentee profile info.
+  // Let's adjust the return type or just return the raw data which is close enough to what we need.
+  return (data ?? []) as unknown as (Omit<MentorMenteeRow, "mentor"> & {
+    mentee: {
+      id: string;
+      role: "mentor" | "mentee" | "admin";
+      name: string | null;
+      avatar_url: string | null;
+      intro: string | null;
+    } | null;
+  })[];
+}
+
+export async function getMenteeDetailById(menteeId: string) {
+  const { data, error } = await supabaseServer
+    .from("profiles")
+    .select(
+      `
+      id,
+      role,
+      name,
+      avatar_url,
+      intro
+    `,
+    )
+    .eq("id", menteeId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  // TODO: Aggregate stats from other tables (study_records, etc.)
+  return {
+    ...data,
+    stats: {
+      studyHours: 0,
+      attendanceRate: "0%",
+      tasksCompleted: 0,
+    },
+  };
 }
