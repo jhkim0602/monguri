@@ -405,9 +405,25 @@ export default function CalendarPage() {
                                     {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 자세히보기
                                 </h3>
                                 <div className="flex items-center gap-1.5 text-primary">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Study Time</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Total Plan</span>
                                     <span className="text-lg tabular-nums font-bold">
-                                        {formatTime(getDailyRecord(selectedDate)?.studyTime || 0)}
+                                        {(() => {
+                                            const tasksForDate = [...mentorTasks, ...plannerTasks].filter(t =>
+                                                t.deadline && isSameDay(t.deadline, selectedDate)
+                                            );
+
+                                            const totalMinutes = tasksForDate.reduce((acc, task) => {
+                                                if (!task.startTime || !task.endTime) return acc;
+                                                const [startH, startM] = task.startTime.split(':').map(Number);
+                                                const [endH, endM] = task.endTime.split(':').map(Number);
+
+                                                let diff = (endH * 60 + endM) - (startH * 60 + startM);
+                                                if (diff < 0) diff += 24 * 60;
+                                                return acc + diff;
+                                            }, 0);
+
+                                            return formatTime(totalMinutes * 60);
+                                        })()}
                                     </span>
                                 </div>
                             </div>
