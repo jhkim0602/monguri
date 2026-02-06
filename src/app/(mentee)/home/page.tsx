@@ -21,7 +21,7 @@ import HomeProgress from "@/components/mentee/home/HomeProgress";
 
 export default function Home() {
     // Default to Feb 2 2026 for demo context
-    const [selectedDate, setSelectedDate] = useState(new Date(2026, 1, 2));
+    const [selectedDate, setSelectedDate] = useState(new Date());
     const [animatedProgress, setAnimatedProgress] = useState(0);
     const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
     const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
