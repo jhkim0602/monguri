@@ -24,7 +24,7 @@ type ScheduleFilters = {
 
 export async function listWeeklyScheduleEventsByMenteeId(
   menteeId: string,
-  filters: ScheduleFilters = {}
+  filters: ScheduleFilters = {},
 ) {
   let query = supabaseServer
     .from("weekly_schedule_events")
@@ -42,7 +42,7 @@ export async function listWeeklyScheduleEventsByMenteeId(
         color_hex,
         text_color_hex
       )
-    `
+    `,
     )
     .eq("mentee_id", menteeId);
 
@@ -61,5 +61,12 @@ export async function listWeeklyScheduleEventsByMenteeId(
     throw new Error(error.message);
   }
 
-  return (data ?? []) as unknown as WeeklyScheduleEventRow[];
+  const rawData = (data ?? []) as any[];
+
+  return rawData.map((row) => ({
+    ...row,
+    subjects: Array.isArray(row.subjects)
+      ? row.subjects[0] || null
+      : row.subjects,
+  })) as WeeklyScheduleEventRow[];
 }

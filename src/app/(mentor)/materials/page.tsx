@@ -13,42 +13,72 @@ import {
   Search,
   CheckCircle2,
 } from "lucide-react";
-import {
-  createMaterialAction,
-  deleteMaterialAction,
-  getMaterialsAction,
-} from "@/actions/materialsActions";
-import { MentorMaterial } from "@/repositories/materialsRepository";
+import { MentorMaterial } from "@/repositories/materialsRepository"; // We might need to define this type locally if not exported
+// Actually MentorMaterial is likely just a type.
+// If it's not exported, I'll define it here.
+// Checking Step 2120, it imports from "@/repositories/materialsRepository".
+
 import { supabase } from "@/lib/supabaseClient";
 
 export default function MaterialsPage() {
+  const [mentorId, setMentorId] = useState<string | null>(null);
   const [materials, setMaterials] = useState<MentorMaterial[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch data on mount
-  const fetchData = async () => {
+  const fetchData = async (activeMentorId: string) => {
     setIsLoading(true);
-    const res = await getMaterialsAction();
-    if (res.success && res.data) {
-      setMaterials(res.data);
+    try {
+      const res = await fetch(
+        `/api/mentor/materials?mentorId=${encodeURIComponent(activeMentorId)}`,
+      );
+      const json = await res.json();
+      if (json.success && json.data) {
+        setMaterials(json.data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch materials", e);
     }
     setIsLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    const load = async () => {
+      setIsLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      setMentorId(user.id);
+      await fetchData(user.id);
+    };
+
+    load();
   }, []);
 
   const handleDelete = async (id: string) => {
+    if (!mentorId) return;
     if (!confirm("이 자료를 삭제하시겠습니까?")) return;
 
     // Optimistic update
     setMaterials((prev) => prev.filter((m) => m.id !== id));
 
-    await deleteMaterialAction(id);
-    fetchData(); // Sync
+    try {
+      await fetch(
+        `/api/mentor/materials?id=${id}&mentorId=${encodeURIComponent(mentorId)}`,
+        { method: "DELETE" },
+      );
+      fetchData(mentorId); // Sync
+    } catch (e) {
+      alert("삭제 실패");
+      fetchData(mentorId); // Revert
+    }
   };
 
   const filteredMaterials = materials.filter((m) =>
@@ -180,7 +210,8 @@ export default function MaterialsPage() {
       <AddMaterialModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSuccess={fetchData}
+        mentorId={mentorId}
+        onSuccess={() => mentorId && fetchData(mentorId)}
       />
     </div>
   );
@@ -189,10 +220,12 @@ export default function MaterialsPage() {
 function AddMaterialModal({
   isOpen,
   onClose,
+  mentorId,
   onSuccess,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  mentorId: string | null;
   onSuccess: () => void;
 }) {
   const [title, setTitle] = useState("");
@@ -210,6 +243,11 @@ function AddMaterialModal({
     let finalUrl = url;
 
     try {
+      if (!mentorId) {
+        alert("로그인이 필요합니다.");
+        return;
+      }
+
       // Handle File Upload
       if (type !== "link" && file) {
         setUploadProgress("파일 업로드 중...");
@@ -236,7 +274,12 @@ function AddMaterialModal({
       }
 
       setUploadProgress("정보 저장 중...");
-      const res = await createMaterialAction(title, finalUrl, type);
+      const response = await fetch("/api/mentor/materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mentorId, title, url: finalUrl, type }),
+      });
+      const res = await response.json();
 
       if (res.success) {
         onSuccess();

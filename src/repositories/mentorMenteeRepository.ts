@@ -116,3 +116,48 @@ export async function getMenteeDetailById(menteeId: string) {
     },
   };
 }
+
+export async function getMentorMenteeRelationship(menteeId: string) {
+  const { data, error } = await supabaseServer
+    .from("mentor_mentee")
+    .select("id, mentor_id, mentee_id, status, started_at")
+    .eq("mentee_id", menteeId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? null) as {
+    id: string;
+    mentor_id: string;
+    mentee_id: string;
+    status: "active" | "inactive";
+    started_at: string;
+  } | null;
+}
+
+export async function getMentorMenteeRelationshipByMentorAndMentee(
+  mentorId: string,
+  menteeId: string,
+) {
+  const { data, error } = await supabaseServer
+    .from("mentor_mentee")
+    .select("id, mentor_id, mentee_id, status, started_at")
+    .eq("mentor_id", mentorId)
+    .eq("mentee_id", menteeId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? null) as {
+    id: string;
+    mentor_id: string;
+    mentee_id: string;
+    status: "active" | "inactive";
+    started_at: string;
+  } | null;
+}

@@ -226,7 +226,7 @@ export async function getTasksWithSubmissionsByMentorId(mentorId: string) {
     `,
     )
     .eq("mentor_id", mentorId)
-    .eq("status", "submitted") // Only fetch tasks that are submitted and pending feedback
+    .in("status", ["submitted", "feedback_completed"])
     .order("created_at", { ascending: false });
 
   if (error) {

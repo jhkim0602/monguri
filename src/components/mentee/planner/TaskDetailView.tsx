@@ -91,6 +91,9 @@ export default function TaskDetailView({
   const isCompleted = isMentorTask
     ? isSubmitted
     : !!task.completed || !!task.studyRecord;
+  const isFeedbackAlreadySubmitted =
+    !!task.hasMentorResponse || task.status === "feedback_completed";
+  const showFeedbackInput = enableFeedbackInput && !isFeedbackAlreadySubmitted;
   const [memo, setMemo] = useState("");
 
   // Feedback State
@@ -384,20 +387,20 @@ export default function TaskDetailView({
                   멘토 피드백
                 </span>
               </div>
-              {!enableFeedbackInput && (
+              {(!showFeedbackInput || isFeedbackAlreadySubmitted) && (
                 <span
                   className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${
-                    task.hasMentorResponse
+                    isFeedbackAlreadySubmitted
                       ? "bg-emerald-50 text-emerald-600"
                       : "bg-orange-50 text-orange-600"
                   }`}
                 >
-                  {task.hasMentorResponse ? "답변 완료" : "답변 대기"}
+                  {isFeedbackAlreadySubmitted ? "답변 완료" : "답변 대기"}
                 </span>
               )}
             </div>
 
-            {enableFeedbackInput ? (
+            {showFeedbackInput ? (
               <div className="space-y-3">
                 <textarea
                   value={feedbackComment}
@@ -422,11 +425,11 @@ export default function TaskDetailView({
                     Mentor's Response
                   </p>
                   <div
-                    className={`min-h-[100px] rounded-[24px] p-5 border transition-colors ${task.hasMentorResponse ? "bg-primary/5 border-primary/10" : "bg-gray-50 border-gray-100"}`}
+                    className={`min-h-[100px] rounded-[24px] p-5 border transition-colors ${isFeedbackAlreadySubmitted ? "bg-primary/5 border-primary/10" : "bg-gray-50 border-gray-100"}`}
                   >
-                    {task.hasMentorResponse ? (
+                    {isFeedbackAlreadySubmitted ? (
                       <p className="text-[14px] text-gray-800 font-bold leading-relaxed">
-                        {task.mentorComment}
+                        {task.mentorComment || "피드백이 등록되었습니다."}
                       </p>
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-gray-300 gap-2 py-4">

@@ -10,7 +10,7 @@ export type MentorMaterial = {
 };
 
 export type CreateMaterialInput = {
-  mentorId?: string; // Optional for now
+  mentorId: string;
   title: string;
   type?: "link" | "pdf" | "image";
   url: string;
@@ -18,9 +18,9 @@ export type CreateMaterialInput = {
 
 export async function createMaterial(input: CreateMaterialInput) {
   const { data, error } = await supabaseServer
-    .from("mentor_materials") // User instructions said "mentor_materials"
+    .from("mentor_materials")
     .insert({
-      mentor_id: input.mentorId || "00000000-0000-0000-0000-000000000000", // Default for dev
+      mentor_id: input.mentorId,
       title: input.title,
       type: input.type || "link",
       url: input.url,
@@ -37,8 +37,6 @@ export async function createMaterial(input: CreateMaterialInput) {
 }
 
 export async function getMaterials(mentorId?: string) {
-  // If mentorId is provided, filter by it. otherwise fetch all (or limit?)
-  // For dev simpler to fetch all or default ID
   const query = supabaseServer
     .from("mentor_materials")
     .select("*")
@@ -58,15 +56,18 @@ export async function getMaterials(mentorId?: string) {
   return data as MentorMaterial[];
 }
 
-export async function deleteMaterial(id: string) {
-  const { error } = await supabaseServer
+export async function deleteMaterial(id: string, mentorId: string) {
+  const { data, error } = await supabaseServer
     .from("mentor_materials")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("mentor_id", mentorId)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     console.error("Error deleting material:", error);
     throw error;
   }
-  return true;
+  return (data ?? null) as { id: string } | null;
 }

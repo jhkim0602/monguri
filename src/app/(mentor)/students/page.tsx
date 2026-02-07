@@ -1,58 +1,63 @@
-import { adaptMenteeToUi } from "@/lib/mentorAdapters";
-import { getMenteesByMentorId } from "@/repositories/mentorMenteeRepository";
-import { listPlannerTasksByMenteeId } from "@/repositories/plannerTasksRepository";
+"use client";
+
+import { useEffect, useState } from "react";
 import StudentsClient from "./StudentsClient";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
-export const dynamic = "force-dynamic";
+export default function StudentsPage() {
+  const [mentees, setMentees] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function StudentsPage() {
-  // Hardcoded Mentor ID for development
-  const MENTOR_ID = "702826a1-0c48-42d0-a643-0d7e123a16bd";
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  const menteesData = await getMenteesByMentorId(MENTOR_ID);
+        if (!user) {
+          setError("로그인이 필요합니다.");
+          return;
+        }
 
-  const menteesWithStats = await Promise.all(
-    menteesData.map(async (data) => {
-      const basicProfile = adaptMenteeToUi(data);
+        const response = await fetch(
+          `/api/mentor/students?mentorId=${encodeURIComponent(user.id)}`,
+        );
+        const result = await response.json();
 
-      // Fetch recent tasks for stats
-      const recentTasks = await listPlannerTasksByMenteeId(data.mentee_id);
+        if (result.success) {
+          setMentees(result.data);
+        } else {
+          setError(result.error);
+        }
+      } catch (err) {
+        console.error("Students Fetch Error:", err);
+        setError("학생 목록을 불러오는데 실패했습니다.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      // Normalization Helper
-      const normalizeDate = (d: string | Date) => {
-        const dateObj = new Date(d);
-        return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`;
-      };
+    fetchStudents();
+  }, []);
 
-      const todayStr = normalizeDate(new Date());
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
+      </div>
+    );
+  }
 
-      const todayTasks = recentTasks.filter(
-        (t) => normalizeDate(t.date) === todayStr,
-      );
-      const total = todayTasks.length;
-      const completed = todayTasks.filter((t) => t.completed).length;
-      const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center text-gray-500">
+        <p>{error}</p>
+      </div>
+    );
+  }
 
-      const sorted = recentTasks.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      );
-      const latest = sorted.find((t) => t.completed) || sorted[0];
-
-      return {
-        ...basicProfile,
-        stats: {
-          ...basicProfile.stats,
-          attendanceRate: `${rate}%`,
-        },
-        recentTask: latest
-          ? {
-              title: latest.title,
-              date: latest.date,
-            }
-          : null,
-      };
-    }),
-  );
-
-  return <StudentsClient mentees={menteesWithStats} />;
+  return <StudentsClient mentees={mentees} />;
 }

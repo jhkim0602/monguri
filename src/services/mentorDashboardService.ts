@@ -1,8 +1,11 @@
 import { adaptMenteeToUi, adaptMentorTaskToUi } from "@/lib/mentorAdapters";
 import { getMenteesByMentorId } from "@/repositories/mentorMenteeRepository";
 import { getTasksByMentorId } from "@/repositories/mentorTasksRepository";
+import { ensureMentorProfile } from "@/services/mentorAccessService";
 
 export async function getMentorDashboardData(mentorId: string) {
+  await ensureMentorProfile(mentorId);
+
   const [menteesData, tasksData] = await Promise.all([
     getMenteesByMentorId(mentorId),
     getTasksByMentorId(mentorId),

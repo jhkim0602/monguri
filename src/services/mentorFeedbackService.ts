@@ -43,26 +43,18 @@ export async function getPendingFeedbackItems(
     },
   }));
 
-  const planItems = planRows.reduce<FeedbackItem[]>((acc, row) => {
-    if (!row.mentee) {
-      return acc;
-    }
-
-    acc.push({
-      id: `plan-${row.id}`,
-      type: "plan",
-      studentId: row.mentee.id,
-      studentName: row.mentee.name || "알 수 없음",
-      avatarUrl: row.mentee.avatar_url || undefined,
-      title: row.title,
-      subtitle: row.subjects?.name || "개인 학습",
-      date: new Date(row.date),
-      status: "submitted",
-      data: row,
-    });
-
-    return acc;
-  }, []);
+  const planItems: FeedbackItem[] = planRows.map((row) => ({
+    id: `plan-${row.id}`,
+    type: "plan",
+    studentId: row.mentee?.id ?? row.mentee_id,
+    studentName: row.mentee?.name || "알 수 없음",
+    avatarUrl: row.mentee?.avatar_url || undefined,
+    title: row.title,
+    subtitle: row.subjects?.name || "개인 학습",
+    date: new Date(row.date),
+    status: "submitted", // Treat completed plans as submitted for review
+    data: row,
+  }));
 
   // TODO: Fetch pending questions when tables are ready
   const questionItems: FeedbackItem[] = [];

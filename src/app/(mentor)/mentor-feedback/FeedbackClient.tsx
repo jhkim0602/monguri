@@ -22,7 +22,6 @@ import DailyPlannerCard from "@/components/mentee/calendar/DailyPlannerCard";
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import { FeedbackItem } from "@/services/mentorFeedbackService";
-import { submitFeedbackAction } from "@/actions/mentorActions";
 import { MENTOR_TASKS } from "@/constants/mentee"; // Keep for getPlanData helpers for now
 
 // --- Helpers ---
@@ -51,9 +50,11 @@ const formatTimeAgo = (date: Date) => {
 };
 
 export default function FeedbackClient({
+  mentorId,
   initialItems,
   initialSelectedTaskId,
 }: {
+  mentorId: string;
   initialItems: FeedbackItem[];
   initialSelectedTaskId?: string;
 }) {
@@ -78,8 +79,8 @@ export default function FeedbackClient({
   // 1. Tasks (From Props)
   const taskItems = initialItems.filter((i) => i.type === "task");
 
-  // 2. Plan Reviews (Mock removed)
-  const planItems: FeedbackItem[] = [];
+  // 2. Plan Reviews
+  const planItems = initialItems.filter((i) => i.type === "plan");
 
   // 3. Questions (Mock removed)
   const questionItems: FeedbackItem[] = [];
@@ -97,7 +98,6 @@ export default function FeedbackClient({
   const selectedItem = allItems.find((i) => i.id === selectedItemId);
 
   // --- Handlers ---
-  // --- Handlers ---
   const handleSendFeedback = async () => {
     if (!selectedItem) return;
 
@@ -111,24 +111,44 @@ export default function FeedbackClient({
       // Extract raw ID from "task-UUID" string
       const taskId = String(selectedItem.id).replace("task-", "");
 
-      const result = await submitFeedbackAction(taskId, feedbackText, 5); // Default rating 5 for now
-
-      setIsSubmitting(false);
-
-      if (result.success) {
-        openModal({
-          title: "전송 완료",
-          content: "✅ 과제 피드백이 전송되었습니다.",
-          type: "success",
+      try {
+        const response = await fetch("/api/mentor/feedback/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            mentorId,
+            taskId,
+            comment: feedbackText,
+            rating: 5, // Default rating
+            type: "mentor_task",
+          }),
         });
-        setSelectedItemId(null);
-        setFeedbackText("");
-      } else {
-        openModal({
-          title: "전송 실패",
-          content: result.error || "알 수 없는 오류가 발생했습니다.",
-          type: "confirm", // Fallback to confirm or info
-        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          openModal({
+            title: "전송 완료",
+            content: "✅ 과제 피드백이 전송되었습니다.",
+            type: "success",
+          });
+          setSelectedItemId(null);
+          setFeedbackText("");
+          // Ideally refresh list here
+        } else {
+          openModal({
+            title: "전송 실패",
+            content: result.error || "알 수 없는 오류가 발생했습니다.",
+            type: "confirm",
+          });
+        }
+      } catch (error) {
+        console.error("Feedback Submit Error:", error);
+        alert("피드백 전송 중 오류가 발생했습니다.");
+      } finally {
+        setIsSubmitting(false);
       }
       return;
     }

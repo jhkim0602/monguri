@@ -14,10 +14,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { MentorMentee } from "@/features/mentor/types";
-import {
-  submitFeedbackAction,
-  submitPlannerFeedbackAction,
-} from "@/actions/mentorActions";
 import { useModal } from "@/contexts/ModalContext";
 import { createPortal } from "react-dom";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
@@ -25,9 +21,10 @@ import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
-import TaskAssignmentModal from "@/components/mentor/students/TaskAssignmentModal";
+import AssignTaskModal from "@/components/mentor/tasks/AssignTaskModal";
 
 type StudentDetailClientProps = {
+  mentorId: string;
   student: MentorMentee;
   initialTasks: any[]; // Replace with proper type later
   initialDailyRecord: any;
@@ -35,10 +32,11 @@ type StudentDetailClientProps = {
 };
 
 export default function StudentDetailClient({
+  mentorId,
   student,
-  initialTasks,
+  initialTasks = [],
   initialDailyRecord,
-  initialDailyEvents,
+  initialDailyEvents = [],
 }: StudentDetailClientProps) {
   const { openModal } = useModal();
   const [mounted, setMounted] = useState(false);
@@ -61,27 +59,39 @@ export default function StudentDetailClient({
   const handleFeedbackSubmit = async (comment: string, rating: number) => {
     if (!selectedTask) return;
 
-    let result;
-    if (selectedTask.isMentorTask) {
-      result = await submitFeedbackAction(
-        String(selectedTask.id),
-        comment,
-        rating,
-      );
-    } else {
-      result = await submitPlannerFeedbackAction(
-        String(selectedTask.id),
-        comment,
-        0, // Rating ignored for planner tasks
-      );
-    }
+    try {
+      const response = await fetch("/api/mentor/feedback/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          selectedTask.isMentorTask
+            ? {
+                mentorId,
+                taskId: String(selectedTask.id),
+                comment,
+                rating,
+                type: "mentor_task",
+              }
+            : {
+                mentorId,
+                taskId: String(selectedTask.id),
+                comment,
+                type: "planner_task",
+              },
+        ),
+      });
+      const result = await response.json();
 
-    if (result.success) {
-      alert("피드백이 등록되었습니다.");
-      setIsModalOpen(false);
-      window.location.reload();
-    } else {
-      alert(result.error || "오류가 발생했습니다.");
+      if (result.success) {
+        alert("피드백이 등록되었습니다.");
+        setIsModalOpen(false);
+        window.location.reload();
+      } else {
+        alert(result.error || "오류가 발생했습니다.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("오류가 발생했습니다.");
     }
   };
 
@@ -630,11 +640,12 @@ export default function StudentDetailClient({
 
           {/* Assignment Modal */}
           {createPortal(
-            <TaskAssignmentModal
+            <AssignTaskModal
               isOpen={isAssignmentModalOpen}
               onClose={() => setIsAssignmentModalOpen(false)}
+              mentorId={mentorId}
               menteeId={student.id}
-              selectedDate={selectedDate}
+              studentName={student.name}
             />,
             document.body,
           )}
