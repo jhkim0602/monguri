@@ -21,7 +21,7 @@ export default function Sidebar() {
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "학생 관리", href: "/students", icon: Users },
     { name: "일정 관리", href: "/schedule", icon: Calendar },
-    { name: "채팅", href: "/mentor-chat", icon: MessageCircle },
+    { name: "채팅", href: "/chat-mentor", icon: MessageCircle },
     { name: "피드백", href: "/mentor-feedback", icon: MessageSquare },
     { name: "자료실", href: "/materials", icon: FolderOpen },
   ];
