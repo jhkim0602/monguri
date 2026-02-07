@@ -103,7 +103,6 @@ export default function AssignTaskModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [difficulty, setDifficulty] = useState("중 (Medium)");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedMaterials = useMemo(() => {
@@ -171,7 +170,6 @@ export default function AssignTaskModal({
           description,
           subject,
           deadline,
-          difficulty,
           materials: selectedMaterials.map((m) => ({
             title: m.title,
             url: m.url,
@@ -332,8 +330,8 @@ export default function AssignTaskModal({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+      <div className="relative bg-white w-full max-w-lg max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50 shrink-0">
           <h3 className="text-lg font-bold text-gray-900">
             새 과제 부여 ({studentName})
           </h3>
@@ -345,7 +343,7 @@ export default function AssignTaskModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
               과목
@@ -409,79 +407,67 @@ export default function AssignTaskModal({
                 </span>
               </button>
 
-              {selectedMaterials.map((material) => {
-                const typeMeta = MATERIAL_TYPE_META[material.type];
-                const TypeIcon = typeMeta.icon;
+              {selectedMaterials.length > 0 && (
+                <div className="max-h-44 overflow-y-auto pr-1 space-y-2">
+                  {selectedMaterials.map((material) => {
+                    const typeMeta = MATERIAL_TYPE_META[material.type];
+                    const TypeIcon = typeMeta.icon;
 
-                return (
-                  <div
-                    key={material.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in slide-in-from-top-2"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
+                    return (
                       <div
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${typeMeta.iconClassName}`}
+                        key={material.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in slide-in-from-top-2"
                       >
-                        <TypeIcon size={14} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-700 truncate">
-                          {material.title}
-                        </p>
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${typeMeta.chipClassName}`}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${typeMeta.iconClassName}`}
+                          >
+                            <TypeIcon size={14} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-700 truncate">
+                              {material.title}
+                            </p>
+                            <span
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${typeMeta.chipClassName}`}
+                            >
+                              {typeMeta.label}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setSelectedMaterialIds((prev) =>
+                              prev.filter((id) => id !== material.id),
+                            )
+                          }
+                          className="text-gray-400 hover:text-red-500"
                         >
-                          {typeMeta.label}
-                        </span>
+                          <X size={16} />
+                        </button>
                       </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setSelectedMaterialIds((prev) =>
-                          prev.filter((id) => id !== material.id),
-                        )
-                      }
-                      className="text-gray-400 hover:text-red-500"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                마감일
-              </label>
-              <div className="relative">
-                <Calendar
-                  size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  type="date"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none text-sm font-bold text-gray-700"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                난이도 설정
-              </label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none text-sm font-bold text-gray-700 bg-white"
-              >
-                <option>상 (High)</option>
-                <option>중 (Medium)</option>
-                <option>하 (Low)</option>
-              </select>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+              마감일
+            </label>
+            <div className="relative">
+              <Calendar
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="date"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none text-sm font-bold text-gray-700"
+              />
             </div>
           </div>
 
@@ -493,7 +479,7 @@ export default function AssignTaskModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
+        <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-900"
