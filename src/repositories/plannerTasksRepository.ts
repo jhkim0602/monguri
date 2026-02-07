@@ -22,6 +22,7 @@ export type PlannerTaskRow = {
   recurring_group_id: string | null;
   created_at: string;
   is_mentor_task: boolean;
+  materials?: any[] | null;
   mentor_comment: string | null;
   subjects: PlannerTaskSubjectRow | null;
 };
@@ -52,6 +53,7 @@ export async function listPlannerTasksByMenteeId(
       end_time,
       recurring_group_id,
       is_mentor_task,
+      materials,
       mentor_comment,
       created_at,
       subjects (
@@ -103,6 +105,7 @@ export async function getPlannerTaskById(taskId: string) {
       start_time,
       end_time,
       is_mentor_task,
+      materials,
       recurring_group_id,
       mentor_comment,
       created_at,
@@ -212,6 +215,7 @@ export async function createPlannerTask({
       end_time,
       recurring_group_id,
       is_mentor_task,
+      materials,
       mentor_comment,
       created_at,
       subjects (
@@ -306,6 +310,7 @@ export async function updatePlannerTask(
       end_time,
       recurring_group_id,
       is_mentor_task,
+      materials,
       mentor_comment,
       created_at,
       subjects (
@@ -399,6 +404,7 @@ export async function createPlannerTaskBatch(
       end_time,
       recurring_group_id,
       is_mentor_task,
+      materials,
       mentor_comment,
       created_at,
       subjects (
@@ -463,6 +469,7 @@ export async function getCompletedPlannerTasksByMentorId(mentorId: string) {
       end_time,
       recurring_group_id,
       is_mentor_task,
+      materials,
       mentor_comment,
       created_at,
       subjects (

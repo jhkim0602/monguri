@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 function FeedbackPageContent() {
   const searchParams = useSearchParams();
+  const itemId = searchParams?.get("itemId");
   const taskId = searchParams?.get("taskId");
 
   const [mentorId, setMentorId] = useState<string | null>(null);
@@ -69,7 +70,9 @@ function FeedbackPageContent() {
     <FeedbackClient
       mentorId={mentorId}
       initialItems={items}
-      initialSelectedTaskId={taskId || undefined}
+      initialSelectedItemId={
+        itemId || (taskId ? `task-${taskId}` : undefined)
+      }
     />
   );
 }

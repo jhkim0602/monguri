@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   X,
   Calendar,
+  Clock3,
   AlertCircle,
   FolderOpen,
   FileText,
@@ -103,6 +104,7 @@ export default function AssignTaskModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [deadlineTime, setDeadlineTime] = useState("23:59");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedMaterials = useMemo(() => {
@@ -158,6 +160,12 @@ export default function AssignTaskModal({
       return;
     }
 
+    const mergedDeadline = new Date(`${deadline}T${deadlineTime || "23:59"}:00`);
+    if (Number.isNaN(mergedDeadline.getTime())) {
+      alert("마감일/시간 형식이 올바르지 않습니다.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch("/api/mentor/tasks", {
@@ -169,7 +177,7 @@ export default function AssignTaskModal({
           title,
           description,
           subject,
-          deadline,
+          deadline: mergedDeadline.toISOString(),
           materials: selectedMaterials.map((m) => ({
             title: m.title,
             url: m.url,
@@ -189,6 +197,7 @@ export default function AssignTaskModal({
         setDescription("");
         setSelectedMaterialIds([]);
         setDeadline("");
+        setDeadlineTime("23:59");
       } else {
         const res = await response.json();
         alert(res.error || "과제 전송 실패");
@@ -453,21 +462,42 @@ export default function AssignTaskModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-              마감일
-            </label>
-            <div className="relative">
-              <Calendar
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none text-sm font-bold text-gray-700"
-              />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                마감일
+              </label>
+              <div className="relative">
+                <Calendar
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none text-sm font-bold text-gray-700"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                마감 시간
+              </label>
+              <div className="relative">
+                <Clock3
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="time"
+                  step={300}
+                  value={deadlineTime}
+                  onChange={(e) => setDeadlineTime(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none text-sm font-bold text-gray-700"
+                />
+              </div>
             </div>
           </div>
 

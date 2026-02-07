@@ -5,7 +5,7 @@ import type { PlannerTaskLike } from "@/lib/menteeAdapters";
 interface PlannerDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  date: Date | null;
+  date: Date | string | number | null;
   dailyRecord: any;
   mentorDeadlines: any[];
   dailyEvents: any[];
@@ -27,6 +27,9 @@ export default function PlannerDetailModal({
 }: PlannerDetailModalProps) {
   if (!isOpen || !date) return null;
 
+  const normalizedDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(normalizedDate.getTime())) return null;
+
   const isSameDay = (date1: Date, date2: Date) => {
     return (
       date1.getDate() === date2.getDate() &&
@@ -35,9 +38,24 @@ export default function PlannerDetailModal({
     );
   };
 
+  const getTaskDate = (task: any): Date | null => {
+    const source = task?.deadline ?? task?.date ?? null;
+    if (!source) return null;
+
+    if (source instanceof Date) {
+      return Number.isNaN(source.getTime()) ? null : source;
+    }
+
+    const parsed = new Date(source);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   // Filter user tasks for the specific date from the raw plannerTasks array
   const userTasks = plannerTasks.filter(
-    (task) => task.deadline && isSameDay(task.deadline, date),
+    (task: any) => {
+      const taskDate = getTaskDate(task);
+      return taskDate ? isSameDay(taskDate, normalizedDate) : false;
+    },
   );
 
   return (
@@ -56,7 +74,7 @@ export default function PlannerDetailModal({
         </button>
 
         <PlannerDetailView
-          date={date}
+          date={normalizedDate}
           dailyRecord={dailyRecord}
           mentorDeadlines={mentorDeadlines}
           dailyEvents={dailyEvents}

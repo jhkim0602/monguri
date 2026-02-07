@@ -7,7 +7,7 @@ import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { USER_TASKS } from "@/constants/mentee";
 
 interface PlannerDetailViewProps {
-  date: Date | null;
+  date: Date | string | number | null;
   dailyRecord: any;
   mentorDeadlines: any[];
   dailyEvents: any[];
@@ -32,6 +32,9 @@ export default function PlannerDetailView({
   showHeader = true,
 }: PlannerDetailViewProps) {
   if (!date) return null;
+
+  const normalizedDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(normalizedDate.getTime())) return null;
 
   const router = useRouter();
   const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
@@ -183,8 +186,8 @@ export default function PlannerDetailView({
           <span
             className={`text-lg font-bold ${isToday ? "text-primary" : "text-gray-900"}`}
           >
-            {date.getMonth() + 1}월 {date.getDate()}일 (
-            {dayNames[date.getDay()]})
+            {normalizedDate.getMonth() + 1}월 {normalizedDate.getDate()}일 (
+            {dayNames[normalizedDate.getDay()]})
           </span>
           <div className="flex items-baseline gap-1.5 font-black">
             <span className="text-[9px] uppercase tracking-[0.16em] text-blue-400">

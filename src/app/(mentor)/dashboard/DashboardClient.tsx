@@ -4,12 +4,7 @@ import Link from "next/link";
 import { useModal } from "@/contexts/ModalContext";
 import {
   ArrowUpRight,
-  BookOpen,
   Calendar as CalendarIcon,
-  CheckCircle2,
-  Clock,
-  MoreHorizontal,
-  Bell,
   Users,
   TrendingUp,
   MessageSquare,
@@ -21,8 +16,27 @@ import { motion } from "framer-motion";
 import { MentorMentee, MentorTask } from "@/features/mentor/types";
 
 type DashboardDataProps = {
+  mentorName: string;
   mentees: MentorMentee[];
   recentActivity: MentorTask[];
+  recentChats: {
+    id: string;
+    menteeName: string;
+    menteeAvatarUrl: string | null;
+    lastMessage: string;
+    lastMessageAt: string | null;
+    unreadCount: number;
+  }[];
+  recentFeedback: {
+    id: string;
+    type: "task" | "plan" | "self";
+    title: string;
+    subtitle: string;
+    studentName: string;
+    studentAvatarUrl: string | null;
+    date: string;
+    status: "pending" | "completed" | "reviewed" | "submitted";
+  }[];
   stats: {
     totalMentees: number;
     pendingFeedback: number;
@@ -31,11 +45,38 @@ type DashboardDataProps = {
 };
 
 export default function DashboardClient({
+  mentorName,
   mentees,
   recentActivity,
+  recentChats,
+  recentFeedback,
   stats,
 }: DashboardDataProps) {
   const { openModal } = useModal();
+
+  const formatPreviewTime = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) {
+      return date.toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    return date.toLocaleDateString("ko-KR", {
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
+  const formatDateBadge = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}.`;
+  };
 
   // Animation Variants
   const containerVariants = {
@@ -58,38 +99,13 @@ export default function DashboardClient({
     },
   };
 
-  // Recent Chat Mock (Keep for now as Chat service is separate)
-  const recentChats = [
-    {
-      id: 1,
-      name: "김멘티",
-      message: "네 알겠습니다! 내일까지 제출할게요.",
-      time: "5m",
-      unread: true,
-    },
-    {
-      id: 2,
-      name: "이서울",
-      message: "선생님 혹시 수학 질문 좀...",
-      time: "1h",
-      unread: false,
-    },
-    {
-      id: 3,
-      name: "박연세",
-      message: "감사합니다!",
-      time: "3h",
-      unread: false,
-    },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Header Section (Simple Welcome) */}
       <div className="mb-2">
         <h1 className="text-2xl font-black text-gray-900">대시보드</h1>
         <p className="text-gray-500 text-sm mt-1">
-          김멘토님, 오늘 하루도 힘내세요! 👋
+          {mentorName}님, 오늘 하루도 힘내세요! 👋
         </p>
       </div>
 
@@ -114,7 +130,8 @@ export default function DashboardClient({
 
           <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
             {mentees.map((student) => (
-              <div
+              <Link
+                href={`/students/${student.id}`}
                 key={student.id}
                 className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer group"
               >
@@ -146,7 +163,7 @@ export default function DashboardClient({
                     </p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
           <button className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs rounded-xl transition-colors">
@@ -174,47 +191,55 @@ export default function DashboardClient({
           </div>
 
           <div className="space-y-3 flex-1">
-            {recentActivity
-              .filter((t) => t.status === "submitted")
-              .slice(0, 2)
-              .map((task, idx) => (
+            {recentFeedback.length === 0 && (
+              <div className="h-full flex items-center justify-center text-xs text-gray-400 font-medium">
+                피드백 대기 항목이 없습니다.
+              </div>
+            )}
+            {recentFeedback.slice(0, 3).map((item, idx) => (
                 <Link
-                  href={`/mentor-feedback?taskId=${task.id}`}
+                  href={`/mentor-feedback?itemId=${encodeURIComponent(item.id)}`}
                   key={idx}
                   className="bg-gray-50 p-4 rounded-2xl flex items-start gap-4 hover:bg-gray-100 transition-colors"
                 >
                   <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-bold flex-shrink-0 overflow-hidden">
-                    {task.menteeAvatarUrl ? (
+                    {item.studentAvatarUrl ? (
                       <img
-                        src={task.menteeAvatarUrl}
-                        alt={task.menteeName}
+                        src={item.studentAvatarUrl}
+                        alt={item.studentName}
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      task.menteeName?.substring(0, 1) ||
-                      task.title.substring(0, 1)
+                      item.studentName?.substring(0, 1) ||
+                      item.title.substring(0, 1)
                     )}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="font-bold text-sm text-gray-900 truncate pr-2">
-                        {task.title}
+                        {item.title}
                       </h4>
                       <span className="text-[10px] text-gray-400 shrink-0">
-                        {`${new Date(task.deadline).getFullYear()}. ${new Date(task.deadline).getMonth() + 1}. ${new Date(task.deadline).getDate()}.`}
+                        {formatDateBadge(item.date)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-600 truncate flex items-center gap-1">
                       <span className="font-bold text-gray-800">
-                        {task.menteeName || "이름 없음"}
+                        {item.studentName || "이름 없음"}
                       </span>
                       <span className="text-gray-400">|</span>
-                      <span>과제 제출</span>
+                      <span>
+                        {item.type === "task"
+                          ? "과제 제출"
+                          : item.type === "plan"
+                            ? "플래너"
+                            : "자습"}
+                      </span>
                     </p>
                   </div>
-                  <button className="p-1 rounded-lg text-gray-400 group-hover:text-gray-900 transition-colors flex-shrink-0">
+                  <span className="p-1 rounded-lg text-gray-400 group-hover:text-gray-900 transition-colors flex-shrink-0">
                     <ChevronRight size={18} />
-                  </button>
+                  </span>
                 </Link>
               ))}
           </div>
@@ -241,43 +266,15 @@ export default function DashboardClient({
           </div>
 
           <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
-            {/* Item 1: Today (Highlighted) */}
-            <div className="bg-green-50 p-3 rounded-xl border border-green-100">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs font-bold text-green-700">
-                  오늘 19:00 - 20:00
-                </span>
-              </div>
-              <h4 className="text-sm font-bold text-gray-900">
-                김멘티 정기 상담
-              </h4>
-            </div>
-
-            {/* Item 2: Tomorrow */}
-            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 opacity-60 hover:opacity-100 transition-opacity">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full" />
-                <span className="text-xs font-bold text-gray-500">
-                  내일 14:00
-                </span>
-              </div>
-              <h4 className="text-sm font-bold text-gray-900">
-                이서울 입시 상담
-              </h4>
-            </div>
-
-            {/* Item 3: Future */}
-            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 opacity-60 hover:opacity-100 transition-opacity">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full" />
-                <span className="text-xs font-bold text-gray-500">
-                  2월 7일 (금) 10:00
-                </span>
-              </div>
-              <h4 className="text-sm font-bold text-gray-900">
-                박연세 학습 점검
-              </h4>
+            <div className="h-full bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+              <p className="text-xs font-bold text-gray-500 mb-2">
+                일정 연동 준비중
+              </p>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                일정 기능이 연결되면
+                <br />
+                실제 상담/미팅 일정이 표시됩니다.
+              </p>
             </div>
           </div>
         </motion.div>
@@ -292,7 +289,7 @@ export default function DashboardClient({
               <h3 className="font-bold text-gray-900">최근 메시지</h3>
             </div>
             <Link
-              href="/chat"
+              href="/chat-mentor"
               className="text-xs font-bold text-gray-400 hover:text-gray-900 flex items-center gap-1"
             >
               채팅 가기 <ChevronRight size={14} />
@@ -300,38 +297,49 @@ export default function DashboardClient({
           </div>
 
           <div className="space-y-0 divide-y divide-gray-50 flex-1">
+            {recentChats.length === 0 && (
+              <div className="h-full flex items-center justify-center text-xs text-gray-400 font-medium">
+                최근 메시지가 없습니다.
+              </div>
+            )}
             {recentChats.map((chat) => (
-              <div
+              <Link
+                href="/chat-mentor"
                 key={chat.id}
                 className="flex items-center gap-4 py-3 first:pt-0 hover:bg-gray-50 px-2 -mx-2 rounded-xl transition-colors cursor-pointer"
               >
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
-                    <img
-                      src={`https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80&random=${chat.id}`}
-                      alt="avatar"
-                    />
+                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center text-sm font-bold text-gray-600">
+                    {chat.menteeAvatarUrl ? (
+                      <img
+                        src={chat.menteeAvatarUrl}
+                        alt={chat.menteeName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      chat.menteeName?.substring(0, 1) || "멘"
+                    )}
                   </div>
-                  {chat.unread && (
-                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
+                  {chat.unreadCount > 0 && (
+                    <div className="absolute -top-0.5 -right-0.5 min-w-3 h-3 px-1 bg-red-500 border-2 border-white rounded-full text-[8px] leading-none text-white font-bold flex items-center justify-center">
+                      {chat.unreadCount}
+                    </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
                     <h4 className="text-sm font-bold text-gray-900">
-                      {chat.name}
+                      {chat.menteeName}
                     </h4>
                     <span className="text-[10px] text-gray-400">
-                      {chat.time}
+                      {formatPreviewTime(chat.lastMessageAt)}
                     </span>
                   </div>
-                  <p
-                    className={`text-xs truncate ${chat.unread ? "text-gray-900 font-bold" : "text-gray-500"}`}
-                  >
-                    {chat.message}
+                  <p className="text-xs truncate text-gray-500">
+                    {chat.lastMessage}
                   </p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

@@ -3,7 +3,7 @@ import { getCompletedPlannerTasksByMentorId } from "@/repositories/plannerTasksR
 
 export type FeedbackItem = {
   id: string;
-  type: "task" | "plan" | "question";
+  type: "task" | "plan" | "self";
   studentId: string;
   studentName: string;
   avatarUrl?: string; // Add avatarUrl
@@ -56,11 +56,8 @@ export async function getPendingFeedbackItems(
     data: row,
   }));
 
-  // TODO: Fetch pending questions when tables are ready
-  const questionItems: FeedbackItem[] = [];
-
   // Sort by date descending (newest first)
-  return [...taskItems, ...planItems, ...questionItems].sort(
+  return [...taskItems, ...planItems].sort(
     (a, b) => b.date.getTime() - a.date.getTime(),
   );
 }

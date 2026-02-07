@@ -1,28 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Filter,
   CheckCircle2,
-  AlertCircle,
-  Clock,
   ArrowLeft,
   Send,
   Maximize2,
   MessageSquare,
   FileText,
   Calendar,
-  HelpCircle,
+  BookOpen,
 } from "lucide-react";
-import { USER_TASKS, WEEKLY_SCHEDULE, DAILY_RECORDS } from "@/constants/mentee";
 import { STUDENTS_MOCK } from "@/constants/mentor"; // For avatars
 import { useModal } from "@/contexts/ModalContext";
-import DailyPlannerCard from "@/components/mentee/calendar/DailyPlannerCard";
-import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
+import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
 import { FeedbackItem } from "@/services/mentorFeedbackService";
-import { MENTOR_TASKS } from "@/constants/mentee"; // Keep for getPlanData helpers for now
+import { DEFAULT_CATEGORIES } from "@/constants/common";
 
 // --- Helpers ---
 const getStudentAvatar = (name: string, url?: string) => {
@@ -49,27 +45,78 @@ const formatTimeAgo = (date: Date) => {
   return `${Math.floor(hours / 24)}일 전`;
 };
 
+const toDate = (value: Date | string | number) =>
+  value instanceof Date ? value : new Date(value);
+
+const toDateKey = (value: Date | string | number) => {
+  const date = toDate(value);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const resolveCategoryId = (row: any) => {
+  const directSlug = row?.subjects?.slug ?? row?.subject_slug ?? null;
+  if (directSlug && DEFAULT_CATEGORIES.some((c) => c.id === directSlug)) {
+    return directSlug;
+  }
+
+  const subjectName = String(row?.subjects?.name ?? row?.subject ?? "");
+  if (subjectName.includes("국어")) return "korean";
+  if (subjectName.includes("영어")) return "english";
+  if (subjectName.includes("수학")) return "math";
+
+  return "math";
+};
+
+const hasUploadedSelfStudyFile = (materials: any): boolean => {
+  if (!Array.isArray(materials) || materials.length === 0) return false;
+
+  return materials.some((file: any) => {
+    if (!file || typeof file !== "object") return false;
+
+    const rawType = String(
+      file.type ?? file.fileType ?? file.mime_type ?? file.mimeType ?? "",
+    ).toLowerCase();
+    if (
+      rawType === "pdf" ||
+      rawType === "image" ||
+      rawType === "application/pdf" ||
+      rawType.startsWith("image/")
+    ) {
+      return true;
+    }
+
+    const rawPath = String(
+      file.url ?? file.previewUrl ?? file.path ?? file.name ?? file.title ?? "",
+    ).toLowerCase();
+
+    return /\.(pdf|png|jpe?g|gif|webp|bmp|heic|heif|svg)(\?|$)/.test(rawPath);
+  });
+};
+
 export default function FeedbackClient({
   mentorId,
   initialItems,
-  initialSelectedTaskId,
+  initialSelectedItemId,
 }: {
   mentorId: string;
   initialItems: FeedbackItem[];
-  initialSelectedTaskId?: string;
+  initialSelectedItemId?: string;
 }) {
   const { openModal } = useModal();
   const [selectedItemId, setSelectedItemId] = useState<string | number | null>(
-    initialSelectedTaskId ? `task-${initialSelectedTaskId}` : null,
+    null,
   );
-  const [activeTab, setActiveTab] = useState<"pending" | "completed">(
-    "pending",
+  const hasAppliedInitialSelection = useRef(false);
+  const [filterType, setFilterType] = useState<"all" | "task" | "plan" | "self">(
+    "all",
   );
-  const [filterType, setFilterType] = useState<
-    "all" | "task" | "plan" | "question"
-  >("all");
   const [feedbackText, setFeedbackText] = useState("");
-  const [expandedPlanDate, setExpandedPlanDate] = useState<Date | null>(null);
+  const [expandedPlanItemId, setExpandedPlanItemId] = useState<
+    string | number | null
+  >(null);
   const [publishedFeedback, setPublishedFeedback] = useState<string | null>(
     null,
   );
@@ -79,15 +126,114 @@ export default function FeedbackClient({
   // 1. Tasks (From Props)
   const taskItems = initialItems.filter((i) => i.type === "task");
 
-  // 2. Plan Reviews
-  const planItems = initialItems.filter((i) => i.type === "plan");
+  // 2. Plan Reviews (group by student + date)
+  const rawPlanItems = initialItems.filter((i) => i.type === "plan");
+  const groupedPlans = new Map<string, FeedbackItem[]>();
+  rawPlanItems.forEach((item) => {
+    const key = `${item.studentId}-${toDateKey(item.date)}`;
+    const list = groupedPlans.get(key) ?? [];
+    list.push(item);
+    groupedPlans.set(key, list);
+  });
 
-  // 3. Questions (Mock removed)
-  const questionItems: FeedbackItem[] = [];
+  const planItems: FeedbackItem[] = Array.from(groupedPlans.entries()).map(
+    ([groupKey, groupedItems]) => {
+      const first = groupedItems[0];
+      const planDate = toDate(first.date);
+      const plannerTasks = groupedItems.map((i) => i.data);
+      const totalStudySeconds = plannerTasks.reduce(
+        (sum, row) => sum + (Number(row?.time_spent_sec) || 0),
+        0,
+      );
 
-  const allItems = [...taskItems, ...planItems, ...questionItems].sort(
+      return {
+        id: `plan-${groupKey}`,
+        type: "plan",
+        studentId: first.studentId,
+        studentName: first.studentName,
+        avatarUrl: first.avatarUrl,
+        title: `${planDate.getMonth() + 1}월 ${planDate.getDate()}일 플래너`,
+        subtitle: `완료한 할 일 ${plannerTasks.length}개`,
+        date: planDate,
+        status: "submitted",
+        data: {
+          plannerTasks,
+          totalStudySeconds,
+          dailyGoal: first.data?.dailyGoal ?? first.data?.daily_goal ?? "",
+        },
+      };
+    },
+  );
+
+  // 3. Self-study task feedback items (student-created planner tasks only)
+  const selfItems: FeedbackItem[] = rawPlanItems
+    .filter(
+      (item) =>
+        !item.data?.is_mentor_task &&
+        hasUploadedSelfStudyFile(item.data?.materials),
+    )
+    .map((item) => {
+      const selfDate = toDate(item.date);
+      return {
+        id: `self-${item.id}`,
+        type: "self",
+        studentId: item.studentId,
+        studentName: item.studentName,
+        avatarUrl: item.avatarUrl,
+        title: item.data?.title || item.title || "자습 할 일",
+        subtitle: item.data?.subjects?.name || item.subtitle || "자습",
+        date: selfDate,
+        status: "submitted",
+        data: {
+          ...item.data,
+          plannerTaskId: item.data?.id,
+        },
+      };
+    });
+
+  const allItems = [...taskItems, ...planItems, ...selfItems].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
+
+  const resolvedInitialSelectedItemId = useMemo(() => {
+    if (!initialSelectedItemId) return null;
+
+    if (allItems.some((item) => String(item.id) === initialSelectedItemId)) {
+      return initialSelectedItemId;
+    }
+
+    if (initialSelectedItemId.startsWith("plan-")) {
+      const rawPlan = rawPlanItems.find(
+        (item) => String(item.id) === initialSelectedItemId,
+      );
+
+      if (rawPlan) {
+        const groupedPlanId = `plan-${rawPlan.studentId}-${toDateKey(rawPlan.date)}`;
+        if (allItems.some((item) => String(item.id) === groupedPlanId)) {
+          return groupedPlanId;
+        }
+
+        const selfItemId = `self-${initialSelectedItemId}`;
+        if (allItems.some((item) => String(item.id) === selfItemId)) {
+          return selfItemId;
+        }
+      }
+    }
+
+    const prefixedSelfId = `self-${initialSelectedItemId}`;
+    if (allItems.some((item) => String(item.id) === prefixedSelfId)) {
+      return prefixedSelfId;
+    }
+
+    return null;
+  }, [initialSelectedItemId, allItems, rawPlanItems]);
+
+  useEffect(() => {
+    if (hasAppliedInitialSelection.current) return;
+    if (!resolvedInitialSelectedItemId) return;
+    setSelectedItemId(resolvedInitialSelectedItemId);
+    hasAppliedInitialSelection.current = true;
+  }, [resolvedInitialSelectedItemId]);
 
   // Apply Filters
   const filteredItems = allItems.filter((item) => {
@@ -153,6 +299,61 @@ export default function FeedbackClient({
       return;
     }
 
+    if (selectedItem.type === "self") {
+      if (!feedbackText.trim()) {
+        alert("피드백 내용을 입력해주세요.");
+        return;
+      }
+
+      const plannerTaskId = String(
+        selectedItem.data?.plannerTaskId ?? selectedItem.data?.id ?? "",
+      );
+      if (!plannerTaskId) {
+        alert("자습 항목 ID를 찾을 수 없습니다.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const response = await fetch("/api/mentor/feedback/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            mentorId,
+            taskId: plannerTaskId,
+            comment: feedbackText,
+            type: "planner_task",
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          openModal({
+            title: "전송 완료",
+            content: "✅ 자습 피드백이 전송되었습니다.",
+            type: "success",
+          });
+          setSelectedItemId(null);
+          setFeedbackText("");
+        } else {
+          openModal({
+            title: "전송 실패",
+            content: result.error || "알 수 없는 오류가 발생했습니다.",
+            type: "confirm",
+          });
+        }
+      } catch (error) {
+        console.error("Self Study Feedback Submit Error:", error);
+        alert("피드백 전송 중 오류가 발생했습니다.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     // For other types (mock implementation)
     openModal({
       title: "리포트 전송",
@@ -188,54 +389,50 @@ export default function FeedbackClient({
   };
 
   // --- Helper for Plan Data ---
-  const getPlanData = (date: Date) => {
-    const targetDate = new Date(date);
-    // Filter tasks for this date (reusing logic from student page)
-    const isSameDay = (d1: Date, d2: Date) =>
-      d1.getFullYear() === d2.getFullYear() &&
-      d1.getMonth() === d2.getMonth() &&
-      d1.getDate() === d2.getDate();
+  const getPlanData = (item: FeedbackItem) => {
+    const planDate = toDate(item.date);
+    const plannerRows = (item.data?.plannerTasks ?? []) as any[];
 
-    const mentorDeadlines = MENTOR_TASKS.filter(
-      (t) => t.deadline && isSameDay(t.deadline, targetDate),
-    );
-    const userTasksRaw = USER_TASKS.filter(
-      (t) => t.deadline && isSameDay(t.deadline, targetDate),
-    ).map((t) => ({
-      ...t,
-      status:
-        t.status === "pending" || t.status === "submitted"
-          ? t.status
-          : undefined,
-    })) as unknown as import("@/lib/menteeAdapters").PlannerTaskLike[];
-    const studyTimeBlocks = generateTimeBlocksFromTasks([
-      ...mentorDeadlines,
-      ...userTasksRaw,
-    ]);
-
-    const dailyRecord = DAILY_RECORDS.find((r) =>
-      isSameDay(r.date, targetDate),
-    ) || { studyTime: 0, memo: "" };
-    const dailySchedule =
-      WEEKLY_SCHEDULE.find((s) => isSameDay(s.date, targetDate))?.events || [];
+    const plannerTasks = plannerRows.map((row) => ({
+      id: row?.id,
+      taskType: "plan",
+      title: row?.title || "학습 항목",
+      description: row?.description || "",
+      date: row?.date || planDate.toISOString().slice(0, 10),
+      completed: Boolean(row?.completed ?? true),
+      categoryId: resolveCategoryId(row),
+      subject: row?.subjects?.name || row?.subject || "자습",
+      timeSpent: Number(row?.time_spent_sec) || 0,
+      startTime: row?.start_time || undefined,
+      endTime: row?.end_time || undefined,
+      hasMentorResponse: Boolean(row?.mentor_comment),
+      mentorComment: row?.mentor_comment || undefined,
+    }));
 
     return {
-      mentorDeadlines,
-      userTasks: userTasksRaw,
-      studyTimeBlocks,
-      dailyRecord,
-      dailyEvents: dailySchedule,
+      planDate,
+      mentorDeadlines: [],
+      userTasks: plannerTasks,
+      dailyRecord: {
+        studyTime: Number(item.data?.totalStudySeconds) || 0,
+        memo: item.data?.dailyGoal || "",
+      },
+      dailyEvents: [],
+      dailyGoalText: item.data?.dailyGoal || "",
+      completedTaskCount: plannerTasks.length,
     };
   };
 
-  const handleExpandPlan = (date: Date) => {
-    setExpandedPlanDate(date);
+  const handleExpandPlan = (itemId: string | number) => {
+    setExpandedPlanItemId(itemId);
   };
 
-  // Prepare data for the modal if open
-  const expandedPlanData = expandedPlanDate
-    ? getPlanData(expandedPlanDate)
-    : null;
+  const expandedPlanItem = allItems.find(
+    (item) => item.id === expandedPlanItemId && item.type === "plan",
+  );
+  const expandedPlanData = expandedPlanItem ? getPlanData(expandedPlanItem) : null;
+  const selectedPlanData =
+    selectedItem?.type === "plan" ? getPlanData(selectedItem) : null;
 
   return (
     <div className="h-[calc(100vh-8rem)] flex bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -259,9 +456,9 @@ export default function FeedbackClient({
           <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
             {[
               { id: "all", label: "전체", icon: null },
-              { id: "question", label: "질문", icon: <HelpCircle size={14} /> },
               { id: "task", label: "과제", icon: <FileText size={14} /> },
               { id: "plan", label: "플래너", icon: <Calendar size={14} /> },
+              { id: "self", label: "자습", icon: <BookOpen size={14} /> },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -303,11 +500,6 @@ export default function FeedbackClient({
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
-                    {item.type === "question" && (
-                      <span className="px-2 py-0.5 bg-orange-100 text-orange-600 text-[10px] font-bold rounded-md flex items-center gap-1">
-                        <HelpCircle size={10} /> 질문
-                      </span>
-                    )}
                     {item.type === "task" && (
                       <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md flex items-center gap-1">
                         <FileText size={10} /> 과제
@@ -316,6 +508,11 @@ export default function FeedbackClient({
                     {item.type === "plan" && (
                       <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-bold rounded-md flex items-center gap-1">
                         <Calendar size={10} /> 플래너
+                      </span>
+                    )}
+                    {item.type === "self" && (
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-md flex items-center gap-1">
+                        <BookOpen size={10} /> 자습
                       </span>
                     )}
                     {item.isUrgent && (
@@ -375,17 +572,17 @@ export default function FeedbackClient({
                   <span
                     className={`p-2 rounded-lg
                                 ${
-                                  selectedItem.type === "question"
-                                    ? "bg-orange-100 text-orange-600"
-                                    : selectedItem.type === "plan"
-                                      ? "bg-purple-100 text-purple-600"
+                                  selectedItem.type === "plan"
+                                    ? "bg-purple-100 text-purple-600"
+                                    : selectedItem.type === "self"
+                                      ? "bg-emerald-100 text-emerald-600"
                                       : "bg-blue-100 text-blue-600"
                                 }`}
                   >
-                    {selectedItem.type === "question" ? (
-                      <HelpCircle size={20} />
-                    ) : selectedItem.type === "plan" ? (
+                    {selectedItem.type === "plan" ? (
                       <Calendar size={20} />
+                    ) : selectedItem.type === "self" ? (
+                      <BookOpen size={20} />
                     ) : (
                       <FileText size={20} />
                     )}
@@ -421,7 +618,7 @@ export default function FeedbackClient({
                 {selectedItem.type === "plan" && (
                   <div className="flex flex-col md:flex-row gap-6">
                     {/* Daily Planner Card Preview */}
-                    <div className="w-full md:w-[320px] shrink-0">
+                    <div className="w-full md:w-[420px] shrink-0">
                       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0">
                         <div className="flex justify-between items-center mb-3">
                           <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -429,7 +626,7 @@ export default function FeedbackClient({
                             플래너 미리보기
                           </h3>
                           <button
-                            onClick={() => handleExpandPlan(selectedItem.date)}
+                            onClick={() => handleExpandPlan(selectedItem.id)}
                             className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                             title="크게 보기"
                           >
@@ -437,39 +634,22 @@ export default function FeedbackClient({
                           </button>
                         </div>
 
-                        {/* Use IIFE-like logic to get props */}
-                        {(() => {
-                          const props = getPlanData(selectedItem.date);
-                          return (
-                            <div className="transform scale-100 origin-top-left relative group">
-                              <DailyPlannerCard
-                                date={selectedItem.date}
-                                isToday={false} // Reviewing past/current plan
-                                studyTime={props.dailyRecord.studyTime || 0}
-                                memo={props.dailyRecord.memo || ""}
-                                mentorDeadlines={props.mentorDeadlines}
-                                userTasks={props.userTasks}
-                                dailyEvents={props.dailyEvents}
-                                mentorReview={publishedFeedback ?? undefined} // Only show if published
-                                studyTimeBlocks={props.studyTimeBlocks}
-                                onClick={() =>
-                                  handleExpandPlan(selectedItem.date)
-                                } // Click to expand too
-                              />
-                              {/* Hover overlay hint */}
-                              <div
-                                onClick={() =>
-                                  handleExpandPlan(selectedItem.date)
-                                }
-                                className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-sm"
-                              >
-                                <span className="bg-white/90 text-gray-800 text-xs font-bold px-2 py-1 rounded shadow-sm">
-                                  크게 보기
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
+                        {selectedPlanData && (
+                          <div
+                            className="h-[620px] rounded-xl border border-gray-100 overflow-hidden cursor-pointer"
+                            onClick={() => handleExpandPlan(selectedItem.id)}
+                          >
+                            <PlannerDetailView
+                              date={selectedPlanData.planDate}
+                              dailyRecord={selectedPlanData.dailyRecord}
+                              mentorDeadlines={selectedPlanData.mentorDeadlines}
+                              userTasks={selectedPlanData.userTasks}
+                              dailyEvents={selectedPlanData.dailyEvents}
+                              mentorReview={publishedFeedback ?? undefined}
+                              size="full"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -493,7 +673,10 @@ export default function FeedbackClient({
                             🚩 오늘의 목표
                           </h4>
                           <p className="text-gray-900 font-medium">
-                            "{selectedItem.data.dailyGoal}"
+                            "
+                            {selectedPlanData?.dailyGoalText ||
+                              `완료한 할 일 ${selectedPlanData?.completedTaskCount ?? 0}개를 점검해주세요.`}
+                            "
                           </p>
                         </div>
                       </div>
@@ -598,37 +781,84 @@ export default function FeedbackClient({
                   </div>
                 )}
 
-                {/* 3. QUESTION DETAIL */}
-                {selectedItem.type === "question" && (
+                {/* 3. SELF STUDY DETAIL */}
+                {selectedItem.type === "self" && (
                   <div className="space-y-6">
                     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                      <div className="mb-6">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-gray-600 mb-3">
-                          관련 과제: {selectedItem.data.taskTitle}
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">
-                          Q. {selectedItem.data.question}
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-600">
+                          {selectedItem.data?.subjects?.name ||
+                            selectedItem.data?.subject ||
+                            "자습"}
+                        </span>
+                        <h3 className="text-lg font-bold text-gray-900">
+                          {selectedItem.data?.title || selectedItem.title}
                         </h3>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-6 border-b border-gray-50 pb-4">
+                        {selectedItem.data?.description ||
+                          "학생이 직접 만든 자습 할 일입니다."}
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-600">
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                          <p className="font-bold text-gray-500 mb-1">학습일</p>
+                          <p className="font-semibold text-gray-900">
+                            {formatDate(selectedItem.date)}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                          <p className="font-bold text-gray-500 mb-1">
+                            완료 상태
+                          </p>
+                          <p className="font-semibold text-gray-900">
+                            {selectedItem.data?.completed ? "완료" : "미완료"}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                          <p className="font-bold text-gray-500 mb-1">
+                            학습 시간
+                          </p>
+                          <p className="font-semibold text-gray-900">
+                            {Math.floor(
+                              Number(selectedItem.data?.time_spent_sec || 0) / 60,
+                            )}
+                            분
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                          <p className="font-bold text-gray-500 mb-1">
+                            학습 시간대
+                          </p>
+                          <p className="font-semibold text-gray-900">
+                            {selectedItem.data?.start_time && selectedItem.data?.end_time
+                              ? `${selectedItem.data.start_time} - ${selectedItem.data.end_time}`
+                              : "미설정"}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm ring-4 ring-blue-50/50">
                       <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                         <MessageSquare size={16} className="text-blue-500" />
-                        답변 작성
+                        자습 피드백
                       </h3>
                       <textarea
                         value={feedbackText}
                         onChange={(e) => setFeedbackText(e.target.value)}
-                        placeholder="학생의 질문에 대한 답변을 입력해주세요."
+                        placeholder="학생이 작성한 자습 할 일에 대한 피드백을 입력해주세요."
                         className="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all resize-none mb-4"
                       />
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={handleSendFeedback}
-                          className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
+                          disabled={isSubmitting}
+                          className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2 disabled:bg-gray-400 disabled:shadow-none"
                         >
-                          <Send size={14} /> 답변 전송
+                          <Send size={14} />{" "}
+                          {isSubmitting ? "전송 중..." : "피드백 전송"}
                         </button>
                       </div>
                     </div>
@@ -654,14 +884,14 @@ export default function FeedbackClient({
         )}
       </div>
 
-      {expandedPlanData && expandedPlanDate && (
+      {expandedPlanData && expandedPlanItem && (
         <PlannerDetailModal
-          isOpen={!!expandedPlanDate}
-          onClose={() => setExpandedPlanDate(null)}
-          date={expandedPlanDate}
+          isOpen={!!expandedPlanItem}
+          onClose={() => setExpandedPlanItemId(null)}
+          date={expandedPlanData.planDate}
           dailyRecord={expandedPlanData.dailyRecord}
           mentorDeadlines={expandedPlanData.mentorDeadlines}
-          plannerTasks={expandedPlanData.userTasks}
+          plannerTasks={expandedPlanData.userTasks as any}
           dailyEvents={expandedPlanData.dailyEvents}
           mentorReview={publishedFeedback ?? undefined}
         />

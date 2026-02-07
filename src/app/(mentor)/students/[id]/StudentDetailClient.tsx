@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -136,6 +136,30 @@ export default function StudentDetailClient({
     }
     return true;
   });
+
+  const filterCategoryOptions = useMemo(() => {
+    const optionMap = new Map<string, string>();
+
+    currentDateTasks.forEach((task) => {
+      const value = String(task.categoryId || task.subject || "").trim();
+      if (!value || optionMap.has(value)) return;
+
+      const matched = DEFAULT_CATEGORIES.find((c) => c.id === value);
+      optionMap.set(value, matched?.name || task.subject || value);
+    });
+
+    return Array.from(optionMap.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [currentDateTasks]);
+
+  const listSections = DEFAULT_CATEGORIES.map((category) => ({
+    category,
+    tasks: filteredListTasks.filter((t) => t.categoryId === category.id),
+  })).filter((section) => section.tasks.length > 0);
+
+  const hasActiveFilters = filterCategory !== "all" || filterStatus !== "all";
 
   // Prepare Data for Planner Card
   const mentorDeadlines = currentDateTasks.filter((t) => t.isMentorTask);
@@ -359,7 +383,10 @@ export default function StudentDetailClient({
                               ? "ring-2 ring-gray-900 ring-offset-2 opacity-100"
                               : "opacity-60 hover:opacity-100"
                           }`}
-                          onClick={() => setSelectedDate(date)}
+                          onClick={() => {
+                            setSelectedDate(date);
+                            setIsPlannerDetailOpen(true);
+                          }}
                         >
                           <PlannerDetailView
                             date={date}
@@ -389,12 +416,79 @@ export default function StudentDetailClient({
               {/* View Mode: List */}
               {viewMode === "list" && (
                 <div className="space-y-8">
-                  {DEFAULT_CATEGORIES.map((category) => {
-                    const categoryTasks = filteredListTasks.filter(
-                      (t) => t.categoryId === category.id,
-                    );
-                    if (categoryTasks.length === 0) return null;
+                  <div className="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-gray-500 px-2">
+                        필터
+                      </span>
 
+                      <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="all">전체 과목</option>
+                        {filterCategoryOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+                        <button
+                          onClick={() => setFilterStatus("all")}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                            filterStatus === "all"
+                              ? "bg-white text-gray-900 shadow-sm"
+                              : "text-gray-500 hover:text-gray-700"
+                          }`}
+                        >
+                          전체
+                        </button>
+                        <button
+                          onClick={() => setFilterStatus("completed")}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                            filterStatus === "completed"
+                              ? "bg-white text-gray-900 shadow-sm"
+                              : "text-gray-500 hover:text-gray-700"
+                          }`}
+                        >
+                          완료
+                        </button>
+                        <button
+                          onClick={() => setFilterStatus("pending")}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                            filterStatus === "pending"
+                              ? "bg-white text-gray-900 shadow-sm"
+                              : "text-gray-500 hover:text-gray-700"
+                          }`}
+                        >
+                          미완료
+                        </button>
+                      </div>
+
+                      {hasActiveFilters && (
+                        <button
+                          onClick={() => {
+                            setFilterCategory("all");
+                            setFilterStatus("all");
+                          }}
+                          className="ml-auto h-9 px-3 rounded-lg bg-gray-100 text-xs font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                        >
+                          필터 초기화
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {listSections.length === 0 && (
+                    <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center text-sm text-gray-500 font-medium shadow-sm">
+                      조건에 맞는 학습 항목이 없습니다.
+                    </div>
+                  )}
+
+                  {listSections.map(({ category, tasks: categoryTasks }) => {
                     return (
                       <div key={category.id} className="space-y-3">
                         {/* Category Header */}
