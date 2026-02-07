@@ -505,7 +505,7 @@ function AddMaterialModal({
                 </label>
                 <div className="relative group">
                   <input
-                    required={type !== "link"}
+                    required
                     type="file"
                     accept={type === "pdf" ? ".pdf" : "image/*"}
                     className="hidden"

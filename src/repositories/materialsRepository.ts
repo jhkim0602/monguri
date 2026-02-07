@@ -85,7 +85,16 @@ export async function getMaterials(mentorId?: string) {
     throw error;
   }
 
-  return (data ?? []) as MentorMaterial[];
+  const rows = (data ?? []) as Array<
+    Omit<MentorMaterial, "file"> & {
+      file?: FileRow | FileRow[] | null;
+    }
+  >;
+
+  return rows.map((row) => ({
+    ...row,
+    file: Array.isArray(row.file) ? row.file[0] ?? null : row.file ?? null,
+  }));
 }
 
 export async function archiveMaterial(id: string, mentorId: string) {

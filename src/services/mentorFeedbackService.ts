@@ -43,7 +43,7 @@ export async function getPendingFeedbackItems(
             return [
               {
                 name: `제출 파일 (${new Date(submission.submitted_at).toLocaleDateString()})`,
-                fileId: null,
+                fileId: "",
                 type: "file",
               },
             ];
