@@ -12,6 +12,7 @@ import {
   FileText,
   Calendar,
   BookOpen,
+  Download,
 } from "lucide-react";
 import { STUDENTS_MOCK } from "@/constants/mentor"; // For avatars
 import { useModal } from "@/contexts/ModalContext";
@@ -19,6 +20,7 @@ import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal"
 import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
 import { FeedbackItem } from "@/services/mentorFeedbackService";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
+import { supabase } from "@/lib/supabaseClient";
 
 // --- Helpers ---
 const getStudentAvatar = (name: string, url?: string) => {
@@ -106,12 +108,16 @@ export default function FeedbackClient({
   initialSelectedItemId?: string;
 }) {
   const { openModal } = useModal();
+  const [items, setItems] = useState<FeedbackItem[]>(initialItems);
   const [selectedItemId, setSelectedItemId] = useState<string | number | null>(
     null,
   );
   const hasAppliedInitialSelection = useRef(false);
   const [filterType, setFilterType] = useState<"all" | "task" | "plan" | "self">(
     "all",
+  );
+  const [feedbackStatus, setFeedbackStatus] = useState<"pending" | "all">(
+    "pending",
   );
   const [feedbackText, setFeedbackText] = useState("");
   const [expandedPlanItemId, setExpandedPlanItemId] = useState<
@@ -122,12 +128,49 @@ export default function FeedbackClient({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleDownloadAttachment = async (
+    fileId: string | null | undefined,
+    name: string,
+  ) => {
+    if (!fileId) return;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        alert("로그인이 필요합니다.");
+        return;
+      }
+
+      const res = await fetch(`/api/files/${fileId}?mode=download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        alert("파일 다운로드에 실패했습니다.");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name || "attachment";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("파일 다운로드에 실패했습니다.");
+    }
+  };
+
   // --- Data Aggregation ---
   // 1. Tasks (From Props)
-  const taskItems = initialItems.filter((i) => i.type === "task");
+  const taskItems = items.filter((i) => i.type === "task");
 
   // 2. Plan Reviews (group by student + date)
-  const rawPlanItems = initialItems.filter((i) => i.type === "plan");
+  const rawPlanItems = items.filter((i) => i.type === "plan");
   const groupedPlans = new Map<string, FeedbackItem[]>();
   rawPlanItems.forEach((item) => {
     const key = `${item.studentId}-${toDateKey(item.date)}`;
@@ -238,16 +281,65 @@ export default function FeedbackClient({
   // Apply Filters
   const filteredItems = allItems.filter((item) => {
     if (filterType !== "all" && item.type !== filterType) return false;
+    if (feedbackStatus === "pending" && item.status === "reviewed") return false;
     return true;
   });
 
   const selectedItem = allItems.find((i) => i.id === selectedItemId);
+  const selectedTaskFeedback =
+    selectedItem?.type === "task"
+      ? selectedItem.data?.task_feedback?.[0]?.comment ?? ""
+      : "";
+  const selectedSelfFeedback =
+    selectedItem?.type === "self"
+      ? selectedItem.data?.mentor_comment ??
+        selectedItem.data?.mentorComment ??
+        ""
+      : "";
+  const isTaskReviewed =
+    selectedItem?.type === "task" && selectedItem.status === "reviewed";
+
+  useEffect(() => {
+    if (!selectedItem) {
+      setFeedbackText("");
+      return;
+    }
+
+    if (selectedItem.type === "task") {
+      setFeedbackText(selectedTaskFeedback);
+      return;
+    }
+
+    if (selectedItem.type === "self") {
+      setFeedbackText(selectedSelfFeedback);
+      return;
+    }
+
+    if (selectedItem.type === "plan") {
+      setFeedbackText(publishedFeedback ?? "");
+    }
+  }, [
+    selectedItemId,
+    selectedItem,
+    selectedTaskFeedback,
+    selectedSelfFeedback,
+    publishedFeedback,
+  ]);
 
   // --- Handlers ---
   const handleSendFeedback = async () => {
     if (!selectedItem) return;
 
     if (selectedItem.type === "task") {
+      if (isTaskReviewed) {
+        openModal({
+          title: "이미 피드백 완료",
+          content:
+            "이미 등록된 피드백이 있습니다. 변경이 필요하면 별도 요청해주세요.",
+          type: "confirm",
+        });
+        return;
+      }
       if (!feedbackText.trim()) {
         alert("피드백 내용을 입력해주세요.");
         return;
@@ -280,9 +372,25 @@ export default function FeedbackClient({
             content: "✅ 과제 피드백이 전송되었습니다.",
             type: "success",
           });
-          setSelectedItemId(null);
-          setFeedbackText("");
-          // Ideally refresh list here
+          setItems((prev) =>
+            prev.map((item) => {
+              if (item.id !== selectedItem.id) return item;
+              return {
+                ...item,
+                status: "reviewed",
+                data: {
+                  ...item.data,
+                  task_feedback: [
+                    {
+                      comment: feedbackText,
+                      created_at: new Date().toISOString(),
+                      status: "reviewed",
+                    },
+                  ],
+                },
+              };
+            }),
+          );
         } else {
           openModal({
             title: "전송 실패",
@@ -336,8 +444,18 @@ export default function FeedbackClient({
             content: "✅ 자습 피드백이 전송되었습니다.",
             type: "success",
           });
-          setSelectedItemId(null);
-          setFeedbackText("");
+          setItems((prev) =>
+            prev.map((item) => {
+              if (item.id !== selectedItem.id) return item;
+              return {
+                ...item,
+                data: {
+                  ...item.data,
+                  mentor_comment: feedbackText,
+                },
+              };
+            }),
+          );
         } else {
           openModal({
             title: "전송 실패",
@@ -453,6 +571,31 @@ export default function FeedbackClient({
             </button>
           </div>
 
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setFeedbackStatus("pending")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                feedbackStatus === "pending"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-white border border-gray-200 text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              미피드백
+            </button>
+            <button
+              type="button"
+              onClick={() => setFeedbackStatus("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                feedbackStatus === "all"
+                  ? "bg-gray-900 text-white shadow-md"
+                  : "bg-white border border-gray-200 text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              전체
+            </button>
+          </div>
+
           <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
             {[
               { id: "all", label: "전체", icon: null },
@@ -546,6 +689,11 @@ export default function FeedbackClient({
                   <span className="text-xs font-medium text-gray-600">
                     {item.studentName}
                   </span>
+                  {item.status === "reviewed" && (
+                    <span className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      피드백 완료
+                    </span>
+                  )}
                 </div>
               </div>
             ))
@@ -747,9 +895,20 @@ export default function FeedbackClient({
                                   {sub.name}
                                 </p>
                                 <p className="text-[10px] text-gray-400">
-                                  PDF Document
+                                  {sub.type === "image" ? "Image" : "PDF Document"}
                                 </p>
                               </div>
+                              {sub.fileId ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDownloadAttachment(sub.fileId, sub.name)
+                                  }
+                                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                                >
+                                  <Download size={16} />
+                                </button>
+                              ) : null}
                             </div>
                           ),
                         )}
@@ -765,12 +924,18 @@ export default function FeedbackClient({
                         value={feedbackText}
                         onChange={(e) => setFeedbackText(e.target.value)}
                         placeholder="과제에 대한 피드백을 자세히 남겨주세요."
-                        className="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all resize-none mb-4"
+                        className="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all resize-none mb-4 disabled:bg-gray-100 disabled:text-gray-500"
+                        disabled={isTaskReviewed}
                       />
+                      {isTaskReviewed && (
+                        <p className="text-[11px] text-emerald-600 font-bold mb-3">
+                          이미 피드백이 완료된 과제입니다.
+                        </p>
+                      )}
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={handleSendFeedback}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || isTaskReviewed}
                           className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2 disabled:bg-gray-400 disabled:shadow-none"
                         >
                           <Send size={14} />{" "}

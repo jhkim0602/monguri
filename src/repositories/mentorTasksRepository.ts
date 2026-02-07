@@ -23,6 +23,40 @@ export type MentorTaskRow = {
         id: string;
         submitted_at: string;
         note: string | null;
+        task_submission_files:
+          | {
+              id: string;
+              file_id: string;
+              created_at: string;
+              file: {
+                id: string;
+                bucket: string;
+                path: string;
+                original_name: string;
+                mime_type: string;
+                size_bytes: number;
+                deleted_at: string | null;
+              } | null;
+            }[]
+          | null;
+      }[]
+    | null;
+  mentor_task_materials:
+    | {
+        id: string;
+        file_id: string;
+        source_material_id: string | null;
+        sort_order: number;
+        created_at: string;
+        file: {
+          id: string;
+          bucket: string;
+          path: string;
+          original_name: string;
+          mime_type: string;
+          size_bytes: number;
+          deleted_at: string | null;
+        } | null;
       }[]
     | null;
   task_feedback:
@@ -43,6 +77,15 @@ export type MentorTaskCoreRow = {
   mentor_id: string;
   mentee_id: string;
   status: MentorTaskStatus;
+};
+
+export type MentorTaskMaterialRow = {
+  id: string;
+  task_id: string;
+  file_id: string;
+  source_material_id: string | null;
+  sort_order: number;
+  created_at: string;
 };
 
 export async function listMentorTasksByMenteeId(menteeId: string) {
@@ -70,7 +113,37 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
       task_submissions (
         id,
         submitted_at,
-        note
+        note,
+        task_submission_files (
+          id,
+          file_id,
+          created_at,
+          file:files (
+            id,
+            bucket,
+            path,
+            original_name,
+            mime_type,
+            size_bytes,
+            deleted_at
+          )
+        )
+      ),
+      mentor_task_materials (
+        id,
+        file_id,
+        source_material_id,
+        sort_order,
+        created_at,
+        file:files (
+          id,
+          bucket,
+          path,
+          original_name,
+          mime_type,
+          size_bytes,
+          deleted_at
+        )
       ),
       task_feedback (
         id,
@@ -156,7 +229,37 @@ export async function getTasksByMentorId(mentorId: string) {
       task_submissions (
         id,
         submitted_at,
-        note
+        note,
+        task_submission_files (
+          id,
+          file_id,
+          created_at,
+          file:files (
+            id,
+            bucket,
+            path,
+            original_name,
+            mime_type,
+            size_bytes,
+            deleted_at
+          )
+        )
+      ),
+      mentor_task_materials (
+        id,
+        file_id,
+        source_material_id,
+        sort_order,
+        created_at,
+        file:files (
+          id,
+          bucket,
+          path,
+          original_name,
+          mime_type,
+          size_bytes,
+          deleted_at
+        )
       ),
       task_feedback (
         id,
@@ -209,7 +312,37 @@ export async function getTasksWithSubmissionsByMentorId(mentorId: string) {
       task_submissions (
         id,
         submitted_at,
-        note
+        note,
+        task_submission_files (
+          id,
+          file_id,
+          created_at,
+          file:files (
+            id,
+            bucket,
+            path,
+            original_name,
+            mime_type,
+            size_bytes,
+            deleted_at
+          )
+        )
+      ),
+      mentor_task_materials (
+        id,
+        file_id,
+        source_material_id,
+        sort_order,
+        created_at,
+        file:files (
+          id,
+          bucket,
+          path,
+          original_name,
+          mime_type,
+          size_bytes,
+          deleted_at
+        )
       ),
       task_feedback (
         id,
@@ -288,4 +421,33 @@ export async function createMentorTask(payload: {
   }
 
   return data;
+}
+
+export async function createMentorTaskMaterials(
+  taskId: string,
+  materials: {
+    fileId: string;
+    sourceMaterialId?: string | null;
+    sortOrder?: number;
+  }[],
+) {
+  if (materials.length === 0) return [];
+
+  const payload = materials.map((material, index) => ({
+    task_id: taskId,
+    file_id: material.fileId,
+    source_material_id: material.sourceMaterialId ?? null,
+    sort_order: material.sortOrder ?? index,
+  }));
+
+  const { data, error } = await supabaseServer
+    .from("mentor_task_materials")
+    .insert(payload)
+    .select("id, task_id, file_id, source_material_id, sort_order, created_at");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as MentorTaskMaterialRow[];
 }

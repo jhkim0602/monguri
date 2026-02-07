@@ -10,19 +10,32 @@ import {
   FileText,
   Link as LinkIcon,
   Image as ImageIcon,
+  Upload,
   CheckCircle2,
   Loader2,
   RefreshCw,
 } from "lucide-react";
 
 import { useModal } from "@/contexts/ModalContext";
+import { supabase } from "@/lib/supabaseClient";
 
 type MentorMaterialOption = {
   id: string;
   title: string;
   type: "link" | "pdf" | "image";
-  url: string;
+  url: string | null;
+  file_id: string | null;
+  accessUrl?: string | null;
   created_at: string;
+  file?: {
+    original_name: string;
+  } | null;
+};
+
+type DirectUploadItem = {
+  id: string;
+  file: File;
+  type: "pdf" | "image";
 };
 
 const MATERIAL_TYPE_META: Record<
@@ -98,6 +111,9 @@ export default function AssignTaskModal({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(false);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [directUploads, setDirectUploads] = useState<DirectUploadItem[]>([]);
+  const [uploadingDirectFiles, setUploadingDirectFiles] = useState(false);
+  const [directUploadError, setDirectUploadError] = useState<string | null>(null);
 
   // Form State
   const [subject, setSubject] = useState("국어");
@@ -113,6 +129,43 @@ export default function AssignTaskModal({
       .map((id) => byId.get(id))
       .filter(Boolean) as MentorMaterialOption[];
   }, [libraryMaterials, selectedMaterialIds]);
+
+  const handleDirectUploadChange = (files: FileList | null) => {
+    if (!files) return;
+    const nextItems: DirectUploadItem[] = [];
+    const rejected: string[] = [];
+
+    Array.from(files).forEach((file) => {
+      const lowerType = (file.type || "").toLowerCase();
+      const lowerName = file.name.toLowerCase();
+      const isPdf =
+        lowerType === "application/pdf" || lowerName.endsWith(".pdf");
+      const isImage = lowerType.startsWith("image/");
+
+      if (!isPdf && !isImage) {
+        rejected.push(file.name);
+        return;
+      }
+
+      nextItems.push({
+        id: crypto.randomUUID(),
+        file,
+        type: isPdf ? "pdf" : "image",
+      });
+    });
+
+    if (rejected.length > 0) {
+      setDirectUploadError(
+        `PDF 또는 이미지 파일만 업로드할 수 있습니다: ${rejected.join(", ")}`,
+      );
+    } else {
+      setDirectUploadError(null);
+    }
+
+    if (nextItems.length > 0) {
+      setDirectUploads((prev) => [...prev, ...nextItems]);
+    }
+  };
 
   const loadMaterials = async () => {
     setIsMaterialsLoading(true);
@@ -167,7 +220,81 @@ export default function AssignTaskModal({
     }
 
     setIsSubmitting(true);
+    setUploadingDirectFiles(false);
     try {
+      if (selectedMaterials.some((m) => m.type !== "link" && !m.file_id)) {
+        alert(
+          "자료실 파일 정보가 누락되었습니다. 자료실을 새로고침 후 다시 선택해주세요.",
+        );
+        return;
+      }
+
+      const libraryMaterialsPayload = selectedMaterials.map((material) =>
+        material.type === "link"
+          ? {
+              title: material.title,
+              type: "link",
+              url: material.url,
+              sourceMaterialId: material.id,
+            }
+          : {
+              title: material.title,
+              type: material.type,
+              fileId: material.file_id,
+              sourceMaterialId: material.id,
+            },
+      );
+
+      let directUploadPayload: {
+        title: string;
+        type: "pdf" | "image";
+        file: {
+          bucket: string;
+          path: string;
+          originalName: string;
+          mimeType: string;
+          sizeBytes: number;
+        };
+      }[] = [];
+
+      if (directUploads.length > 0) {
+        if (!mentorId) {
+          alert("로그인이 필요합니다.");
+          return;
+        }
+
+        setUploadingDirectFiles(true);
+        directUploadPayload = [];
+
+        for (const upload of directUploads) {
+          const fileExt = upload.file.name.split(".").pop() || "bin";
+          const fileName = `${crypto.randomUUID()}.${fileExt}`;
+          const filePath = `task-uploads/${mentorId}/${fileName}`;
+          const { error: uploadError } = await supabase.storage
+            .from("materials")
+            .upload(filePath, upload.file, {
+              contentType: upload.file.type || "application/octet-stream",
+              upsert: false,
+            });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          directUploadPayload.push({
+            title: upload.file.name,
+            type: upload.type,
+            file: {
+              bucket: "materials",
+              path: filePath,
+              originalName: upload.file.name,
+              mimeType: upload.file.type || "application/octet-stream",
+              sizeBytes: upload.file.size,
+            },
+          });
+        }
+      }
+
       const response = await fetch("/api/mentor/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -178,10 +305,7 @@ export default function AssignTaskModal({
           description,
           subject,
           deadline: mergedDeadline.toISOString(),
-          materials: selectedMaterials.map((m) => ({
-            title: m.title,
-            url: m.url,
-          })),
+          materials: [...libraryMaterialsPayload, ...directUploadPayload],
         }),
       });
 
@@ -196,6 +320,8 @@ export default function AssignTaskModal({
         setTitle("");
         setDescription("");
         setSelectedMaterialIds([]);
+        setDirectUploads([]);
+        setDirectUploadError(null);
         setDeadline("");
         setDeadlineTime("23:59");
       } else {
@@ -206,6 +332,7 @@ export default function AssignTaskModal({
       console.error(e);
       alert("오류가 발생했습니다.");
     } finally {
+      setUploadingDirectFiles(false);
       setIsSubmitting(false);
     }
   };
@@ -269,7 +396,8 @@ export default function AssignTaskModal({
                 const isSelected = selectedMaterialIds.includes(material.id);
                 const typeMeta = MATERIAL_TYPE_META[material.type];
                 const TypeIcon = typeMeta.icon;
-                const host = getMaterialHost(material.url);
+                const materialUrl = material.accessUrl ?? material.url;
+                const host = materialUrl ? getMaterialHost(materialUrl) : "파일";
                 const createdAtLabel = formatMaterialDate(material.created_at);
 
                 return (
@@ -457,6 +585,80 @@ export default function AssignTaskModal({
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+              직접 업로드 (PDF/이미지)
+            </label>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor="direct-task-upload"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-3 text-sm font-bold text-gray-500 hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-600 transition-all cursor-pointer"
+                >
+                  <Upload size={16} />
+                  파일 선택하기
+                </label>
+                <input
+                  id="direct-task-upload"
+                  type="file"
+                  accept="application/pdf,image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(event) => {
+                    handleDirectUploadChange(event.target.files);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </div>
+
+              {directUploadError && (
+                <p className="text-xs text-red-500 font-semibold">
+                  {directUploadError}
+                </p>
+              )}
+
+              {directUploads.length > 0 && (
+                <div className="space-y-2">
+                  {directUploads.map((upload) => (
+                    <div
+                      key={upload.id}
+                      className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {upload.type === "pdf" ? (
+                          <FileText size={14} className="text-red-500" />
+                        ) : (
+                          <ImageIcon size={14} className="text-purple-500" />
+                        )}
+                        <span className="truncate text-gray-700 font-medium">
+                          {upload.file.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDirectUploads((prev) =>
+                            prev.filter((item) => item.id !== upload.id),
+                          )
+                        }
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {uploadingDirectFiles && (
+                <div className="text-xs text-blue-500 font-semibold flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" />
+                  파일 업로드 중...
                 </div>
               )}
             </div>

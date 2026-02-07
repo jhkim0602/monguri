@@ -4,12 +4,33 @@ import {
   updateMentorTaskStatus,
 } from "@/repositories/mentorTasksRepository";
 import { getProfileById } from "@/repositories/profilesRepository";
-import { createTaskSubmission } from "@/repositories/taskSubmissionsRepository";
+import {
+  createTaskSubmission,
+  createTaskSubmissionFiles,
+} from "@/repositories/taskSubmissionsRepository";
+import { createFile } from "@/repositories/filesRepository";
+
+type AttachmentMetaInput = {
+  bucket: string;
+  path: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  checksum?: string | null;
+};
+
+const isAllowedAttachment = (mimeType: string, name: string) => {
+  const normalized = mimeType.toLowerCase();
+  if (normalized === "application/pdf") return true;
+  if (normalized.startsWith("image/")) return true;
+  return name.toLowerCase().endsWith(".pdf");
+};
 
 export async function createMenteeTaskSubmission(
   taskId: string,
   menteeId: string,
-  note: string | null
+  note: string | null,
+  attachments: AttachmentMetaInput[]
 ) {
   const profile = await getProfileById(menteeId);
 
@@ -35,7 +56,33 @@ export async function createMenteeTaskSubmission(
     throw new HttpError(409, "Task feedback already completed.");
   }
 
+  if (!attachments || attachments.length === 0) {
+    throw new HttpError(400, "At least one attachment is required.");
+  }
+
+  for (const attachment of attachments) {
+    if (!isAllowedAttachment(attachment.mimeType, attachment.originalName)) {
+      throw new HttpError(400, "Invalid attachment type.");
+    }
+  }
+
   const submission = await createTaskSubmission(taskId, menteeId, note);
+
+  const fileIds: string[] = [];
+  for (const attachment of attachments) {
+    const file = await createFile({
+      bucket: attachment.bucket,
+      path: attachment.path,
+      originalName: attachment.originalName,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+      uploaderId: menteeId,
+      checksum: attachment.checksum ?? null,
+    });
+    fileIds.push(file.id);
+  }
+
+  await createTaskSubmissionFiles(submission.id, fileIds);
 
   if (task.status !== "submitted") {
     await updateMentorTaskStatus(taskId, "submitted");
@@ -48,6 +95,7 @@ export async function createMenteeTaskSubmission(
       menteeId: submission.mentee_id,
       submittedAt: submission.submitted_at,
       note: submission.note,
+      attachments: fileIds.map((fileId) => ({ fileId })),
     },
     taskStatus: "submitted",
   };

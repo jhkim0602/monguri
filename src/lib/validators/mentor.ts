@@ -29,10 +29,33 @@ export const mentorTaskCreateBodySchema = z
     deadline: z.string().min(1),
     materials: z
       .array(
-        z.object({
-          title: z.string().min(1).max(255),
-          url: z.string().max(2000).optional().nullable(),
-        }),
+        z
+          .object({
+            title: z.string().min(1).max(255),
+            type: z.enum(["link", "pdf", "image"]),
+            url: z.string().max(2000).optional().nullable(),
+            fileId: uuidSchema.optional().nullable(),
+            sourceMaterialId: uuidSchema.optional().nullable(),
+            file: z
+              .object({
+                bucket: z.string().min(1).max(200),
+                path: z.string().min(1).max(1000),
+                originalName: z.string().min(1).max(255),
+                mimeType: z.string().min(1).max(255),
+                sizeBytes: z.number().int().nonnegative(),
+                checksum: z.string().max(128).optional().nullable(),
+              })
+              .optional(),
+          })
+          .refine(
+            (data) => {
+              if (data.type === "link") {
+                return Boolean(data.url);
+              }
+              return Boolean(data.fileId || data.file);
+            },
+            { message: "Invalid material payload.", path: ["type"] },
+          ),
       )
       .optional(),
   })
@@ -41,12 +64,32 @@ export const mentorTaskCreateBodySchema = z
     path: ["deadline"],
   });
 
-export const mentorMaterialsCreateBodySchema = z.object({
-  mentorId: uuidSchema,
-  title: z.string().min(1).max(200),
-  type: z.enum(["link", "pdf", "image"]).optional(),
-  url: z.string().min(1).max(2000),
-});
+export const mentorMaterialsCreateBodySchema = z
+  .object({
+    mentorId: uuidSchema,
+    title: z.string().min(1).max(200),
+    type: z.enum(["link", "pdf", "image"]),
+    url: z.string().min(1).max(2000).optional().nullable(),
+    file: z
+      .object({
+        bucket: z.string().min(1).max(200),
+        path: z.string().min(1).max(1000),
+        originalName: z.string().min(1).max(255),
+        mimeType: z.string().min(1).max(255),
+        sizeBytes: z.number().int().nonnegative(),
+        checksum: z.string().max(128).optional().nullable(),
+      })
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.type === "link") {
+        return Boolean(data.url);
+      }
+      return Boolean(data.file);
+    },
+    { message: "Invalid material payload.", path: ["type"] },
+  );
 
 export const mentorMaterialsDeleteQuerySchema = z.object({
   mentorId: uuidSchema,

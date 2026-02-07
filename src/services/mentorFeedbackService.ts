@@ -36,10 +36,32 @@ export async function getPendingFeedbackItems(
     status: row.status === "feedback_completed" ? "reviewed" : row.status,
     data: {
       ...row,
-      submissions: row.task_submissions?.map((s) => ({
-        name: `제출 파일 (${new Date(s.submitted_at).toLocaleDateString()})`, // Placeholder name as we don't have file names in schema yet
-        url: "#", // Placeholder
-      })),
+      submissions:
+        row.task_submissions?.flatMap((submission) => {
+          const files = submission.task_submission_files ?? [];
+          if (files.length === 0) {
+            return [
+              {
+                name: `제출 파일 (${new Date(submission.submitted_at).toLocaleDateString()})`,
+                fileId: "",
+                type: "file",
+              },
+            ];
+          }
+
+          return files.map((item) => {
+            const file = item.file;
+            const mimeType = file?.mime_type ?? "";
+            const isPdf =
+              mimeType === "application/pdf" ||
+              (file?.original_name ?? "").toLowerCase().endsWith(".pdf");
+            return {
+              name: file?.original_name ?? "첨부 파일",
+              fileId: item.file_id,
+              type: isPdf ? "pdf" : "image",
+            };
+          });
+        }) ?? [],
     },
   }));
 

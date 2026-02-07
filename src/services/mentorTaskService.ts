@@ -3,6 +3,7 @@ import {
   createTaskFeedback,
   getMentorTaskById,
   getTasksWithSubmissionsByMentorId,
+  createMentorTaskMaterials,
 } from "@/repositories/mentorTasksRepository";
 import {
   getPlannerTaskById,
@@ -12,6 +13,7 @@ import {
 import { getMenteesByMentorId } from "@/repositories/mentorMenteeRepository";
 import { getProfileById } from "@/repositories/profilesRepository";
 import { getSubjectBySlug } from "@/repositories/subjectsRepository";
+import { createFile } from "@/repositories/filesRepository";
 import { HttpError } from "@/lib/httpErrors";
 import { adaptMentorTaskToUi } from "@/lib/mentorAdapters";
 import {
@@ -25,7 +27,21 @@ type CreateMentorTaskInput = {
   description?: string | null;
   subjectSlug?: string | null;
   deadline: string;
-  materials?: { title: string; url?: string | null }[];
+  materials?: {
+    title: string;
+    type: "link" | "pdf" | "image";
+    url?: string | null;
+    fileId?: string | null;
+    sourceMaterialId?: string | null;
+    file?: {
+      bucket: string;
+      path: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      checksum?: string | null;
+    };
+  }[];
 };
 
 export async function getPendingFeedbackTasks(mentorId: string) {
@@ -165,11 +181,55 @@ export async function createMentorTaskForMentee(
     description: input.description ?? null,
     status: "pending",
     deadline: new Date(deadlineTime).toISOString(),
-    materials: input.materials ?? [],
+    materials: (input.materials ?? [])
+      .filter((material) => material.type === "link")
+      .map((material) => ({
+        title: material.title,
+        url: material.url ?? null,
+        type: "link",
+      })),
   });
 
   if (!created) {
     throw new HttpError(500, "Failed to create mentor task.");
+  }
+
+  const fileMaterials = (input.materials ?? []).filter(
+    (material) => material.type !== "link",
+  );
+
+  if (fileMaterials.length > 0) {
+    const materialRows: {
+      fileId: string;
+      sourceMaterialId?: string | null;
+    }[] = [];
+
+    for (const material of fileMaterials) {
+      let fileId = material.fileId ?? null;
+      if (!fileId && material.file) {
+        const file = await createFile({
+          bucket: material.file.bucket,
+          path: material.file.path,
+          originalName: material.file.originalName,
+          mimeType: material.file.mimeType,
+          sizeBytes: material.file.sizeBytes,
+          uploaderId: mentorId,
+          checksum: material.file.checksum ?? null,
+        });
+        fileId = file.id;
+      }
+
+      if (!fileId) {
+        throw new HttpError(400, "Task material file is missing.");
+      }
+
+      materialRows.push({
+        fileId,
+        sourceMaterialId: material.sourceMaterialId ?? null,
+      });
+    }
+
+    await createMentorTaskMaterials(created.id, materialRows);
   }
 
   return created;

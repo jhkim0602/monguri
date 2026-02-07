@@ -22,9 +22,19 @@ export const plannerTaskIdParamSchema = z.object({
   taskId: uuidSchema,
 });
 
+const attachmentMetaSchema = z.object({
+  bucket: z.string().min(1).max(200),
+  path: z.string().min(1).max(1000),
+  originalName: z.string().min(1).max(255),
+  mimeType: z.string().min(1).max(255),
+  sizeBytes: z.number().int().nonnegative(),
+  checksum: z.string().max(128).optional().nullable(),
+});
+
 export const taskSubmissionBodySchema = z.object({
   menteeId: uuidSchema,
   note: z.string().max(2000).optional().nullable(),
+  attachments: z.array(attachmentMetaSchema).min(1),
 });
 
 export const taskFeedbackQuerySchema = z.object({

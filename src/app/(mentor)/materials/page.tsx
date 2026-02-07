@@ -13,16 +13,32 @@ import {
   Search,
   CheckCircle2,
 } from "lucide-react";
-import { MentorMaterial } from "@/repositories/materialsRepository"; // We might need to define this type locally if not exported
-// Actually MentorMaterial is likely just a type.
-// If it's not exported, I'll define it here.
-// Checking Step 2120, it imports from "@/repositories/materialsRepository".
-
 import { supabase } from "@/lib/supabaseClient";
+
+type MentorMaterialItem = {
+  id: string;
+  mentor_id: string | null;
+  title: string;
+  type: "link" | "pdf" | "image";
+  url: string | null;
+  file_id: string | null;
+  accessUrl?: string | null;
+  created_at: string;
+  file?: {
+    id: string;
+    bucket: string;
+    path: string;
+    original_name: string;
+    mime_type: string;
+    size_bytes: number;
+    created_at: string;
+    deleted_at: string | null;
+  } | null;
+};
 
 export default function MaterialsPage() {
   const [mentorId, setMentorId] = useState<string | null>(null);
-  const [materials, setMaterials] = useState<MentorMaterial[]>([]);
+  const [materials, setMaterials] = useState<MentorMaterialItem[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,7 +51,7 @@ export default function MaterialsPage() {
       );
       const json = await res.json();
       if (json.success && json.data) {
-        setMaterials(json.data);
+        setMaterials(json.data as MentorMaterialItem[]);
       }
     } catch (e) {
       console.error("Failed to fetch materials", e);
@@ -84,6 +100,41 @@ export default function MaterialsPage() {
   const filteredMaterials = materials.filter((m) =>
     m.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const handleOpenMaterial = async (material: MentorMaterialItem) => {
+    if (material.type === "link") {
+      if (material.url) {
+        window.open(material.url, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    if (!material.file_id) {
+      alert("파일 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    const res = await fetch(`/api/files/${material.file_id}?mode=preview`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      alert("파일을 열 수 없습니다.");
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
 
   return (
     <div className="p-8 space-y-8 min-h-screen bg-gray-50/50">
@@ -156,15 +207,17 @@ export default function MaterialsPage() {
                 <h3 className="font-bold text-gray-900 text-sm truncate mb-0.5">
                   {material.title}
                 </h3>
-                <a
-                  href={material.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => handleOpenMaterial(material)}
                   className="text-xs text-gray-400 hover:text-blue-500 transition-colors truncate flex items-center gap-1 max-w-md"
                 >
-                  <span className="truncate">{material.url}</span>
+                  <span className="truncate">
+                    {material.type === "link"
+                      ? material.url ?? "링크 없음"
+                      : material.file?.original_name ?? "첨부 파일"}
+                  </span>
                   <ExternalLink size={10} className="shrink-0" />
-                </a>
+                </button>
               </div>
             </div>
 
@@ -234,13 +287,22 @@ function AddMaterialModal({
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
+  const bucketName = "materials";
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    let finalUrl = url;
+    let uploadedFileMeta:
+      | {
+          bucket: string;
+          path: string;
+          originalName: string;
+          mimeType: string;
+          sizeBytes: number;
+        }
+      | null = null;
 
     try {
       if (!mentorId) {
@@ -256,17 +318,18 @@ function AddMaterialModal({
         const filePath = `${type}s/${fileName}`; // e.g. pdfs/123.pdf
 
         const { error: uploadError } = await supabase.storage
-          .from("materials")
+          .from(bucketName)
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("materials").getPublicUrl(filePath);
-
-        finalUrl = publicUrl;
-      } else if (type !== "link" && !file && !url) {
+        uploadedFileMeta = {
+          bucket: bucketName,
+          path: filePath,
+          originalName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        };
+      } else if (type !== "link" && !file) {
         alert("파일을 선택해주세요.");
         setIsSubmitting(false);
         setUploadProgress("");
@@ -274,10 +337,19 @@ function AddMaterialModal({
       }
 
       setUploadProgress("정보 저장 중...");
+      if (type !== "link" && !uploadedFileMeta) {
+        throw new Error("파일 업로드 정보를 찾을 수 없습니다.");
+      }
+
+      const payload =
+        type === "link"
+          ? { mentorId, title, type, url }
+          : { mentorId, title, type, file: uploadedFileMeta ?? undefined };
+
       const response = await fetch("/api/mentor/materials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mentorId, title, url: finalUrl, type }),
+        body: JSON.stringify(payload),
       });
       const res = await response.json();
 
@@ -433,7 +505,7 @@ function AddMaterialModal({
                 </label>
                 <div className="relative group">
                   <input
-                    required={!url} // New upload requires file
+                    required
                     type="file"
                     accept={type === "pdf" ? ".pdf" : "image/*"}
                     className="hidden"

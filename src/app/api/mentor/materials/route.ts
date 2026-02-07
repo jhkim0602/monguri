@@ -44,11 +44,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const data = await createMentorMaterial(parsed.data.mentorId, {
-      title: parsed.data.title,
-      type: parsed.data.type,
-      url: parsed.data.url,
-    });
+    const data =
+      parsed.data.type === "link"
+        ? await createMentorMaterial(parsed.data.mentorId, {
+            title: parsed.data.title,
+            type: "link",
+            url: parsed.data.url ?? "",
+          })
+        : await createMentorMaterial(parsed.data.mentorId, {
+            title: parsed.data.title,
+            type: parsed.data.type,
+            file: parsed.data.file!,
+          });
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
