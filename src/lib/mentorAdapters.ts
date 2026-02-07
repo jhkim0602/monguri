@@ -72,6 +72,24 @@ export interface StudentDetailTaskUi {
   timeSpent: number;
   hasMentorResponse?: boolean;
   mentorComment?: string;
+  status?: "pending" | "submitted" | "feedback_completed";
+  attachments?: {
+    id?: string;
+    fileId?: string;
+    name: string;
+    type: "pdf" | "image";
+    url?: string | null;
+    previewUrl?: string | null;
+  }[];
+  submissions?: {
+    id?: string;
+    fileId?: string;
+    name: string;
+    type: "pdf" | "image";
+    url?: string | null;
+    previewUrl?: string | null;
+  }[];
+  submissionNote?: string | null;
   startTime?: string;
   endTime?: string;
 }
@@ -106,11 +124,85 @@ export function adaptPlannerTaskToDetailUi(
 export function adaptMentorTaskToDetailUi(
   row: MentorTaskRow,
 ): StudentDetailTaskUi {
+  const isPdf = (mimeType: string | null | undefined, name: string) => {
+    const normalized = (mimeType ?? "").toLowerCase();
+    if (normalized === "application/pdf") return true;
+    return name.toLowerCase().endsWith(".pdf");
+  };
+
+  const buildAttachments = () => {
+    const materials = row.mentor_task_materials ?? [];
+    if (materials.length === 0) return [];
+
+    const sorted = [...materials].sort(
+      (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+    );
+
+    return sorted
+      .map((material) => {
+        const file = material.file;
+        if (!file || file.deleted_at) return null;
+        const type: "pdf" | "image" = isPdf(
+          file.mime_type,
+          file.original_name,
+        )
+          ? "pdf"
+          : "image";
+
+        return {
+          id: material.id,
+          fileId: material.file_id,
+          name: file.original_name || "첨부파일",
+          type,
+          url: null,
+          previewUrl: null,
+        };
+      })
+      .filter(Boolean) as StudentDetailTaskUi["attachments"];
+  };
+
+  const buildSubmissions = () => {
+    const submissions = row.task_submissions ?? [];
+    if (submissions.length === 0) {
+      return { files: [], note: null as string | null };
+    }
+
+    const latest = [...submissions].sort((a, b) => {
+      const aTime = new Date(a.submitted_at).getTime();
+      const bTime = new Date(b.submitted_at).getTime();
+      return bTime - aTime;
+    })[0];
+
+    const files = (latest.task_submission_files ?? [])
+      .map((item) => {
+        const file = item.file;
+        if (!file || file.deleted_at) return null;
+        const type: "pdf" | "image" = isPdf(
+          file.mime_type,
+          file.original_name,
+        )
+          ? "pdf"
+          : "image";
+        return {
+          id: item.id,
+          fileId: item.file_id,
+          name: file.original_name || "제출 파일",
+          type,
+          url: null,
+          previewUrl: null,
+        };
+      })
+      .filter(Boolean) as StudentDetailTaskUi["submissions"];
+
+    return { files, note: latest.note ?? null };
+  };
+
   const subjectData = Array.isArray(row.subjects)
     ? row.subjects[0]
     : row.subjects;
 
   const latestFeedback = row.task_feedback?.[0];
+  const submissionData = buildSubmissions();
   const isCompleted =
     row.status === "submitted" || row.status === "feedback_completed";
 
@@ -127,5 +219,9 @@ export function adaptMentorTaskToDetailUi(
     timeSpent: 0, // Mentor tasks might not track time yet
     hasMentorResponse: Boolean(latestFeedback),
     mentorComment: latestFeedback?.comment || undefined,
+    status: row.status,
+    attachments: buildAttachments(),
+    submissions: submissionData.files,
+    submissionNote: submissionData.note,
   };
 }

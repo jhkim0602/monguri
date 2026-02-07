@@ -47,7 +47,9 @@ export async function POST(request: Request) {
     const data = await createMentorMaterial(parsed.data.mentorId, {
       title: parsed.data.title,
       type: parsed.data.type,
-      url: parsed.data.url,
+      ...(parsed.data.type === "link"
+        ? { url: parsed.data.url ?? "" }
+        : { file: parsed.data.file! }),
     });
 
     return NextResponse.json({ success: true, data });

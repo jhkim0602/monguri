@@ -21,6 +21,24 @@ type ApiMentorTask = {
     bg: string;
     text: string;
   } | null;
+  attachments?: {
+    id: string;
+    fileId: string;
+    name: string;
+    type: "pdf" | "image";
+    url: string | null;
+    previewUrl: string | null;
+  }[];
+  submissions?: {
+    id: string;
+    fileId: string;
+    name: string;
+    type: "pdf" | "image";
+    url?: string | null;
+    previewUrl?: string | null;
+  }[];
+  submissionNote?: string | null;
+  submittedAt?: string | null;
   latestSubmission?: {
     id: string;
     submittedAt: string;
@@ -57,6 +75,8 @@ export type MentorTaskLike = {
   completed: boolean;
   studyRecord: any;
   hasMentorResponse: boolean;
+  submissionNote?: string | null;
+  submittedAt?: string | null;
   startTime?: string;
   endTime?: string;
   recurringGroupId?: string | null;
@@ -102,8 +122,8 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
       mentorFeedback,
       mentorComment: mentorFeedback,
       deadline: parseDateString(task.deadline),
-      attachments: [],
-      submissions: [],
+      attachments: task.attachments ?? [],
+      submissions: task.submissions ?? [],
       feedbackFiles: [],
       isMentorTask: true,
       completed: task.status === "feedback_completed",
@@ -112,6 +132,9 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
         typeof task.hasMentorResponse === "boolean"
           ? task.hasMentorResponse
           : Boolean(task.latestFeedback),
+      submissionNote: task.submissionNote ?? task.latestSubmission?.note ?? null,
+      submittedAt:
+        task.submittedAt ?? task.latestSubmission?.submittedAt ?? null,
     };
   });
 }

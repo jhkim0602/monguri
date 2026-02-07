@@ -31,7 +31,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     const result = await createMenteeTaskSubmission(
       paramsParsed.data.taskId,
       bodyParsed.data.menteeId,
-      bodyParsed.data.note ?? null
+      bodyParsed.data.note ?? null,
+      bodyParsed.data.attachments
     );
 
     return NextResponse.json(result, { status: 201 });
