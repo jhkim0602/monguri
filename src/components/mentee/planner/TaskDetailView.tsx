@@ -55,6 +55,7 @@ interface TaskDetailViewProps {
     };
     userQuestion?: string;
     hasMentorResponse?: boolean;
+    recurringGroupId?: string | null;
   };
   mode?: "page" | "modal";
   onClose?: () => void;

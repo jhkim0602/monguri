@@ -61,5 +61,5 @@ export async function listWeeklyScheduleEventsByMenteeId(
     throw new Error(error.message);
   }
 
-  return (data ?? []) as WeeklyScheduleEventRow[];
+  return (data ?? []) as unknown as WeeklyScheduleEventRow[];
 }

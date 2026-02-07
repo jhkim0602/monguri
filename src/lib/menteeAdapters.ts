@@ -59,6 +59,7 @@ export type MentorTaskLike = {
   hasMentorResponse: boolean;
   startTime?: string;
   endTime?: string;
+  recurringGroupId?: string | null;
 };
 
 const DEFAULT_BADGE = {
@@ -75,10 +76,10 @@ export const parseDateString = (value: string | null) => {
 export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
   return tasks.map((task) => {
     const subject = task.subject;
-    const fallbackCategory =
-      (subject?.slug &&
-        DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
-      DEFAULT_CATEGORIES[0];
+    const fallbackCategory = subject?.slug
+      ? DEFAULT_CATEGORIES.find((c) => c.id === subject.slug) ??
+        DEFAULT_CATEGORIES[0]
+      : DEFAULT_CATEGORIES[0];
     const subjectName = subject?.name ?? fallbackCategory?.name ?? "과목";
     const subjectColor =
       subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
@@ -125,6 +126,7 @@ type ApiPlannerTask = {
   timeSpentSec: number | null;
   startTime: string | null;
   endTime: string | null;
+  recurringGroupId: string | null;
   createdAt: string;
 };
 
@@ -153,6 +155,7 @@ export type PlannerTaskLike = {
   hasMentorResponse?: boolean;
   startTime?: string;
   endTime?: string;
+  recurringGroupId?: string | null;
 };
 
 export function adaptPlannerTasksToUi(
@@ -160,10 +163,10 @@ export function adaptPlannerTasksToUi(
 ): PlannerTaskLike[] {
   return tasks.map((task) => {
     const subject = task.subject;
-    const fallbackCategory =
-      (subject?.slug &&
-        DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
-      DEFAULT_CATEGORIES[0];
+    const fallbackCategory = subject?.slug
+      ? DEFAULT_CATEGORIES.find((c) => c.id === subject.slug) ??
+        DEFAULT_CATEGORIES[0]
+      : DEFAULT_CATEGORIES[0];
     const subjectName = subject?.name ?? fallbackCategory?.name ?? "과목";
     const subjectColor =
       subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
@@ -195,6 +198,7 @@ export function adaptPlannerTasksToUi(
       hasMentorResponse: false,
       startTime: task.startTime ?? undefined,
       endTime: task.endTime ?? undefined,
+      recurringGroupId: task.recurringGroupId,
     };
   });
 }
@@ -220,10 +224,10 @@ export function adaptPlanEventsToUi(
 ): ScheduleEventLike[] {
   return events.map((event) => {
     const subject = event.subject;
-    const fallbackCategory =
-      (subject?.slug &&
-        DEFAULT_CATEGORIES.find((c) => c.id === subject.slug)) ??
-      DEFAULT_CATEGORIES[0];
+    const fallbackCategory = subject?.slug
+      ? DEFAULT_CATEGORIES.find((c) => c.id === subject.slug) ??
+        DEFAULT_CATEGORIES[0]
+      : DEFAULT_CATEGORIES[0];
 
     return {
       id: event.id,

@@ -99,7 +99,7 @@ export default function HomeProgress({
             if (stats[key]) {
                 stats[key].total++;
                 // Check status logic
-                if (task.status === 'submitted' || task.status === 'feedback_completed' || task.status === 'completed') {
+                if (task.status === 'submitted' || task.status === 'feedback_completed') {
                     stats[key].completed++;
                 }
             }

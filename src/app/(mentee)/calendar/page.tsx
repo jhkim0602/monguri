@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
@@ -27,6 +27,18 @@ export default function CalendarPage() {
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    // Add Task Modal State
+    const [eventTitle, setEventTitle] = useState("");
+    const [eventCategoryId, setEventCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
+    const [eventDate, setEventDate] = useState("");
+    const [recurrenceType, setRecurrenceType] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
+    const [repeatDays, setRepeatDays] = useState<number[]>([1]);
+    const [repeatStart, setRepeatStart] = useState("");
+    const [repeatEnd, setRepeatEnd] = useState("");
+    const [monthlyDay, setMonthlyDay] = useState(1);
 
     const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
     const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
@@ -34,6 +46,119 @@ export default function CalendarPage() {
     const [dailyRecords, setDailyRecords] = useState<DailyRecordLike[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
+
+    const pad2 = (value: number) => String(value).padStart(2, "0");
+    const formatDateInput = (date: Date) =>
+        `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    const parseDateInput = (value: string) => {
+        const [year, month, day] = value.split("-").map(Number);
+        return new Date(year, month - 1, day);
+    };
+    const addDays = (date: Date, days: number) =>
+        new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+
+    const openAddModal = (date?: Date) => {
+        const baseDate = date || selectedDate || new Date();
+        const baseValue = formatDateInput(baseDate);
+        setEventTitle("");
+        setEventCategoryId(DEFAULT_CATEGORIES[0].id);
+        setEventDate(baseValue);
+        setRepeatStart(baseValue);
+        setRepeatEnd(formatDateInput(addDays(baseDate, 28)));
+        setRepeatDays([baseDate.getDay()]);
+        setRecurrenceType('none');
+        setMonthlyDay(baseDate.getDate());
+        setIsAddModalOpen(true);
+    };
+
+    const getRepeatDates = () => {
+        if (!eventDate) return [];
+        if (recurrenceType === 'none') return [parseDateInput(eventDate)];
+        if (!repeatStart || !repeatEnd) return [];
+        const start = parseDateInput(repeatStart);
+        const end = parseDateInput(repeatEnd);
+        const dates: Date[] = [];
+        if (recurrenceType === 'monthly') {
+            const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+            const last = new Date(end.getFullYear(), end.getMonth(), 1);
+            while (cursor <= last) {
+                const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+                if (monthlyDay <= daysInMonth) {
+                    const target = new Date(cursor.getFullYear(), cursor.getMonth(), monthlyDay);
+                    if (target >= start && target <= end) {
+                        dates.push(target);
+                    }
+                }
+                cursor.setMonth(cursor.getMonth() + 1);
+            }
+            return dates;
+        }
+        if (repeatDays.length === 0) return [];
+        const cursor = new Date(start);
+        while (cursor <= end) {
+            const diffDays = Math.floor((cursor.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            const weekIndex = Math.floor(diffDays / 7);
+            const isActiveWeek = recurrenceType === 'biweekly' ? weekIndex % 2 === 0 : true;
+            if (isActiveWeek && repeatDays.includes(cursor.getDay())) {
+                dates.push(new Date(cursor));
+            }
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        return dates;
+    };
+
+    const handleSaveEvent = async () => {
+        const title = eventTitle.trim();
+        const dates = getRepeatDates();
+        if (!title || dates.length === 0) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                alert("로그인이 필요합니다.");
+                return;
+            }
+
+            const tasksPayload = dates.map(date => ({
+                title,
+                subjectId: eventCategoryId === 'others' ? null : eventCategoryId,
+                date: formatDateInput(date),
+                completed: false,
+                timeSpentSec: 0,
+            }));
+
+            let recurrenceRule = undefined;
+            if (recurrenceType !== 'none') {
+                recurrenceRule = {
+                    type: recurrenceType,
+                    start: repeatStart,
+                    end: repeatEnd,
+                    days: repeatDays,
+                    monthlyDay
+                };
+            }
+
+            const res = await fetch(`/api/mentee/planner/tasks/batch?menteeId=${user.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tasks: tasksPayload,
+                    recurrenceRule
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to save");
+            }
+
+            setRefreshKey(prev => prev + 1);
+            setIsAddModalOpen(false);
+        } catch (e: any) {
+            console.error("Save error:", e);
+            alert(`일정 저장에 실패했습니다: ${e.message}`);
+        }
+    };
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -139,7 +264,7 @@ export default function CalendarPage() {
         return () => {
             isMounted = false;
         };
-    }, [currentDate]);
+    }, [currentDate, refreshKey]);
 
     const scheduleEvents = useMemo<ScheduleEventLike[]>(() => {
         const events: ScheduleEventLike[] = [];
@@ -249,7 +374,7 @@ export default function CalendarPage() {
                 variant="clean"
                 rightElement={
                     <button
-                        onClick={() => alert("Coming soon!")}
+                        onClick={() => openAddModal(selectedDate || new Date())}
                         className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-primary/20 hover:scale-105 active:scale-95"
                     >
                         <Plus size={16} strokeWidth={3} />
@@ -552,6 +677,199 @@ export default function CalendarPage() {
                     onClose={() => setIsModalOpen(false)}
                     task={selectedTask}
                 />
+            )}
+
+            {/* Add Task Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center px-6">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setIsAddModalOpen(false)}
+                    />
+                    <div className="relative w-full max-w-sm bg-white rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+                        <div className="px-6 pt-8 pb-4 flex justify-between items-center border-b border-gray-50">
+                            <div>
+                                <h3 className="text-lg font-black text-gray-900">캘린더 할 일 추가</h3>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">Planner Style</p>
+                            </div>
+                            <button
+                                onClick={() => setIsAddModalOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-6 space-y-5">
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">할 일 제목</label>
+                                <input
+                                    value={eventTitle}
+                                    onChange={(e) => setEventTitle(e.target.value)}
+                                    placeholder="예: 모의고사 1회분 풀기"
+                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">과목 선택</label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {DEFAULT_CATEGORIES.map((category) => (
+                                        <button
+                                            key={category.id}
+                                            onClick={() => setEventCategoryId(category.id)}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${eventCategoryId === category.id
+                                                ? `bg-white border-gray-300 shadow-sm`
+                                                : `bg-gray-50 border-gray-100`
+                                                }`}
+                                            style={{ color: category.textColorHex }}
+                                        >
+                                            {category.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">날짜</label>
+                                <input
+                                    type="date"
+                                    value={eventDate}
+                                    onChange={(e) => {
+                                        const nextValue = e.target.value;
+                                        setEventDate(nextValue);
+                                        const nextDate = parseDateInput(nextValue);
+                                        setMonthlyDay(nextDate.getDate());
+                                        if (recurrenceType === 'none' || !repeatStart || !repeatEnd) {
+                                            setRepeatStart(nextValue);
+                                            setRepeatEnd(formatDateInput(addDays(nextDate, 28)));
+                                        }
+                                    }}
+                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
+                                    <Repeat size={14} /> 반복 설정
+                                </div>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {([
+                                        { key: 'none', label: '없음' },
+                                        { key: 'weekly', label: '매주' },
+                                        { key: 'biweekly', label: '격주' },
+                                        { key: 'monthly', label: '매월' },
+                                    ] as const).map((option) => {
+                                        const isSelected = recurrenceType === option.key;
+                                        return (
+                                            <button
+                                                key={option.key}
+                                                onClick={() => setRecurrenceType(option.key)}
+                                                className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+                                                    }`}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {recurrenceType !== 'none' && (
+                                <div className="space-y-4">
+                                    {(recurrenceType === 'weekly' || recurrenceType === 'biweekly') && (
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">요일 선택</label>
+                                            <div className="grid grid-cols-7 gap-2">
+                                                {dayNames.map((label, idx) => {
+                                                    const isSelected = repeatDays.includes(idx);
+                                                    return (
+                                                        <button
+                                                            key={label}
+                                                            onClick={() => {
+                                                                setRepeatDays((prev) =>
+                                                                    prev.includes(idx)
+                                                                        ? prev.filter((d) => d !== idx)
+                                                                        : [...prev, idx]
+                                                                );
+                                                            }}
+                                                            className={`h-9 rounded-xl text-[11px] font-black transition-all ${isSelected ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+                                                                }`}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {recurrenceType === 'monthly' && (
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">매월 날짜</label>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    max={31}
+                                                    value={monthlyDay}
+                                                    onChange={(e) => setMonthlyDay(Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
+                                                    className="w-24 bg-gray-50 border border-gray-100 rounded-2xl px-4 py-2 text-sm font-black focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                                                />
+                                                <span className="text-xs font-bold text-gray-500">일</span>
+                                                <span className="text-[11px] text-gray-400 font-medium">예: 1, 15, 28</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">시작</label>
+                                            <input
+                                                type="date"
+                                                value={repeatStart}
+                                                onChange={(e) => setRepeatStart(e.target.value)}
+                                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">종료</label>
+                                            <input
+                                                type="date"
+                                                value={repeatEnd}
+                                                onChange={(e) => setRepeatEnd(e.target.value)}
+                                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl px-4 py-3 text-xs font-bold text-blue-700">
+                                        총 {getRepeatDates().length}회 일정이 생성됩니다.
+                                    </div>
+                                    <div className="text-[10px] text-gray-400 font-bold">
+                                        미리보기: {getRepeatDates().slice(0, 5).map(date => `${date.getMonth() + 1}/${date.getDate()}`).join(', ')}
+                                        {getRepeatDates().length > 5 ? " ..." : ""}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="px-6 pb-8 pt-2 flex gap-2">
+                            <button
+                                onClick={() => setIsAddModalOpen(false)}
+                                className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 text-sm font-bold hover:bg-gray-50"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleSaveEvent}
+                                className="flex-1 h-12 rounded-2xl bg-gray-900 text-white text-sm font-black hover:bg-black"
+                            >
+                                일정 생성
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

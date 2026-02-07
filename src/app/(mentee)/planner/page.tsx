@@ -15,7 +15,7 @@ import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import Header from "@/components/mentee/layout/Header";
 import PlannerTasks from "@/components/mentee/planner/PlannerTasks";
 import StudyTimeline from "@/components/mentee/planner/StudyTimeline";
-import TaskDetailView from "@/components/mentee/planner/TaskDetailView"; // From HEAD maybe?
+import RecurringDeleteModal from "@/components/mentee/planner/RecurringDeleteModal";
 import { supabase } from "@/lib/supabaseClient";
 import {
     adaptMentorTasksToUi,
@@ -43,6 +43,7 @@ export default function PlannerPage() {
     // Modal State
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string | number, recurringGroupId: string | null } | null>(null);
 
     // Helpers
     const isSameDay = (date1: Date, date2: Date) => {
@@ -290,11 +291,7 @@ export default function PlannerPage() {
         }
     };
 
-    const deleteTask = async (taskId: number | string) => {
-        const taskIdStr = String(taskId);
-        const targetTask = tasks.find(task => String(task.id) === taskIdStr);
-        if (!targetTask || targetTask.isMentorTask) return;
-
+    const executeDelete = async (taskIdStr: string) => {
         setTasks(prev => prev.filter(task => String(task.id) !== taskIdStr));
 
         if (!menteeId) return;
@@ -302,6 +299,44 @@ export default function PlannerPage() {
         await fetch(`/api/mentee/planner/tasks/${taskIdStr}?menteeId=${menteeId}`, {
             method: "DELETE"
         });
+    };
+
+    const handleDeleteRequest = async (taskId: number | string) => {
+        const taskIdStr = String(taskId);
+        const targetTask = tasks.find(task => String(task.id) === taskIdStr);
+        if (!targetTask || targetTask.isMentorTask) return;
+
+        if (targetTask.recurringGroupId) {
+            setDeleteTarget({ id: taskId, recurringGroupId: targetTask.recurringGroupId });
+        } else {
+            await executeDelete(taskIdStr);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (!deleteTarget || !deleteTarget.recurringGroupId) return;
+
+        const groupId = deleteTarget.recurringGroupId;
+        setDeleteTarget(null);
+
+        // Optimistic update: remove all tasks with this group ID from current view
+        setTasks(prev => prev.filter(task => task.recurringGroupId !== groupId));
+
+        if (!menteeId) return;
+
+        try {
+            await fetch(`/api/mentee/planner/groups/${groupId}`, {
+                method: "DELETE"
+            });
+        } catch (e) {
+            console.error("Failed to delete group", e);
+        }
+    };
+
+    const handleDeleteSingle = async () => {
+        if (!deleteTarget) return;
+        await executeDelete(String(deleteTarget.id));
+        setDeleteTarget(null);
     };
 
     if (isLoading) {
@@ -356,7 +391,7 @@ export default function PlannerPage() {
                     categories={categories}
                     onToggleCompletion={toggleTaskCompletion}
                     onUpdateTaskTimeRange={updateTaskTimeRange}
-                    onDelete={deleteTask}
+                    onDelete={handleDeleteRequest}
                     newTaskTitle={newTaskTitle}
                     setNewTaskTitle={setNewTaskTitle}
                     selectedCategoryId={selectedCategoryId}
@@ -375,6 +410,13 @@ export default function PlannerPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 task={selectedTask}
+            />
+
+            <RecurringDeleteModal
+                isOpen={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onDeleteSingle={handleDeleteSingle}
+                onDeleteAll={handleDeleteAll}
             />
 
         </div>

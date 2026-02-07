@@ -91,7 +91,7 @@ export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTas
                 subjectId: task.categoryId,
                 subjectColor: mapSubjectColor(task.categoryId),
                 date: task.deadline || new Date(),
-                content: task.mentorComment,
+                content: task.mentorComment ?? "",
                 originalTask: task, // Store full task for modal
             }));
 

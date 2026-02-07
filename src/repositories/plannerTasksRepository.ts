@@ -13,13 +13,16 @@ export type PlannerTaskRow = {
   mentee_id: string;
   subject_id: string | null;
   title: string;
+  description: string | null;
   date: string;
   completed: boolean;
   time_spent_sec: number | null;
   start_time: string | null;
   end_time: string | null;
+  recurring_group_id: string | null;
   created_at: string;
   is_mentor_task: boolean;
+  mentor_comment: string | null;
   subjects: PlannerTaskSubjectRow | null;
 };
 
@@ -41,11 +44,13 @@ export async function listPlannerTasksByMenteeId(
       mentee_id,
       subject_id,
       title,
+      description,
       date,
       completed,
       time_spent_sec,
       start_time,
       end_time,
+      recurring_group_id,
       is_mentor_task,
       mentor_comment,
       created_at,
@@ -79,7 +84,7 @@ export async function listPlannerTasksByMenteeId(
     throw new Error(error.message);
   }
 
-  return (data ?? []) as PlannerTaskRow[];
+  return (data ?? []) as unknown as PlannerTaskRow[];
 }
 
 export async function getPlannerTaskById(taskId: string) {
@@ -91,13 +96,15 @@ export async function getPlannerTaskById(taskId: string) {
       mentee_id,
       subject_id,
       title,
+      description,
       date,
       completed,
-      time_spent_sec,
       time_spent_sec,
       start_time,
       end_time,
       is_mentor_task,
+      recurring_group_id,
+      mentor_comment,
       created_at,
       subjects (
         id,
@@ -197,11 +204,15 @@ export async function createPlannerTask({
       mentee_id,
       subject_id,
       title,
+      description,
       date,
       completed,
       time_spent_sec,
       start_time,
       end_time,
+      recurring_group_id,
+      is_mentor_task,
+      mentor_comment,
       created_at,
       subjects (
         id,
@@ -223,12 +234,14 @@ export async function createPlannerTask({
 
 type UpdatePlannerTaskInput = {
   title?: string;
+  description?: string | null;
   date?: string;
   subjectId?: string | null;
   completed?: boolean;
   timeSpentSec?: number | null;
   startTime?: string | null;
   endTime?: string | null;
+  mentorComment?: string | null;
 };
 
 export async function updatePlannerTask(
@@ -237,16 +250,21 @@ export async function updatePlannerTask(
 ) {
   const payload: {
     title?: string;
+    description?: string | null;
     date?: string;
     subject_id?: string | null;
     completed?: boolean;
     time_spent_sec?: number | null;
     start_time?: string | null;
     end_time?: string | null;
+    mentor_comment?: string | null;
   } = {};
 
   if (updates.title !== undefined) {
     payload.title = updates.title;
+  }
+  if (updates.description !== undefined) {
+    payload.description = updates.description;
   }
   if (updates.date !== undefined) {
     payload.date = updates.date;
@@ -266,6 +284,9 @@ export async function updatePlannerTask(
   if (updates.endTime !== undefined) {
     payload.end_time = updates.endTime;
   }
+  if (updates.mentorComment !== undefined) {
+    payload.mentor_comment = updates.mentorComment;
+  }
 
   const { data, error } = await supabaseServer
     .from("planner_tasks")
@@ -277,11 +298,15 @@ export async function updatePlannerTask(
       mentee_id,
       subject_id,
       title,
+      description,
       date,
       completed,
       time_spent_sec,
       start_time,
       end_time,
+      recurring_group_id,
+      is_mentor_task,
+      mentor_comment,
       created_at,
       subjects (
         id,
@@ -316,26 +341,112 @@ export async function deletePlannerTask(taskId: string) {
   return (data ?? null) as { id: string } | null;
 }
 
+export async function createPlannerRecurringGroup(
+  menteeId: string,
+  recurrenceRule: any,
+) {
+  const { data, error } = await supabaseServer
+    .from("planner_recurring_groups")
+    .insert({
+      mentee_id: menteeId,
+      recurrence_rule: recurrenceRule,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function createPlannerTaskBatch(
+  tasks: CreatePlannerTaskInput[],
+  recurringGroupId?: string,
+) {
+  if (tasks.length === 0) return [];
+
+  const payload = tasks.map((task) => ({
+    mentee_id: task.menteeId,
+    subject_id: task.subjectId,
+    title: task.title,
+    description: task.description,
+    date: task.date,
+    completed: task.completed,
+    time_spent_sec: task.timeSpentSec,
+    start_time: task.startTime,
+    end_time: task.endTime,
+    recurring_group_id: recurringGroupId,
+    is_mentor_task: task.isMentorTask,
+    materials: task.materials,
+  }));
+
+  const { data, error } = await supabaseServer
+    .from("planner_tasks")
+    .insert(payload)
+    .select(
+      `
+      id,
+      mentee_id,
+      subject_id,
+      title,
+      description,
+      date,
+      completed,
+      time_spent_sec,
+      start_time,
+      end_time,
+      recurring_group_id,
+      is_mentor_task,
+      mentor_comment,
+      created_at,
+      subjects (
+        id,
+        slug,
+        name,
+        color_hex,
+        text_color_hex
+      )
+    `,
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as PlannerTaskRow[];
+}
+
+export async function deletePlannerRecurringGroup(groupId: string) {
+  const { error } = await supabaseServer
+    .from("planner_recurring_groups")
+    .delete()
+    .eq("id", groupId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return true;
+}
+
 export async function getCompletedPlannerTasksByMentorId(mentorId: string) {
-  // 1. Get Mentee IDs assigned to this mentor
-  const { data: mnData, error: mnError } = await supabaseServer
+  const { data: mentorMenteeRows, error: mentorMenteeError } = await supabaseServer
     .from("mentor_mentee")
     .select("mentee_id")
     .eq("mentor_id", mentorId)
     .eq("status", "active");
 
-  if (mnError) throw new Error(mnError.message);
+  if (mentorMenteeError) {
+    throw new Error(mentorMenteeError.message);
+  }
 
-  const menteeIds = mnData?.map((r) => r.mentee_id) || [];
+  const menteeIds = mentorMenteeRows?.map((row) => row.mentee_id) ?? [];
+  if (menteeIds.length === 0) {
+    return [];
+  }
 
-  if (menteeIds.length === 0) return [];
-
-  // 2. Fetch Completed Planner Tasks
-  // We want tasks that are completed but technically "pending review".
-  // Since we don't have a specific "reviewed" flag on planner_tasks,
-  // we might fetch all completed ones.
-  // Ideally, we should join with task_feedback to exclude reviewed ones,
-  // but if relation doesn't exist, we fetch basic data.
   const { data, error } = await supabaseServer
     .from("planner_tasks")
     .select(
@@ -344,9 +455,15 @@ export async function getCompletedPlannerTasksByMentorId(mentorId: string) {
       mentee_id,
       subject_id,
       title,
+      description,
       date,
       completed,
       time_spent_sec,
+      start_time,
+      end_time,
+      recurring_group_id,
+      is_mentor_task,
+      mentor_comment,
       created_at,
       subjects (
         id,
@@ -365,7 +482,7 @@ export async function getCompletedPlannerTasksByMentorId(mentorId: string) {
     .in("mentee_id", menteeIds)
     .eq("completed", true)
     .order("date", { ascending: false })
-    .limit(50); // Limit to recent 50 to avoid overload
+    .limit(50);
 
   if (error) {
     throw new Error(error.message);

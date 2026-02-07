@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { DAILY_RECORDS, MENTOR_TASKS, USER_TASKS, PLANNER_FEEDBACKS, WEEKLY_SCHEDULE } from "@/constants/mentee";
 import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
@@ -24,7 +24,6 @@ const isSameDay = (date1: Date, date2: Date) => {
 
 export default function FeedbackCollectionPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 2));
     const [customEvents, setCustomEvents] = useState<
         { id: string; title: string; categoryId: string; taskType?: string; date: string; startTime?: string; endTime?: string; isMentorTask?: boolean }[]
@@ -43,13 +42,15 @@ export default function FeedbackCollectionPage() {
     }, []);
 
     useEffect(() => {
-        const dateParam = searchParams?.get("date");
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        const dateParam = params.get("date");
         if (!dateParam) return;
         const parsed = parseDateInput(dateParam);
         if (!Number.isNaN(parsed.getTime())) {
             setCurrentDate(parsed);
         }
-    }, [searchParams]);
+    }, []);
 
     const getCustomEventsForDate = (date: Date) => {
         return customEvents
