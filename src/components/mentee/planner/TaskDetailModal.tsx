@@ -13,9 +13,9 @@ export default function TaskDetailModal({ isOpen, onClose, task }: TaskDetailMod
     if (!isOpen || !task) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose}>
             <div
-                className="w-full max-w-[430px] bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-hidden flex flex-col relative"
+                className="w-full max-w-[430px] bg-white rounded-[32px] shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Modal Header with Close Button */}

@@ -37,16 +37,16 @@ export default function PlannerDetailModal({
     );
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             {/* Modal Content - Big Planner Page */}
             <div
-                className="bg-white w-full max-w-[720px] max-h-[95vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden rounded-md"
+                className="bg-white w-[390px] h-[calc(100vh-24px)] max-h-[844px] max-w-[calc(100vw-24px)] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden rounded-[24px]"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Close Button (Absolute Top Right) */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600 z-50"
+                    className="absolute top-3 right-3 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600 z-50"
                 >
                     <X size={24} />
                 </button>
@@ -58,7 +58,7 @@ export default function PlannerDetailModal({
                     dailyEvents={dailyEvents}
                     userTasks={userTasks}
                     onTaskClick={onTaskClick}
-                    size="collection"
+                    size="mini"
                 />
             </div>
         </div>

@@ -506,17 +506,24 @@ export default function CalendarPage() {
                     </div>
                 ) : (
                     /* Planner Collection View (Vertical Scroll 3-Column Grid) */
-                    <PlannerCollectionView
-                        currentDate={currentDate}
-                        daysInMonth={daysInMonth}
-                        isToday={isToday}
-                        isSameDay={isSameDay}
-                        onDateClick={handleDateClick}
-                        scheduleEvents={scheduleEvents}
-                        dailyRecords={dailyRecords}
-                        mentorTasks={mentorTasks}
-                        plannerTasks={plannerTasks}
-                    />
+                    <div className="-mx-[22px]">
+                        <PlannerCollectionView
+                            currentDate={currentDate}
+                            daysInMonth={daysInMonth}
+                            isToday={isToday}
+                            isSameDay={isSameDay}
+                            onDateClick={handleDateClick}
+                            scheduleEvents={scheduleEvents}
+                            dailyRecords={dailyRecords}
+                            mentorTasks={mentorTasks}
+                            plannerTasks={plannerTasks}
+                            layoutMode="grid"
+                            cardAspect="planner"
+                            gridClassName="grid grid-cols-3 gap-[2px]"
+                            cardClassName="border-0 rounded-none shadow-none"
+                            previewScale={0.4}
+                        />
+                    </div>
                 )}
 
 

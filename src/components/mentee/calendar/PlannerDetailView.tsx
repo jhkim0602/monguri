@@ -17,6 +17,8 @@ interface PlannerDetailViewProps {
     onTaskClick?: (task: any) => void;
     size?: "modal" | "page" | "collection" | "mini";
     showHeader?: boolean;
+    textScale?: "normal" | "boost";
+    headerScale?: number;
 }
 
 export default function PlannerDetailView({
@@ -29,7 +31,9 @@ export default function PlannerDetailView({
     onEditReview,
     onTaskClick,
     size = "modal",
-    showHeader = true
+    showHeader = true,
+    textScale = "normal",
+    headerScale = 1
 }: PlannerDetailViewProps) {
     if (!date) return null;
 
@@ -153,25 +157,45 @@ export default function PlannerDetailView({
     const containerClass = size === "mini"
         ? "bg-white w-full h-full flex flex-col relative overflow-hidden"
         : `bg-white w-full ${sizeClass} ${aspectClass} ${maxHeightClass} flex flex-col shadow-2xl relative overflow-hidden rounded-md`;
+    const isBoostText = textScale === "boost";
+    const headerDateClass = isBoostText ? "text-[20px]" : "text-lg";
+    const studyLabelClass = isBoostText ? "text-[11px]" : "text-[9px]";
+    const studyValueClass = isBoostText ? "text-[19px]" : "text-[16px]";
+    const categoryLabelClass = isBoostText ? "text-[11px]" : "text-[9px]";
+    const taskTitleClass = isBoostText ? "text-[13px]" : "text-[11px]";
+    const mentorBadgeClass = isBoostText ? "text-[9px]" : "text-[7px]";
+    const memoLabelClass = isBoostText ? "text-[13px]" : "text-xs";
+    const memoBodyClass = isBoostText ? "text-[14px]" : "text-sm";
+    const emptyStateClass = isBoostText ? "text-[13px]" : "text-sm";
+    const headerScaleStyle = headerScale === 1
+        ? undefined
+        : {
+            transform: `scale(${headerScale})`,
+            transformOrigin: "left center",
+            width: `${100 / headerScale}%`,
+            height: `${100 / headerScale}%`,
+        };
 
     return (
         <div className={containerClass}>
             {showHeader ? (
                 <div className="w-full h-14 border-b border-gray-100 bg-gray-50 px-6 flex items-center justify-between shrink-0">
-                    <span className={`text-lg font-bold ${isToday ? "text-primary" : "text-gray-900"}`}>
-                        {date.getMonth() + 1}월 {date.getDate()}일 ({dayNames[date.getDay()]})
-                    </span>
-                    <div className="flex items-baseline gap-1.5 font-black">
-                        <span className="text-[9px] uppercase tracking-[0.16em] text-blue-400">Study Time</span>
-                        <span className="text-[16px] tabular-nums text-blue-600">{formatTime(studyTimeSeconds)}</span>
+                    <div className="w-full h-full flex items-center justify-between" style={headerScaleStyle}>
+                        <span className={`${headerDateClass} font-bold whitespace-nowrap ${isToday ? "text-primary" : "text-gray-900"}`}>
+                            {date.getMonth() + 1}월 {date.getDate()}일 ({dayNames[date.getDay()]})
+                        </span>
+                        <div className="flex items-baseline gap-1.5 font-black whitespace-nowrap">
+                            <span className={`${studyLabelClass} uppercase tracking-[0.16em] text-blue-400`}>Study Time</span>
+                            <span className={`${studyValueClass} tabular-nums text-blue-600`}>{formatTime(studyTimeSeconds)}</span>
+                        </div>
                     </div>
                 </div>
             ) : null}
 
             <div className="flex-1 p-2 flex flex-col gap-2 overflow-hidden">
                 <div className="w-full bg-sky-50/50 rounded-lg p-3 border border-sky-100/50">
-                    <span className="text-xs font-bold text-sky-600 mb-1 block">Daily Memo</span>
-                    <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
+                    <span className={`${memoLabelClass} font-bold text-sky-600 mb-1 block`}>Daily Memo</span>
+                    <p className={`${memoBodyClass} text-gray-700 font-medium leading-relaxed italic`}>
                         {memo ? `"${memo}"` : "오늘의 메모가 없습니다."}
                     </p>
                 </div>
@@ -186,7 +210,7 @@ export default function PlannerDetailView({
                                     className={`pt-1 ${index > 0 ? "border-t border-dashed border-gray-200" : ""}`}
                                 >
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span style={{ color: group.category.textColorHex }} className="text-[9px] font-black">
+                                        <span style={{ color: group.category.textColorHex }} className={`${categoryLabelClass} font-black`}>
                                             {group.category.name}영역
                                         </span>
                                     </div>
@@ -229,7 +253,7 @@ export default function PlannerDetailView({
                                                         />
                                                         {checkboxButton}
                                                         <div className="flex-1 min-w-0">
-                                                            <p className={`text-[11px] font-bold text-gray-800 truncate ${completed ? "text-gray-400 line-through" : ""}`}>{item.title}</p>
+                                                            <p className={`${taskTitleClass} font-bold text-gray-800 truncate ${completed ? "text-gray-400 line-through" : ""}`}>{item.title}</p>
                                                         </div>
                                                     </div>
                                                 );
@@ -244,12 +268,12 @@ export default function PlannerDetailView({
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-1 mb-0.5">
                                                             {item.itemType === "mentor" && (
-                                                                <span className="bg-primary/10 text-primary text-[7px] font-black px-1 py-0.5 rounded leading-none uppercase tracking-tighter">
+                                                                <span className={`bg-primary/10 text-primary ${mentorBadgeClass} font-black px-1 py-0.5 rounded leading-none uppercase tracking-tighter`}>
                                                                     Mentor
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className={`text-[11px] font-bold truncate ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}>{item.title}</p>
+                                                        <p className={`${taskTitleClass} font-bold truncate ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}>{item.title}</p>
                                                     </div>
                                                 </>
                                             );
@@ -283,7 +307,7 @@ export default function PlannerDetailView({
 
                         {!hasActivity && (
                             <div className="flex-1 flex items-center justify-center border-2 border-dashed border-gray-100 rounded-xl">
-                                <span className="text-gray-300 text-sm">등록된 계획 없음</span>
+                                <span className={`text-gray-300 ${emptyStateClass}`}>등록된 계획 없음</span>
                             </div>
                         )}
                     </div>

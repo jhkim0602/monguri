@@ -13,6 +13,8 @@ interface DailyPlannerCardProps {
     onClick?: () => void;
     fill?: boolean;
     fillScale?: number;
+    previewScale?: number;
+    cardAspect?: "planner" | "square";
     className?: string;
 }
 
@@ -27,9 +29,11 @@ export default function DailyPlannerCard({
     onClick,
     fill = false,
     fillScale,
+    previewScale = 0.27,
+    cardAspect = "planner",
     className = ""
 }: DailyPlannerCardProps) {
-    const sizeClass = fill ? "h-full" : "aspect-[3/5]";
+    const sizeClass = fill ? "h-full" : cardAspect === "square" ? "aspect-square" : "aspect-[3.2/5]";
     const scale = fill ? (fillScale ?? 0.34) : 0.28;
     const scaledSize = fill ? `${100 / scale}%` : undefined;
 
@@ -58,21 +62,29 @@ export default function DailyPlannerCard({
                         mentorReview={derivedReview}
                         size="mini"
                         showHeader={false}
+                        textScale="boost"
                     />
                 </div>
             ) : (
-                <div className="absolute inset-0 origin-top-left scale-[0.24] pointer-events-none">
-                    <div className="w-[520px]">
-                        <PlannerDetailView
-                            date={date}
-                            dailyRecord={{ studyTime, memo }}
-                            mentorDeadlines={mentorDeadlines}
-                            userTasks={userTasks}
-                            dailyEvents={dailyEvents}
-                            mentorReview={derivedReview}
-                            size="page"
-                        />
-                    </div>
+                <div
+                    className="absolute inset-0 origin-top-left pointer-events-none"
+                    style={{
+                        transform: `scale(${previewScale})`,
+                        width: `${100 / previewScale}%`,
+                        height: `${100 / previewScale}%`,
+                    }}
+                >
+                    <PlannerDetailView
+                        date={date}
+                        dailyRecord={{ studyTime, memo }}
+                        mentorDeadlines={mentorDeadlines}
+                        userTasks={userTasks}
+                        dailyEvents={dailyEvents}
+                        mentorReview={derivedReview}
+                        size="mini"
+                        textScale="boost"
+                        headerScale={1}
+                    />
                 </div>
             )}
         </div>
