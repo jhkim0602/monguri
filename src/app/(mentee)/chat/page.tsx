@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Plus, Send } from "lucide-react";
+import { ChevronLeft, Plus, Send, Image as ImageIcon, FileText, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import MeetingRequestForm from "@/components/mentee/chat/MeetingRequestForm";
+import MeetingRequestCard from "@/components/mentee/chat/MeetingRequestCard";
 
 const ATTACHMENT_BUCKET = "chat-attachments";
 
@@ -30,7 +32,7 @@ type ChatMessage = {
   mentor_mentee_id: string;
   sender_id: string;
   body: string | null;
-  message_type: "text" | "image" | "file";
+  message_type: "text" | "image" | "file" | "meeting_request" | "system";
   created_at: string;
   chat_attachments?: ChatAttachment[];
 };
@@ -38,6 +40,8 @@ type ChatMessage = {
 export default function ChatPage() {
   const router = useRouter();
   const [inputValue, setInputValue] = useState("");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMeetingFormOpen, setIsMeetingFormOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [mentorMenteeId, setMentorMenteeId] = useState<string | null>(null);
   const [mentor, setMentor] = useState<MentorProfile | null>(null);
@@ -373,85 +377,112 @@ export default function ChatPage() {
           });
 
           return (
-            <div
-              key={msg.id}
-              className={`flex ${isMentee ? "justify-end" : "justify-start"} items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300`}
-            >
-              {!isMentee && (
-                <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 shadow-sm border border-white mb-1 bg-gray-200">
-                  {mentor?.avatar_url ? (
-                    <img
-                      src={mentor.avatar_url}
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : null}
+              msg.message_type === "system" ? (
+                <div key={msg.id} className="w-full flex justify-center my-2">
+                  <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
+                    {msg.body}
+                  </span>
                 </div>
-              )}
+              ) : (
+                <div
+                  key={msg.id}
+                  className={`flex ${isMentee ? "justify-end" : "justify-start"} items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                >
+                  {!isMentee && (
+                    <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 shadow-sm border border-white mb-1 bg-gray-200">
+                      {mentor?.avatar_url ? (
+                        <img
+                          src={mentor.avatar_url}
+                          alt="Avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                  )}
 
-              <div
-                className={`max-w-[75%] px-4 py-3 rounded-[20px] shadow-sm text-[14px] font-bold leading-relaxed tracking-tight flex flex-col gap-2
-                  ${isMentee
-                    ? "bg-primary text-white rounded-br-none shadow-blue-100"
-                    : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
-                  }`}
-              >
-                {msg.body && <span>{msg.body}</span>}
-                {msg.chat_attachments?.length ? (
-                  <div className="flex flex-col gap-2">
-                    {msg.chat_attachments.map((attachment) => {
-                      if (attachment.signed_url && attachment.mime_type?.startsWith("image/")) {
-                        return (
-                          <img
-                            key={attachment.id}
-                            src={attachment.signed_url}
-                            alt="attachment"
-                            className="max-w-[220px] rounded-xl border border-white/40"
-                          />
-                        );
-                      }
+                  <div
+                    className={`max-w-[75%] px-4 py-3 rounded-[20px] shadow-sm text-[14px] font-bold leading-relaxed tracking-tight flex flex-col gap-2
+                      ${
+                        msg.message_type === "meeting_request"
+                          ? "bg-transparent shadow-none p-0 border-none"
+                          : isMentee
+                          ? "bg-primary text-white rounded-br-none shadow-blue-100"
+                          : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
+                      }`}
+                  >
+                    {msg.message_type === "meeting_request" && msg.body ? (
+                      <MeetingRequestCard
+                        requestId={msg.body.replace("MEETING_REQUEST:", "")}
+                        isSender={isMentee}
+                      />
+                    ) : (
+                      <>
+                        {msg.body && <span>{msg.body}</span>}
+                        {msg.chat_attachments?.length ? (
+                          <div className="flex flex-col gap-2">
+                            {msg.chat_attachments.map((attachment) => {
+                              if (
+                                attachment.signed_url &&
+                                attachment.mime_type?.startsWith("image/")
+                              ) {
+                                return (
+                                  <img
+                                    key={attachment.id}
+                                    src={attachment.signed_url}
+                                    alt="attachment"
+                                    className="max-w-[220px] rounded-xl border border-white/40"
+                                  />
+                                );
+                              }
 
-                      return (
-                        <a
-                          key={attachment.id}
-                          href={attachment.signed_url ?? "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[12px] underline"
-                        >
-                          파일 다운로드
-                        </a>
-                      );
-                    })}
+                              return (
+                                <a
+                                  key={attachment.id}
+                                  href={attachment.signed_url ?? "#"}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[12px] underline"
+                                >
+                                  파일 다운로드
+                                </a>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                   </div>
-                ) : null}
-              </div>
 
-              <span className="text-[10px] text-gray-400 font-bold mb-1 shrink-0">
-                {timeLabel}
-              </span>
-            </div>
+                  <span className="text-[10px] text-gray-400 font-bold mb-1 shrink-0">
+                    {timeLabel}
+                  </span>
+                </div>
+              )
           );
         })}
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-4 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] shrink-0 transition-all duration-300 ease-in-out">
+        <div className="p-4 flex items-center gap-3">
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200 transition-all active:scale-90"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-90 ${isMenuOpen ? "bg-gray-200 text-gray-600 rotate-45" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}
             disabled={!mentorMenteeId || isSending}
           >
             <Plus size={24} />
           </button>
+
           <input
             ref={fileInputRef}
             type="file"
             className="hidden"
             multiple
-            onChange={(event) => handleSendFiles(event.target.files)}
+            onChange={(event) => {
+                handleSendFiles(event.target.files);
+                setIsMenuOpen(false);
+            }}
           />
 
           <div className="flex-1">
@@ -461,6 +492,7 @@ export default function ChatPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              onFocus={() => setIsMenuOpen(false)}
               className="w-full bg-gray-50/50 border border-gray-100 rounded-[22px] px-5 py-3.5 text-[15px] font-bold text-gray-900 placeholder:text-gray-300 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary/20 outline-none transition-all"
               disabled={!mentorMenteeId || isSending}
             />
@@ -478,7 +510,66 @@ export default function ChatPage() {
             <Send size={20} fill={inputValue.trim() ? "currentColor" : "none"} />
           </button>
         </div>
-      </div>
+
+        {/* Plus Menu Panel */}
+        <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? "max-h-[200px] opacity-100 pb-6" : "max-h-0 opacity-0"}`}
+        >
+            <div className="grid grid-cols-4 gap-4 px-6 pt-2">
+                <button
+                    onClick={() => {
+                        if (fileInputRef.current) {
+                            fileInputRef.current.accept = "image/*";
+                            fileInputRef.current.click();
+                        }
+                    }}
+                    className="flex flex-col items-center gap-2 group cursor-pointer"
+                >
+                    <div className="w-14 h-14 rounded-full bg-pink-50 flex items-center justify-center text-pink-500 group-hover:bg-pink-100 transition-colors">
+                        <ImageIcon size={24} />
+                    </div>
+                    <span className="text-[12px] font-medium text-gray-600">앨범</span>
+                </button>
+
+                <button
+                    onClick={() => {
+                        if (fileInputRef.current) {
+                            fileInputRef.current.accept = "*";
+                            fileInputRef.current.click();
+                        }
+                    }}
+                    className="flex flex-col items-center gap-2 group cursor-pointer"
+                >
+                    <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-100 transition-colors">
+                        <FileText size={24} />
+                    </div>
+                    <span className="text-[12px] font-medium text-gray-600">파일</span>
+                </button>
+
+                <button
+                    onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsMeetingFormOpen(true);
+                    }}
+                    className="flex flex-col items-center gap-2 group cursor-pointer"
+                >
+                    <div className="w-14 h-14 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 group-hover:bg-purple-100 transition-colors">
+                        <Calendar size={24} />
+                    </div>
+                    <span className="text-[12px] font-medium text-gray-600">미팅 신청</span>
+                </button>
+            </div>
+        </div>
+       </div>
+
+      {mentorMenteeId && userId && (
+        <MeetingRequestForm
+            isOpen={isMeetingFormOpen}
+            onClose={() => setIsMeetingFormOpen(false)}
+            mentorMenteeId={mentorMenteeId}
+            senderId={userId}
+        />
+      )}
     </div>
   );
 }

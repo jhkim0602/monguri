@@ -13,7 +13,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
     adaptProfileToUi,
 } from "@/lib/menteeAdapters";
-import MentorMeetingSection from "@/components/mentee/mypage/MentorMeetingSection";
+
 
 export default function MyPage() {
     const router = useRouter();
@@ -141,13 +141,11 @@ export default function MyPage() {
                 </div>
             </section>
 
-            {/* Mentor Meeting Section */}
-            <MentorMeetingSection />
-
             {/* ETC Menu */}
             <section className="px-6">
                 <h3 className="text-[17px] font-black text-gray-900 tracking-tight mb-4">더보기</h3>
                 <div className="space-y-3">
+
                     {menuItems.map((item, idx) => {
                         const Icon = item.icon;
                         return (

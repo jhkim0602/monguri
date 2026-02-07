@@ -8,7 +8,6 @@ import {
     Calendar,
     Clock,
     Video,
-    ChevronRight,
     MessageSquare,
     ClipboardList
 } from "lucide-react";
@@ -19,7 +18,6 @@ export default function MentorMeetingSection() {
 
     // Form States
     const [subject, setSubject] = useState("");
-    const [task, setTask] = useState("");
     const [schedule, setSchedule] = useState("");
     const [memo, setMemo] = useState("");
 
@@ -30,34 +28,35 @@ export default function MentorMeetingSection() {
     };
 
     return (
-        <section className="px-6 mb-10">
-            {/* Header Area */}
-            <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                    <h3 className="text-[19px] font-black text-gray-900 tracking-tight mb-1">멘토 미팅</h3>
-                    <p className="text-[12px] text-gray-400 font-medium">
-                        미팅 신청 후 멘토가 줌 링크를 보내면 확정돼요.
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 text-gray-400">
-                        <Calendar size={14} className="opacity-60" />
-                        <span className="text-[11px] font-bold">
-                            요청 <span className="text-gray-900">0건</span> · 확정 <span className="text-gray-900">0건</span>
-                        </span>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden text-left">
+            {/* Accordion Header (The 'Card') */}
+                <button
+                    onClick={toggleSection}
+                    className="w-full p-4 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-500">
+                            <Video size={20} />
+                        </div>
+                        <div className="flex flex-col items-start gap-0.5">
+                            <span className="text-sm font-bold text-gray-900 leading-none">멘토 미팅</span>
+                            {isSectionOpen ? (
+                                <span className="text-[11px] text-gray-400 font-medium tracking-tight">
+                                    미팅 신청 후 멘토가 줌 링크를 보내면 확정돼요.
+                                </span>
+                            ) : (
+                                <span className="text-[11px] text-gray-400 font-medium tracking-tight">요청 0건 · 확정 0건</span>
+                            )}
+                        </div>
                     </div>
-                    <button
-                        onClick={toggleSection}
-                        className="w-8 h-8 flex items-center justify-center bg-gray-100/80 rounded-full text-gray-400 hover:bg-gray-200 transition-colors"
-                    >
-                        {isSectionOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                    </button>
-                </div>
-            </div>
+                    <div className={`transition-transform duration-300 ${isSectionOpen ? 'rotate-180' : ''}`}>
+                         <ChevronDown size={20} className="text-gray-400"/>
+                    </div>
+                </button>
 
-            {/* Content Area */}
-            {isSectionOpen && (
-                <div className="bg-white rounded-[28px] border border-gray-100 shadow-sm overflow-hidden">
+                {/* Content Area */}
+                {isSectionOpen && (
+                    <div className="border-t border-gray-50">
                     {/* 1. Meeting Request */}
                     <div className="border-b border-gray-50 last:border-0">
                         <button
@@ -92,14 +91,6 @@ export default function MentorMeetingSection() {
                                     />
                                 </div>
 
-                                {/* Form Item: Related Task */}
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-bold text-gray-400 ml-1">관련 태스크 (선택)</label>
-                                    <button className="w-full bg-gray-50 border border-gray-100/50 rounded-2xl px-5 py-4 flex items-center justify-between text-[14px] font-bold text-gray-300 hover:bg-gray-100 transition-colors">
-                                        <span>태스크 선택하기</span>
-                                        <ChevronRight size={18} className="text-gray-300" />
-                                    </button>
-                                </div>
 
                                 {/* Form Item: Schedule */}
                                 <div className="space-y-1.5">
@@ -195,6 +186,6 @@ export default function MentorMeetingSection() {
                     </div>
                 </div>
             )}
-        </section>
+            </div>
     );
 }

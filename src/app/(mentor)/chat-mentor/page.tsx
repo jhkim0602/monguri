@@ -24,6 +24,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import MentorMeetingRequestCard from "@/components/mentor/chat/MentorMeetingRequestCard";
 
 const ATTACHMENT_BUCKET = "chat-attachments";
 
@@ -79,7 +80,7 @@ type ChatMessage = {
   mentor_mentee_id: string;
   sender_id: string;
   body: string | null;
-  message_type: "text" | "image" | "file";
+  message_type: "text" | "image" | "file" | "meeting_request" | "system";
   created_at: string;
   chat_attachments?: ChatAttachment[];
 };
@@ -110,9 +111,9 @@ const formatPreviewTime = (value?: string | null) => {
 
 const getFallbackMessage = (message: ChatMessage) => {
   if (message.body) return message.body;
-  return message.message_type === "image"
-    ? "이미지를 전송했습니다."
-    : "파일을 전송했습니다.";
+  if (message.message_type === "image") return "이미지를 전송했습니다.";
+  if (message.message_type === "meeting_request") return "미팅 신청이 도착했습니다.";
+  return "파일을 전송했습니다.";
 };
 
 export default function MentorChatPage() {
@@ -169,7 +170,7 @@ export default function MentorChatPage() {
               body: string | null;
               created_at: string;
               sender_id: string;
-              message_type: "text" | "image" | "file";
+              message_type: "text" | "image" | "file" | "meeting_request" | "system";
             }
           | undefined;
 
@@ -177,6 +178,10 @@ export default function MentorChatPage() {
           ? lastMessage.body ??
             (lastMessage.message_type === "image"
               ? "이미지를 전송했습니다."
+              : lastMessage.message_type === "meeting_request"
+              ? "미팅 신청이 도착했습니다."
+              : lastMessage.message_type === "system"
+              ? "시스템 메시지"
               : "파일을 전송했습니다.")
           : "대화 없음";
 
@@ -810,29 +815,31 @@ export default function MentorChatPage() {
                         }
                       );
 
-                      return (
+                      return msg.message_type === "system" ? (
+                        <div key={msg.id} className="w-full flex justify-center my-4">
+                          <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
+                            {msg.body}
+                          </span>
+                        </div>
+                      ) : (
                         <div
                           key={msg.id}
-                          className="group flex items-start gap-3 rounded-2xl px-3 py-1.5 transition-colors hover:bg-white/70"
+                          className={`flex gap-4 p-4 hover:bg-slate-50/50 transition-colors ${
+                            isMe ? "flex-row-reverse text-right" : ""
+                          }`}
                         >
-                          <div
-                            className={`h-12 w-12 rounded-2xl flex items-center justify-center text-base font-semibold text-white shadow-sm overflow-hidden ${
-                              isMe
-                                ? "bg-[linear-gradient(135deg,_var(--chat-accent),_var(--chat-accent-2))]"
-                                : "bg-slate-300 text-slate-700"
-                            }`}
-                          >
-                            {isMe
-                              ? "멘"
-                              : selectedStudent.avatarUrl
-                                ? (
-                                    <img
-                                      src={selectedStudent.avatarUrl}
-                                      alt={selectedStudent.name}
-                                      className="h-full w-full object-cover"
-                                    />
-                                  )
-                                : selectedStudent.name[0]}
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-200 shadow-sm border border-white">
+                            {(isMe ? null : selectedStudent?.avatarUrl) ? (
+                              <img
+                                src={
+                                  (isMe
+                                    ? ""
+                                    : selectedStudent?.avatarUrl) || ""
+                                }
+                                alt="profile"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : null}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-500">
@@ -849,11 +856,16 @@ export default function MentorChatPage() {
                                 </span>
                               )}
                             </div>
-                            {msg.body ? (
+                            {msg.body && msg.message_type !== "meeting_request" ? (
                               <div className="mt-1.5 text-[17px] leading-relaxed text-slate-800">
                                 {msg.body}
                               </div>
                             ) : null}
+                            {msg.message_type === "meeting_request" && msg.body?.startsWith("MEETING_REQUEST:") && (
+                                <div className="mt-2">
+                                  <MentorMeetingRequestCard requestId={msg.body.split(":")[1]} />
+                                </div>
+                            )}
                             {msg.chat_attachments?.length ? (
                               <div className="mt-2 flex flex-col gap-2">
                                 {msg.chat_attachments.map((attachment) => {
