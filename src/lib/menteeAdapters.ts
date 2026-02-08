@@ -298,6 +298,10 @@ type ApiProfile = {
   name: string | null;
   avatar_url: string | null;
   intro: string | null;
+  goal: string | null;
+  target_exam: string | null;
+  target_date: string | null;
+  grade: string | null;
 };
 
 export type UiProfile = {
@@ -305,7 +309,27 @@ export type UiProfile = {
   role: string;
   dDay: number | null;
   avatar: string;
+  intro: string;
+  goal: string;
+  targetExam: string;
+  targetDate: string | null;
+  grade: string;
 };
+
+function calculateDDay(targetDate: string | null): number | null {
+  if (!targetDate) return null;
+
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffTime = target.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays;
+}
 
 export function adaptProfileToUi(profile: ApiProfile | null): UiProfile | null {
   if (!profile) return null;
@@ -313,7 +337,12 @@ export function adaptProfileToUi(profile: ApiProfile | null): UiProfile | null {
   return {
     name: profile.name ?? "",
     role: profile.role,
-    dDay: null,
+    dDay: calculateDDay(profile.target_date),
     avatar: profile.avatar_url ?? "",
+    intro: profile.intro ?? "",
+    goal: profile.goal ?? "",
+    targetExam: profile.target_exam ?? "",
+    targetDate: profile.target_date ?? null,
+    grade: profile.grade ?? "",
   };
 }

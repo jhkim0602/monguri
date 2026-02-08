@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import MentorMeetingRequestCard from "@/components/mentor/chat/MentorMeetingRequestCard";
+import MeetingConfirmedMessage from "@/components/common/chat/MeetingConfirmedMessage";
 
 const ATTACHMENT_BUCKET = "chat-attachments";
 
@@ -817,9 +818,16 @@ export default function MentorChatPage() {
 
                       return msg.message_type === "system" ? (
                         <div key={msg.id} className="w-full flex justify-center my-4">
-                          <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
-                            {msg.body}
-                          </span>
+                          {msg.body?.startsWith("MEETING_CONFIRMED:") ? (
+                            <MeetingConfirmedMessage
+                                requestId={msg.body.split(":")[1]}
+                                isSender={isMe}
+                            />
+                          ) : (
+                            <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
+                                {msg.body}
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <div
@@ -925,18 +933,6 @@ export default function MentorChatPage() {
 
               {/* Input */}
               <div className="border-t border-slate-200/70 bg-white/80 p-5 backdrop-blur">
-                <div className="mt-0 flex flex-wrap gap-2">
-                  {QUICK_REPLIES.map((reply) => (
-                    <button
-                      key={reply}
-                      onClick={() => setInputText(reply)}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-500 hover:border-[color:var(--chat-accent)] hover:text-[color:var(--chat-accent)]"
-                    >
-                      {reply}
-                    </button>
-                  ))}
-                </div>
-
                 <div className="mt-0 flex items-end gap-3">
                   <div className="relative flex-1">
                     <textarea

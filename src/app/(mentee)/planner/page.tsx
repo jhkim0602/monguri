@@ -8,8 +8,7 @@ import {
     Plus,
     X
 } from "lucide-react";
-import { DEFAULT_CATEGORIES, USER_PROFILE } from "@/constants/common";
-import { SCHEDULE_HOURS, MENTOR_TASKS, USER_TASKS, WEEKLY_SCHEDULE } from "@/constants/mentee";
+import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import Header from "@/components/mentee/layout/Header";
@@ -20,8 +19,10 @@ import { supabase } from "@/lib/supabaseClient";
 import {
     adaptMentorTasksToUi,
     adaptPlannerTasksToUi,
+    adaptProfileToUi,
     type MentorTaskLike,
-    type PlannerTaskLike
+    type PlannerTaskLike,
+    type UiProfile
 } from "@/lib/menteeAdapters";
 
 export default function PlannerPage() {
@@ -37,6 +38,7 @@ export default function PlannerPage() {
 
     // Auth & Loading State (from HEAD)
     const [menteeId, setMenteeId] = useState<string | null>(null);
+    const [profile, setProfile] = useState<UiProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
 
@@ -100,11 +102,19 @@ export default function PlannerPage() {
                 }
 
                 const dateStr = toDateString(currentDate);
-                const [mentorRes, plannerRes, subjectsRes] = await Promise.all([
+                const [mentorRes, plannerRes, subjectsRes, profileRes] = await Promise.all([
                     fetch(`/api/mentee/tasks?menteeId=${user.id}`),
                     fetch(`/api/mentee/planner/tasks?menteeId=${user.id}&date=${dateStr}`),
-                    fetch(`/api/subjects`)
+                    fetch(`/api/subjects`),
+                    fetch(`/api/mentee/profile?profileId=${user.id}`)
                 ]);
+
+                if (profileRes.ok) {
+                    const profileJson = await profileRes.json();
+                    if (isMounted) {
+                        setProfile(adaptProfileToUi(profileJson.profile ?? null));
+                    }
+                }
 
                 if (subjectsRes.ok) {
                     const subjectsJson = await subjectsRes.json();
@@ -360,9 +370,11 @@ export default function PlannerPage() {
                         <h2 className="text-lg font-bold text-gray-800">
                             {currentDate.getMonth() + 1}월 {currentDate.getDate()}일 ({['일', '월', '화', '수', '목', '금', '토'][currentDate.getDay()]})
                         </h2>
-                        <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            D-{USER_PROFILE.dDay}
-                        </span>
+                        {profile?.dDay !== null && profile?.dDay !== undefined && (
+                            <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                {profile.dDay === 0 ? "D-Day" : profile.dDay < 0 ? `D+${Math.abs(profile.dDay)}` : `D-${profile.dDay}`}
+                            </span>
+                        )}
                     </div>
                     <button onClick={handleNextDay} className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400">
                         <ChevronRight size={20} />

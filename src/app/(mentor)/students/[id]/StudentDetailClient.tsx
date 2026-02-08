@@ -224,7 +224,7 @@ export default function StudentDetailClient({
                 {student.grade}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-500 font-medium mb-4">
+            <div className="flex items-center flex-wrap gap-4 text-sm text-gray-500 font-medium mb-4">
               <span className="flex items-center gap-1.5">
                 <GraduationCap size={16} /> {student.track}
               </span>
@@ -232,6 +232,19 @@ export default function StudentDetailClient({
               <span className="flex items-center gap-1.5">
                 <Clock size={16} /> 목표: {student.goal}
               </span>
+              {student.dDay !== null && student.dDay !== undefined && (
+                <>
+                  <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                  <span className="bg-orange-50 text-orange-600 text-xs font-bold px-2.5 py-1 rounded-full">
+                    {student.dDay === 0
+                      ? "D-Day"
+                      : student.dDay < 0
+                        ? `D+${Math.abs(student.dDay)}`
+                        : `D-${student.dDay}`}
+                    {student.targetExam && ` (${student.targetExam})`}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

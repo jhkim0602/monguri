@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import MeetingRequestForm from "@/components/mentee/chat/MeetingRequestForm";
 import MeetingRequestCard from "@/components/mentee/chat/MeetingRequestCard";
+import MeetingConfirmedMessage from "@/components/common/chat/MeetingConfirmedMessage";
 
 const ATTACHMENT_BUCKET = "chat-attachments";
 
@@ -379,9 +380,16 @@ export default function ChatPage() {
           return (
               msg.message_type === "system" ? (
                 <div key={msg.id} className="w-full flex justify-center my-2">
-                  <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
-                    {msg.body}
-                  </span>
+                  {msg.body?.startsWith("MEETING_CONFIRMED:") ? (
+                    <MeetingConfirmedMessage
+                        requestId={msg.body.split(":")[1]}
+                        isSender={isMentee}
+                    />
+                  ) : (
+                    <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
+                        {msg.body}
+                    </span>
+                  )}
                 </div>
               ) : (
                 <div

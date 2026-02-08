@@ -12,6 +12,7 @@ import {
   LogOut,
   Bell,
   FolderOpen,
+  FileText,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -22,6 +23,7 @@ export default function Sidebar() {
     { name: "학생 관리", href: "/students", icon: Users },
     { name: "일정 관리", href: "/schedule", icon: Calendar },
     { name: "채팅", href: "/chat-mentor", icon: MessageCircle },
+    { name: "칼럼 관리", href: "/mentor/columns", icon: FileText },
     { name: "피드백", href: "/mentor-feedback", icon: MessageSquare },
     { name: "자료실", href: "/materials", icon: FolderOpen },
   ];

@@ -4,6 +4,9 @@ export type MentorMentee = {
   grade: string;
   track?: string;
   goal?: string;
+  targetExam?: string;
+  targetDate?: string | null;
+  dDay?: number | null;
   avatarUrl?: string;
   stats: {
     studyHours: number;
