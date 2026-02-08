@@ -1,7 +1,8 @@
 "use client";
 
-import { Search, Bell, MessageCircle } from "lucide-react";
+import { Search, MessageCircle } from "lucide-react";
 import Link from "next/link";
+import { NotificationBadge } from "@/components/ui";
 
 interface HeaderProps {
     title: string;
@@ -32,7 +33,7 @@ export default function Header({ title, rightElement, variant = 'default' }: Hea
                             <MessageCircle size={24} />
                         </Link>
                         <Search size={24} />
-                        <Bell size={24} />
+                        <NotificationBadge iconSize={24} />
                     </div>
                 )}
             </div>

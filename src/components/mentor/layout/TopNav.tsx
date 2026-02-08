@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Search, Settings, LogOut } from "lucide-react";
+import { Search, Settings, LogOut } from "lucide-react";
+import { NotificationBadge } from "@/components/ui";
 
 export default function TopNav() {
   return (
@@ -50,10 +51,7 @@ export default function TopNav() {
 
         <div className="h-8 w-[1px] bg-gray-200 mx-2" />
 
-        <button className="relative p-2 text-gray-400 hover:text-gray-900 transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-        </button>
+        <NotificationBadge iconSize={20} />
 
         <button className="p-2 text-gray-400 hover:text-gray-900 transition-colors">
           <Settings size={20} />

@@ -18,13 +18,17 @@ export type FeedbackItem = {
 export async function getPendingFeedbackItems(
   mentorId: string,
 ): Promise<FeedbackItem[]> {
-  // 1. Fetch pending tasks (submitted but not reviewed)
+  // 1. Fetch pending tasks (submitted by mentee, no mentor feedback yet)
   const [taskRows, planRows] = await Promise.all([
     getTasksWithSubmissionsByMentorId(mentorId),
     getCompletedPlannerTasksByMentorId(mentorId),
   ]);
 
-  const taskItems: FeedbackItem[] = taskRows.map((row) => ({
+  const pendingTaskRows = taskRows.filter(
+    (row) => row.status === "submitted" && !(row.task_feedback?.length ?? 0),
+  );
+
+  const taskItems: FeedbackItem[] = pendingTaskRows.map((row) => ({
     id: `task-${row.id}`,
     type: "task",
     studentId: row.mentee_id,
@@ -65,7 +69,9 @@ export async function getPendingFeedbackItems(
     },
   }));
 
-  const planItems: FeedbackItem[] = planRows.map((row) => ({
+  const pendingPlanRows = planRows.filter((row) => !row.mentor_comment);
+
+  const planItems: FeedbackItem[] = pendingPlanRows.map((row) => ({
     id: `plan-${row.id}`,
     type: "plan",
     studentId: row.mentee?.id ?? row.mentee_id,

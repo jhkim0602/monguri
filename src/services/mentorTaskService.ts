@@ -13,6 +13,7 @@ import {
 import { getMenteesByMentorId } from "@/repositories/mentorMenteeRepository";
 import { getProfileById } from "@/repositories/profilesRepository";
 import { getSubjectBySlug } from "@/repositories/subjectsRepository";
+import { createNotification } from "@/repositories/notificationsRepository";
 import { createFile } from "@/repositories/filesRepository";
 import { HttpError } from "@/lib/httpErrors";
 import { adaptMentorTaskToUi } from "@/lib/mentorAdapters";
@@ -109,7 +110,7 @@ export async function submitTaskFeedback(
   comment: string,
   rating: number,
 ) {
-  await ensureMentorProfile(mentorId);
+  const mentorProfile = await ensureMentorProfile(mentorId);
 
   if (rating < 1 || rating > 5) {
     throw new HttpError(400, "Rating must be between 1 and 5.");
@@ -123,7 +124,32 @@ export async function submitTaskFeedback(
     throw new HttpError(403, "Task does not belong to mentor.");
   }
 
-  return await createTaskFeedback(taskId, mentorId, { comment, rating });
+  const result = await createTaskFeedback(taskId, mentorId, { comment, rating });
+
+  try {
+    const menteeName = "멘티";
+    const mentorName = mentorProfile.name || "멘토";
+    await createNotification({
+      recipientId: task.mentee_id,
+      recipientRole: "mentee",
+      type: "feedback_posted",
+      refType: "mentor_task",
+      refId: task.id,
+      title: `${mentorName} 피드백 도착`,
+      message: task.title || `${menteeName} 과제`,
+      actionUrl: "/feedback",
+      actorId: mentorId,
+      avatarUrl: mentorProfile.avatar_url ?? null,
+      meta: {
+        taskId: task.id,
+        rating,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to create task feedback notification:", error);
+  }
+
+  return result;
 }
 
 export async function submitPlannerTaskFeedback(
@@ -131,7 +157,7 @@ export async function submitPlannerTaskFeedback(
   mentorId: string,
   comment: string,
 ) {
-  await ensureMentorProfile(mentorId);
+  const mentorProfile = await ensureMentorProfile(mentorId);
 
   const task = await getPlannerTaskById(taskId);
   if (!task) {
@@ -140,7 +166,30 @@ export async function submitPlannerTaskFeedback(
 
   await ensureMenteeAssignedToMentor(mentorId, task.mentee_id);
 
-  return await updatePlannerTask(taskId, { mentorComment: comment });
+  const updated = await updatePlannerTask(taskId, { mentorComment: comment });
+
+  try {
+    const mentorName = mentorProfile.name || "멘토";
+    await createNotification({
+      recipientId: task.mentee_id,
+      recipientRole: "mentee",
+      type: "feedback_posted",
+      refType: "planner_task",
+      refId: task.id,
+      title: `${mentorName} 피드백 도착`,
+      message: task.title,
+      actionUrl: "/feedback",
+      actorId: mentorId,
+      avatarUrl: mentorProfile.avatar_url ?? null,
+      meta: {
+        plannerTaskId: task.id,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to create planner feedback notification:", error);
+  }
+
+  return updated;
 }
 
 export async function createMentorTaskForMentee(

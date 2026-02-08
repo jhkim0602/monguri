@@ -6,6 +6,8 @@ import {
   listPlannerTasksByMenteeId,
   updatePlannerTask,
 } from "@/repositories/plannerTasksRepository";
+import { getMentorByMenteeId } from "@/repositories/mentorMenteeRepository";
+import { createNotification } from "@/repositories/notificationsRepository";
 import { getProfileById } from "@/repositories/profilesRepository";
 import { getSubjectBySlug } from "@/repositories/subjectsRepository";
 
@@ -185,7 +187,7 @@ export async function updatePlannerTaskForMentee(
   menteeId: string,
   updates: PlannerTaskUpdateInput
 ) {
-  await ensureMenteeProfile(menteeId);
+  const menteeProfile = await ensureMenteeProfile(menteeId);
 
   const existing = await getPlannerTaskById(taskId);
   if (!existing) {
@@ -220,6 +222,35 @@ export async function updatePlannerTaskForMentee(
 
   if (!updated) {
     throw new HttpError(500, "Failed to update planner task.");
+  }
+
+  if (updates.completed === true && !existing.completed) {
+    try {
+      const mentorPair = await getMentorByMenteeId(menteeId);
+      const mentorId = mentorPair?.mentor?.id ?? null;
+      if (mentorId) {
+        const menteeName = menteeProfile.name || "멘티";
+        const itemId = `plan-${updated.id}`;
+        await createNotification({
+          recipientId: mentorId,
+          recipientRole: "mentor",
+          type: "plan_submitted",
+          refType: "planner_task",
+          refId: updated.id,
+          title: `${menteeName} 플래너 제출`,
+          message: updated.title,
+          actionUrl: `/mentor-feedback?itemId=${encodeURIComponent(itemId)}`,
+          actorId: menteeId,
+          avatarUrl: menteeProfile.avatar_url ?? null,
+          meta: {
+            plannerTaskId: updated.id,
+            date: updated.date,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to create planner submission notification:", error);
+    }
   }
 
   return mapPlannerTask(updated);

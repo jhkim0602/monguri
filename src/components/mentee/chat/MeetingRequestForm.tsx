@@ -9,9 +9,20 @@ type Props = {
   onClose: () => void;
   mentorMenteeId: string;
   senderId: string;
+  mentorId?: string | null;
+  senderName?: string | null;
+  senderAvatarUrl?: string | null;
 };
 
-export default function MeetingRequestForm({ isOpen, onClose, mentorMenteeId, senderId }: Props) {
+export default function MeetingRequestForm({
+  isOpen,
+  onClose,
+  mentorMenteeId,
+  senderId,
+  mentorId,
+  senderName,
+  senderAvatarUrl,
+}: Props) {
   const [topic, setTopic] = useState("");
   const [times, setTimes] = useState<string[]>([""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +78,25 @@ export default function MeetingRequestForm({ isOpen, onClose, mentorMenteeId, se
       });
 
       if (msgError) throw msgError;
+
+      if (mentorId) {
+        await supabase.from("notifications").insert({
+          recipient_id: mentorId,
+          recipient_role: "mentor",
+          type: "meeting_request",
+          ref_type: "meeting_requests",
+          ref_id: request.id,
+          title: `${senderName || "멘티"} 미팅 신청`,
+          message: "미팅 신청이 도착했습니다.",
+          action_url: "/chat-mentor",
+          actor_id: senderId,
+          avatar_url: senderAvatarUrl ?? null,
+          meta: {
+            mentorMenteeId,
+            meetingRequestId: request.id,
+          },
+        });
+      }
 
       onClose();
       setTopic("");

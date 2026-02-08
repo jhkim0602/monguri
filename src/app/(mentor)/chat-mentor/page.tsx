@@ -59,6 +59,7 @@ type SubjectKey = keyof typeof SUBJECT_META;
 
 type Student = {
   id: string;
+  menteeId: string;
   name: string;
   lastMsg: string;
   time: string;
@@ -138,7 +139,10 @@ export default function MentorChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageIdsRef = useRef<Set<string>>(new Set());
-  const isLoadingMessagesRef = useRef(false);
+  const loadingPairsRef = useRef<Set<string>>(new Set());
+  const activePairIdRef = useRef<string | null>(null);
+  const messagesPairIdRef = useRef<string | null>(null);
+  const loadSeqRef = useRef(0);
   const pendingScrollAdjustRef = useRef<{
     prevScrollHeight: number;
     prevScrollTop: number;
@@ -146,12 +150,36 @@ export default function MentorChatPage() {
   const shouldScrollToBottomRef = useRef(true);
   const PAGE_SIZE = 50;
 
+  const debugLog = useCallback((...args: unknown[]) => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("debugChat") !== "1") return;
+    console.log("[mentor-chat]", ...args);
+  }, []);
+
   const persistCache = useCallback(
     (nextMessages: ChatMessage[]) => {
       if (!selectedStudentId) return;
       writeMentorChatCache(selectedStudentId, { messages: nextMessages });
     },
     [selectedStudentId]
+  );
+
+  const markChatNotificationsRead = useCallback(
+    async (pairId: string, recipientId: string) => {
+      const timestamp = new Date().toISOString();
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read_at: timestamp })
+        .eq("recipient_id", recipientId)
+        .eq("type", "chat_message")
+        .contains("meta", { mentorMenteeId: pairId })
+        .is("read_at", null);
+
+      if (error) {
+        console.error("Failed to mark chat notifications as read:", error);
+      }
+    },
+    [],
   );
 
   useEffect(() => {
@@ -211,6 +239,7 @@ export default function MentorChatPage() {
 
         return {
           id: pair.id,
+          menteeId: menteeProfile?.id ?? "",
           name: menteeProfile?.name ?? "멘티",
           lastMsg: lastMsgText,
           time: formatPreviewTime(lastMessage?.created_at),
@@ -237,6 +266,17 @@ export default function MentorChatPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!mentorId || !selectedStudentId) return;
+    debugLog("markChatNotificationsRead", { selectedStudentId, mentorId });
+    markChatNotificationsRead(selectedStudentId, mentorId);
+  }, [mentorId, selectedStudentId, markChatNotificationsRead, debugLog]);
+
+  useEffect(() => {
+    activePairIdRef.current = selectedStudentId;
+    debugLog("activePairIdRef set", selectedStudentId);
+  }, [selectedStudentId, debugLog]);
 
   const fetchSignedUrl = useCallback(async (path: string) => {
     const cached = getCachedSignedUrl(path);
@@ -313,38 +353,71 @@ export default function MentorChatPage() {
 
   const loadMessages = useCallback(async () => {
     if (!selectedStudentId) return;
+    const pairId = selectedStudentId;
+    const loadId = ++loadSeqRef.current;
+    debugLog("loadMessages:start", { loadId, pairId });
 
     const cached = readMentorChatCache<{ messages: ChatMessage[] }>(
       selectedStudentId
     );
     if (cached?.data?.messages?.length) {
+      messagesPairIdRef.current = pairId;
+      debugLog("loadMessages:cache", {
+        loadId,
+        pairId,
+        count: cached.data.messages.length,
+        stale: cached.stale,
+      });
       setMessages(cached.data.messages);
       setHasMore(cached.data.messages.length >= PAGE_SIZE);
       if (!cached.stale) {
+        debugLog("loadMessages:cache-hit", { loadId, pairId });
         return;
       }
     }
 
-    if (isLoadingMessagesRef.current) return;
-    isLoadingMessagesRef.current = true;
+    if (loadingPairsRef.current.has(pairId)) {
+      debugLog("loadMessages:skip-inflight", { loadId, pairId });
+      return;
+    }
+    loadingPairsRef.current.add(pairId);
 
     const page = await fetchMessagesPage();
     if (!page) {
-      isLoadingMessagesRef.current = false;
+      loadingPairsRef.current.delete(pairId);
+      debugLog("loadMessages:empty", { loadId, pairId });
+      return;
+    }
+    if (activePairIdRef.current !== pairId) {
+      loadingPairsRef.current.delete(pairId);
+      debugLog("loadMessages:aborted", {
+        loadId,
+        pairId,
+        active: activePairIdRef.current,
+      });
       return;
     }
 
+    messagesPairIdRef.current = pairId;
+    debugLog("loadMessages:apply", {
+      loadId,
+      pairId,
+      count: page.items.length,
+    });
     setMessages(page.items);
     setHasMore(page.rawCount >= PAGE_SIZE);
     persistCache(page.items);
     shouldScrollToBottomRef.current = true;
-    isLoadingMessagesRef.current = false;
-  }, [selectedStudentId, fetchMessagesPage, persistCache]);
+    loadingPairsRef.current.delete(pairId);
+  }, [selectedStudentId, fetchMessagesPage, persistCache, debugLog]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!selectedStudentId || !hasMore || isLoadingMore) return;
+    const pairId = selectedStudentId;
     const oldest = messages[0];
     if (!oldest?.created_at) return;
+    const loadId = ++loadSeqRef.current;
+    debugLog("loadOlder:start", { loadId, pairId, oldest: oldest.created_at });
 
     setIsLoadingMore(true);
     if (chatScrollRef.current) {
@@ -358,9 +431,25 @@ export default function MentorChatPage() {
     if (!page || page.items.length === 0) {
       setHasMore(false);
       setIsLoadingMore(false);
+      debugLog("loadOlder:empty", { loadId, pairId });
+      return;
+    }
+    if (activePairIdRef.current !== pairId) {
+      setIsLoadingMore(false);
+      debugLog("loadOlder:aborted", {
+        loadId,
+        pairId,
+        active: activePairIdRef.current,
+      });
       return;
     }
 
+    messagesPairIdRef.current = pairId;
+    debugLog("loadOlder:apply", {
+      loadId,
+      pairId,
+      count: page.items.length,
+    });
     setMessages((prev) => [...page.items, ...prev]);
     setHasMore(page.rawCount >= PAGE_SIZE);
     setIsLoadingMore(false);
@@ -370,10 +459,12 @@ export default function MentorChatPage() {
     isLoadingMore,
     messages,
     fetchMessagesPage,
+    debugLog,
   ]);
 
   useEffect(() => {
     if (!selectedStudentId) return;
+    debugLog("selectStudentEffect", selectedStudentId);
 
     setMessages([]);
     setHasMore(true);
@@ -392,6 +483,11 @@ export default function MentorChatPage() {
         },
         async (payload) => {
           const fullMessage = payload.new as ChatMessage;
+          debugLog("realtime:message", {
+            pair: fullMessage.mentor_mentee_id,
+            sender: fullMessage.sender_id,
+            id: fullMessage.id,
+          });
           if (chatScrollRef.current) {
             const { scrollTop, scrollHeight, clientHeight } =
               chatScrollRef.current;
@@ -406,6 +502,7 @@ export default function MentorChatPage() {
             if (prev.some((item) => item.id === fullMessage.id)) {
               return prev;
             }
+            messagesPairIdRef.current = selectedStudentId;
             return [...prev, fullMessage].sort(
               (a, b) =>
                 new Date(a.created_at).getTime() -
@@ -424,6 +521,18 @@ export default function MentorChatPage() {
               };
             })
           );
+
+          if (
+            mentorId &&
+            fullMessage.sender_id !== mentorId &&
+            fullMessage.mentor_mentee_id === selectedStudentId
+          ) {
+            debugLog("realtime:markRead", {
+              pair: selectedStudentId,
+              mentorId,
+            });
+            await markChatNotificationsRead(selectedStudentId, mentorId);
+          }
         }
       )
       .on(
@@ -467,7 +576,14 @@ export default function MentorChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedStudentId, loadMessages, fetchSignedUrl]);
+  }, [
+    selectedStudentId,
+    mentorId,
+    loadMessages,
+    fetchSignedUrl,
+    markChatNotificationsRead,
+    debugLog,
+  ]);
 
   useEffect(() => {
     if (!chatScrollRef.current) return;
@@ -475,8 +591,7 @@ export default function MentorChatPage() {
     if (!container) return;
 
     if (pendingScrollAdjustRef.current) {
-      const { prevScrollHeight, prevScrollTop } =
-        pendingScrollAdjustRef.current;
+      const { prevScrollHeight, prevScrollTop } = pendingScrollAdjustRef.current;
       const nextScrollHeight = container.scrollHeight;
       container.scrollTop =
         nextScrollHeight - prevScrollHeight + prevScrollTop;
@@ -526,15 +641,40 @@ export default function MentorChatPage() {
 
     setIsSending(true);
     shouldScrollToBottomRef.current = true;
-    const { error } = await supabase.from("chat_messages").insert({
-      mentor_mentee_id: selectedStudentId,
-      sender_id: mentorId,
-      body: trimmed,
-      message_type: "text",
-    });
+    const { data: message, error } = await supabase
+      .from("chat_messages")
+      .insert({
+        mentor_mentee_id: selectedStudentId,
+        sender_id: mentorId,
+        body: trimmed,
+        message_type: "text",
+      })
+      .select("id")
+      .single();
 
     if (!error) {
       setInputText("");
+      const selectedStudent = students.find((student) => student.id === selectedStudentId);
+      const menteeId = selectedStudent?.menteeId;
+      if (menteeId) {
+        const mentorTitle = "멘토 새 메시지";
+        await supabase.from("notifications").insert({
+          recipient_id: menteeId,
+          recipient_role: "mentee",
+          type: "chat_message",
+          ref_type: "chat_message",
+          ref_id: message?.id ?? null,
+          title: mentorTitle,
+          message: trimmed,
+          action_url: "/chat",
+          actor_id: mentorId,
+          avatar_url: null,
+          meta: {
+            mentorMenteeId: selectedStudentId,
+            messageType: "text",
+          },
+        });
+      }
     }
 
     setIsSending(false);
@@ -567,6 +707,29 @@ export default function MentorChatPage() {
     if (messageError || !message) {
       setIsSending(false);
       return;
+    }
+
+    const selectedStudent = students.find((student) => student.id === selectedStudentId);
+    const menteeId = selectedStudent?.menteeId;
+    if (menteeId) {
+      const preview =
+        messageType === "image" ? "이미지를 전송했습니다." : "파일을 전송했습니다.";
+      await supabase.from("notifications").insert({
+        recipient_id: menteeId,
+        recipient_role: "mentee",
+        type: "chat_message",
+        ref_type: "chat_message",
+        ref_id: message.id,
+        title: "멘토 새 메시지",
+        message: preview,
+        action_url: "/chat",
+        actor_id: mentorId,
+        avatar_url: null,
+        meta: {
+          mentorMenteeId: selectedStudentId,
+          messageType,
+        },
+      });
     }
 
     for (const file of fileArray) {
@@ -612,10 +775,10 @@ export default function MentorChatPage() {
 
   useEffect(() => {
     messageIdsRef.current = new Set(messages.map((msg) => msg.id));
-    if (messages.length > 0) {
-      persistCache(messages);
+    if (messages.length > 0 && messagesPairIdRef.current) {
+      writeMentorChatCache(messagesPairIdRef.current, { messages });
     }
-  }, [messages, persistCache]);
+  }, [messages]);
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
   const selectedSubject = selectedStudent

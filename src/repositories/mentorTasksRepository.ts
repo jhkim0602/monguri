@@ -77,6 +77,7 @@ export type MentorTaskCoreRow = {
   mentor_id: string;
   mentee_id: string;
   status: MentorTaskStatus;
+  title: string;
 };
 
 export type MentorTaskMaterialRow = {
@@ -175,7 +176,7 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
 export async function getMentorTaskById(taskId: string) {
   const { data, error } = await supabaseServer
     .from("mentor_tasks")
-    .select("id, mentor_id, mentee_id, status")
+    .select("id, mentor_id, mentee_id, status, title")
     .eq("id", taskId)
     .maybeSingle();
 

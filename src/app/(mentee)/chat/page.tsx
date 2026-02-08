@@ -21,6 +21,12 @@ type MentorProfile = {
   avatar_url: string | null;
 };
 
+type MenteeProfile = {
+  id: string;
+  name: string | null;
+  avatar_url: string | null;
+};
+
 type ChatAttachment = {
   id: string;
   message_id: string;
@@ -51,6 +57,7 @@ export default function ChatPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [mentorMenteeId, setMentorMenteeId] = useState<string | null>(null);
   const [mentor, setMentor] = useState<MentorProfile | null>(null);
+  const [menteeProfile, setMenteeProfile] = useState<MenteeProfile | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -78,6 +85,24 @@ export default function ChatPage() {
     [mentorMenteeId, mentor]
   );
 
+  const markChatNotificationsRead = useCallback(
+    async (pairId: string, recipientId: string) => {
+      const timestamp = new Date().toISOString();
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read_at: timestamp })
+        .eq("recipient_id", recipientId)
+        .eq("type", "chat_message")
+        .contains("meta", { mentorMenteeId: pairId })
+        .is("read_at", null);
+
+      if (error) {
+        console.error("Failed to mark chat notifications as read:", error);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     let isMounted = true;
 
@@ -95,6 +120,16 @@ export default function ChatPage() {
 
       if (isMounted) {
         setUserId(uid);
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, name, avatar_url")
+        .eq("id", uid)
+        .maybeSingle();
+
+      if (isMounted) {
+        setMenteeProfile((profile ?? null) as MenteeProfile | null);
       }
 
       const { data: pair } = await supabase
@@ -124,6 +159,11 @@ export default function ChatPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!userId || !mentorMenteeId) return;
+    markChatNotificationsRead(mentorMenteeId, userId);
+  }, [userId, mentorMenteeId, markChatNotificationsRead]);
 
   const fetchSignedUrl = useCallback(async (path: string) => {
     const cached = getCachedSignedUrl(path);
@@ -308,6 +348,14 @@ export default function ChatPage() {
                 new Date(b.created_at).getTime()
             );
           });
+
+          if (
+            userId &&
+            incoming.sender_id !== userId &&
+            incoming.mentor_mentee_id === mentorMenteeId
+          ) {
+            await markChatNotificationsRead(mentorMenteeId, userId);
+          }
         }
       )
       .on(
@@ -351,7 +399,7 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [mentorMenteeId, loadMessages, fetchSignedUrl]);
+  }, [mentorMenteeId, userId, loadMessages, fetchSignedUrl, markChatNotificationsRead]);
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -377,15 +425,38 @@ export default function ChatPage() {
 
     setIsSending(true);
     shouldScrollToBottomRef.current = true;
-    const { error } = await supabase.from("chat_messages").insert({
-      mentor_mentee_id: mentorMenteeId,
-      sender_id: userId,
-      body: inputValue.trim(),
-      message_type: "text"
-    });
+    const { data: message, error } = await supabase
+      .from("chat_messages")
+      .insert({
+        mentor_mentee_id: mentorMenteeId,
+        sender_id: userId,
+        body: inputValue.trim(),
+        message_type: "text",
+      })
+      .select("id")
+      .single();
 
     if (!error) {
       setInputValue("");
+      if (mentor?.id) {
+        const senderName = menteeProfile?.name || "멘티";
+        await supabase.from("notifications").insert({
+          recipient_id: mentor.id,
+          recipient_role: "mentor",
+          type: "chat_message",
+          ref_type: "chat_message",
+          ref_id: message?.id ?? null,
+          title: `${senderName} 새 메시지`,
+          message: inputValue.trim(),
+          action_url: "/chat-mentor",
+          actor_id: userId,
+          avatar_url: menteeProfile?.avatar_url ?? null,
+          meta: {
+            mentorMenteeId,
+            messageType: "text",
+          },
+        });
+      }
     }
 
     setIsSending(false);
@@ -408,7 +479,7 @@ export default function ChatPage() {
         mentor_mentee_id: mentorMenteeId,
         sender_id: userId,
         body: messageType === "file" ? "파일을 전송했습니다." : null,
-        message_type: messageType
+        message_type: messageType,
       })
       .select("id")
       .single();
@@ -416,6 +487,28 @@ export default function ChatPage() {
     if (messageError || !message) {
       setIsSending(false);
       return;
+    }
+
+    if (mentor?.id) {
+      const senderName = menteeProfile?.name || "멘티";
+      const preview =
+        messageType === "image" ? "이미지를 전송했습니다." : "파일을 전송했습니다.";
+      await supabase.from("notifications").insert({
+        recipient_id: mentor.id,
+        recipient_role: "mentor",
+        type: "chat_message",
+        ref_type: "chat_message",
+        ref_id: message.id,
+        title: `${senderName} 새 메시지`,
+        message: preview,
+        action_url: "/chat-mentor",
+        actor_id: userId,
+        avatar_url: menteeProfile?.avatar_url ?? null,
+        meta: {
+          mentorMenteeId,
+          messageType,
+        },
+      });
     }
 
     for (const file of fileArray) {
@@ -710,6 +803,9 @@ export default function ChatPage() {
             onClose={() => setIsMeetingFormOpen(false)}
             mentorMenteeId={mentorMenteeId}
             senderId={userId}
+            mentorId={mentor?.id ?? null}
+            senderName={menteeProfile?.name ?? null}
+            senderAvatarUrl={menteeProfile?.avatar_url ?? null}
         />
       )}
     </div>

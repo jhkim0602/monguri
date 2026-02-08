@@ -9,6 +9,7 @@ import {
   createTaskSubmissionFiles,
 } from "@/repositories/taskSubmissionsRepository";
 import { createFile } from "@/repositories/filesRepository";
+import { createNotification } from "@/repositories/notificationsRepository";
 
 type AttachmentMetaInput = {
   bucket: string;
@@ -86,6 +87,29 @@ export async function createMenteeTaskSubmission(
 
   if (task.status !== "submitted") {
     await updateMentorTaskStatus(taskId, "submitted");
+  }
+
+  try {
+    const menteeName = profile.name || "멘티";
+    const itemId = `task-${task.id}`;
+    await createNotification({
+      recipientId: task.mentor_id,
+      recipientRole: "mentor",
+      type: "task_submitted",
+      refType: "mentor_task",
+      refId: task.id,
+      title: `${menteeName} 과제 제출`,
+      message: task.title,
+      actionUrl: `/mentor-feedback?itemId=${encodeURIComponent(itemId)}`,
+      actorId: menteeId,
+      avatarUrl: profile.avatar_url ?? null,
+      meta: {
+        taskId: task.id,
+        submissionId: submission.id,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to create task submission notification:", error);
   }
 
   return {
