@@ -47,6 +47,37 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  const confirmLeaveIfDraftExists = useCallback(() => {
+    if (!inputValue.trim()) {
+      return true;
+    }
+    if (typeof window === "undefined") {
+      return true;
+    }
+    return window.confirm("작성 중인 메시지가 있어요. 나가시겠어요?");
+  }, [inputValue]);
+
+  const handleLeaveChat = useCallback(
+    (forceHome = false) => {
+      if (!confirmLeaveIfDraftExists()) {
+        return;
+      }
+
+      if (forceHome) {
+        router.push("/home");
+        return;
+      }
+
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+        return;
+      }
+
+      router.push("/home");
+    },
+    [confirmLeaveIfDraftExists, router]
+  );
+
   useEffect(() => {
     let isMounted = true;
 
@@ -324,11 +355,12 @@ export default function ChatPage() {
 
   return (
     <div className="bg-[#F2F2F7] h-full flex flex-col overflow-hidden">
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 px-4 pt-10 pb-4 shadow-sm shrink-0">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 px-4 safe-top-header-md pb-4 shadow-sm shrink-0">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => router.back()}
+            onClick={() => handleLeaveChat(false)}
             className="p-2 -ml-2 text-primary hover:bg-gray-100 rounded-full transition-colors active:scale-90"
+            aria-label="뒤로가기"
           >
             <ChevronLeft size={28} strokeWidth={2.5} />
           </button>
@@ -342,7 +374,13 @@ export default function ChatPage() {
             </span>
           </div>
 
-          <div className="w-10" />
+          <button
+            type="button"
+            onClick={() => handleLeaveChat(true)}
+            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-bold text-gray-600 shadow-sm active:scale-95"
+          >
+            나가기
+          </button>
         </div>
       </header>
 
@@ -436,7 +474,16 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-4 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] shrink-0">
+      <div className="bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] shrink-0">
+        <div className="mb-2 sm:hidden">
+          <button
+            type="button"
+            onClick={() => handleLeaveChat(false)}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 active:scale-[0.99]"
+          >
+            채팅 나가기
+          </button>
+        </div>
         <div className="flex items-center gap-3">
           <button
             type="button"

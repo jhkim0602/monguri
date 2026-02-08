@@ -20,6 +20,8 @@ import Link from "next/link";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
 
 export default function Home() {
+  const DDAY_STORAGE_PREFIX = "mentee-d-day";
+  const DDAY_LABEL_STORAGE_PREFIX = "mentee-d-day-label";
   // Default to Feb 2 2026 for demo context
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [animatedProgress, setAnimatedProgress] = useState(0);
@@ -87,6 +89,19 @@ export default function Home() {
     };
   };
 
+  const calculateDDay = (targetDateString?: string | null): number | null => {
+    if (!targetDateString) return null;
+    const targetDate = new Date(`${targetDateString}T00:00:00`);
+    if (Number.isNaN(targetDate.getTime())) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return Math.ceil(
+      (targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+  };
+
   useEffect(() => {
     let startTime: number | null = null;
     const duration = 400;
@@ -140,7 +155,26 @@ export default function Home() {
         if (profileRes.ok) {
           const profileJson = await profileRes.json();
           if (isMounted) {
-            setProfile(adaptProfileToUi(profileJson.profile ?? null));
+            const adaptedProfile = adaptProfileToUi(profileJson.profile ?? null);
+            if (adaptedProfile) {
+              const localDDayDate =
+                localStorage.getItem(`${DDAY_STORAGE_PREFIX}:${user.id}`) ?? null;
+              const localDDayLabel =
+                localStorage.getItem(`${DDAY_LABEL_STORAGE_PREFIX}:${user.id}`) ??
+                null;
+              const localDDay = calculateDDay(localDDayDate);
+              setProfile({
+                ...adaptedProfile,
+                dDay:
+                  localDDay !== null ? localDDay : (adaptedProfile.dDay ?? null),
+                dDayLabel:
+                  localDDayLabel && localDDayLabel.trim().length > 0
+                    ? localDDayLabel.trim()
+                    : adaptedProfile.dDayLabel,
+              });
+            } else {
+              setProfile(null);
+            }
           }
         }
 
@@ -188,7 +222,14 @@ export default function Home() {
           <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-semibold mb-2">
             {profile.role}
             {typeof profile.dDay === "number" ? (
-              <span className="ml-1 text-primary">D-{profile.dDay}</span>
+              <span className="ml-1 text-primary">
+                {`${profile.dDayLabel ?? "D-day"} `}
+                {profile.dDay > 0
+                  ? `D-${profile.dDay}`
+                  : profile.dDay === 0
+                    ? "D-Day"
+                    : `D+${Math.abs(profile.dDay)}`}
+              </span>
             ) : null}
           </span>
           <h2 className="text-xl font-bold leading-tight">

@@ -14,9 +14,50 @@ export function adaptMenteeToUi(
       name: string | null;
       avatar_url: string | null;
       intro: string | null;
+      d_day_date?: string | null;
+      d_day_target_date?: string | null;
+      dday_date?: string | null;
+      target_date?: string | null;
+      exam_date?: string | null;
+      d_day_label?: string | null;
+      d_day_name?: string | null;
+      dday_label?: string | null;
+      dday_name?: string | null;
+      target_label?: string | null;
+      exam_label?: string | null;
     } | null;
   },
 ): MentorMentee {
+  const dDayTargetDate =
+    row.mentee?.d_day_date ??
+    row.mentee?.d_day_target_date ??
+    row.mentee?.dday_date ??
+    row.mentee?.target_date ??
+    row.mentee?.exam_date ??
+    null;
+
+  const dDayLabel =
+    row.mentee?.d_day_label ??
+    row.mentee?.d_day_name ??
+    row.mentee?.dday_label ??
+    row.mentee?.dday_name ??
+    row.mentee?.target_label ??
+    row.mentee?.exam_label ??
+    "D-day";
+
+  const calculateDDay = (targetDateString?: string | null): number | null => {
+    if (!targetDateString) return null;
+    const targetDate = new Date(`${targetDateString}T00:00:00`);
+    if (Number.isNaN(targetDate.getTime())) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return Math.ceil(
+      (targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+  };
+
   return {
     id: row.mentee_id,
     name: row.mentee?.name || "이름 없음",
@@ -24,6 +65,8 @@ export function adaptMenteeToUi(
     track: "수능/정시", // Default or fetch
     goal: row.mentee?.intro || "목표가 설정되지 않았습니다.",
     avatarUrl: row.mentee?.avatar_url || undefined,
+    dDay: calculateDDay(dDayTargetDate),
+    dDayLabel,
     stats: {
       studyHours: 0, // Needs aggregation query
       attendanceRate: "0%", // Needs aggregation query

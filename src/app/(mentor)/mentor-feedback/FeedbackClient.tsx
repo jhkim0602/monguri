@@ -98,6 +98,27 @@ const hasUploadedSelfStudyFile = (materials: any): boolean => {
   });
 };
 
+const getMentorCommentText = (row: any): string => {
+  const value = row?.mentor_comment ?? row?.mentorComment;
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : "";
+};
+
+const selectPlanFeedbackTargetTask = (plannerTasks: any[]) => {
+  if (!Array.isArray(plannerTasks) || plannerTasks.length === 0) return null;
+
+  const mentorTask = plannerTasks.find((task) => task?.is_mentor_task);
+  if (mentorTask) return mentorTask;
+
+  const nonSelfFileTask = plannerTasks.find(
+    (task) => !hasUploadedSelfStudyFile(task?.materials),
+  );
+  if (nonSelfFileTask) return nonSelfFileTask;
+
+  return plannerTasks[0];
+};
+
 export default function FeedbackClient({
   mentorId,
   initialItems,
@@ -123,9 +144,6 @@ export default function FeedbackClient({
   const [expandedPlanItemId, setExpandedPlanItemId] = useState<
     string | number | null
   >(null);
-  const [publishedFeedback, setPublishedFeedback] = useState<string | null>(
-    null,
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleDownloadAttachment = async (
@@ -184,6 +202,11 @@ export default function FeedbackClient({
       const first = groupedItems[0];
       const planDate = toDate(first.date);
       const plannerTasks = groupedItems.map((i) => i.data);
+      const reviewTargetTask = selectPlanFeedbackTargetTask(plannerTasks);
+      const mentorComment =
+        getMentorCommentText(reviewTargetTask) ||
+        plannerTasks.map(getMentorCommentText).find(Boolean) ||
+        "";
       const totalStudySeconds = plannerTasks.reduce(
         (sum, row) => sum + (Number(row?.time_spent_sec) || 0),
         0,
@@ -198,11 +221,13 @@ export default function FeedbackClient({
         title: `${planDate.getMonth() + 1}월 ${planDate.getDate()}일 플래너`,
         subtitle: `완료한 할 일 ${plannerTasks.length}개`,
         date: planDate,
-        status: "submitted",
+        status: mentorComment ? "reviewed" : "submitted",
         data: {
           plannerTasks,
           totalStudySeconds,
           dailyGoal: first.data?.dailyGoal ?? first.data?.daily_goal ?? "",
+          plannerTaskIdForFeedback: reviewTargetTask?.id ?? null,
+          mentorComment,
         },
       };
     },
@@ -217,6 +242,7 @@ export default function FeedbackClient({
     )
     .map((item) => {
       const selfDate = toDate(item.date);
+      const mentorComment = getMentorCommentText(item.data);
       return {
         id: `self-${item.id}`,
         type: "self",
@@ -226,7 +252,7 @@ export default function FeedbackClient({
         title: item.data?.title || item.title || "자습 할 일",
         subtitle: item.data?.subjects?.name || item.subtitle || "자습",
         date: selfDate,
-        status: "submitted",
+        status: mentorComment ? "reviewed" : "submitted",
         data: {
           ...item.data,
           plannerTaskId: item.data?.id,
@@ -291,11 +317,12 @@ export default function FeedbackClient({
       ? selectedItem.data?.task_feedback?.[0]?.comment ?? ""
       : "";
   const selectedSelfFeedback =
-    selectedItem?.type === "self"
-      ? selectedItem.data?.mentor_comment ??
-        selectedItem.data?.mentorComment ??
-        ""
+    selectedItem?.type === "self" ? getMentorCommentText(selectedItem.data) : "";
+  const selectedPlanFeedback =
+    selectedItem?.type === "plan"
+      ? getMentorCommentText(selectedItem.data)
       : "";
+  const selectedItemType = selectedItem?.type ?? null;
   const isTaskReviewed =
     selectedItem?.type === "task" && selectedItem.status === "reviewed";
 
@@ -316,17 +343,101 @@ export default function FeedbackClient({
     }
 
     if (selectedItem.type === "plan") {
-      setFeedbackText(publishedFeedback ?? "");
+      setFeedbackText(selectedPlanFeedback);
     }
   }, [
     selectedItemId,
-    selectedItem,
+    selectedItemType,
     selectedTaskFeedback,
     selectedSelfFeedback,
-    publishedFeedback,
+    selectedPlanFeedback,
   ]);
 
   // --- Handlers ---
+  const submitPlanFeedback = async (
+    planItem: FeedbackItem,
+    comment: string,
+    successContent: string,
+  ) => {
+    const trimmedComment = comment.trim();
+    if (!trimmedComment) {
+      alert("피드백 내용을 입력해주세요.");
+      return false;
+    }
+
+    const plannerTaskId = String(
+      planItem.data?.plannerTaskIdForFeedback ??
+        planItem.data?.plannerTasks?.[0]?.id ??
+        "",
+    );
+
+    if (!plannerTaskId) {
+      alert("플래너 항목 ID를 찾을 수 없습니다.");
+      return false;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/mentor/feedback/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mentorId,
+          taskId: plannerTaskId,
+          comment: trimmedComment,
+          type: "planner_task",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        openModal({
+          title: "전송 완료",
+          content: successContent,
+          type: "success",
+        });
+
+        const planDateKey = toDateKey(planItem.date);
+        setItems((prev) =>
+          prev.map((item) => {
+            if (item.type !== "plan") return item;
+            if (item.studentId !== planItem.studentId) return item;
+            if (toDateKey(item.date) !== planDateKey) return item;
+            if (String(item.data?.id) !== plannerTaskId) return item;
+
+            return {
+              ...item,
+              status: "reviewed",
+              data: {
+                ...item.data,
+                mentor_comment: trimmedComment,
+                mentorComment: trimmedComment,
+              },
+            };
+          }),
+        );
+        setFeedbackText(trimmedComment);
+        return true;
+      }
+
+      openModal({
+        title: "전송 실패",
+        content: result.error || "알 수 없는 오류가 발생했습니다.",
+        type: "confirm",
+      });
+      return false;
+    } catch (error) {
+      console.error("Plan Feedback Submit Error:", error);
+      alert("피드백 전송 중 오류가 발생했습니다.");
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSendFeedback = async () => {
     if (!selectedItem) return;
 
@@ -449,9 +560,11 @@ export default function FeedbackClient({
               if (item.id !== selectedItem.id) return item;
               return {
                 ...item,
+                status: "reviewed",
                 data: {
                   ...item.data,
                   mentor_comment: feedbackText,
+                  mentorComment: feedbackText,
                 },
               };
             }),
@@ -472,23 +585,18 @@ export default function FeedbackClient({
       return;
     }
 
-    // For other types (mock implementation)
-    openModal({
-      title: "리포트 전송",
-      content: "작성하신 총평을 전송하고 플래너에 반영하시겠습니까?",
-      type: "confirm",
-      onConfirm: () => {
-        setPublishedFeedback(feedbackText); // Apply feedback to card
-        openModal({
-          title: "전송 완료",
-          content: "✅ 리포트가 전송되었습니다.",
-          type: "success",
-        });
-      },
-    });
+    if (selectedItem.type === "plan") {
+      await submitPlanFeedback(
+        selectedItem,
+        feedbackText,
+        "✅ 리포트가 전송되었습니다.",
+      );
+    }
   };
 
   const handleApprovePlan = () => {
+    if (!selectedItem || selectedItem.type !== "plan") return;
+
     openModal({
       title: "계획 승인",
       content:
@@ -496,12 +604,8 @@ export default function FeedbackClient({
       type: "confirm",
       confirmText: "승인",
       onConfirm: () => {
-        openModal({
-          title: "승인 완료",
-          content: "👌 계획이 승인되었습니다.",
-          type: "success",
-        });
-        setSelectedItemId(null);
+        const quickComment = "확인했습니다.";
+        void submitPlanFeedback(selectedItem, quickComment, "👌 계획이 승인되었습니다.");
       },
     });
   };
@@ -523,8 +627,8 @@ export default function FeedbackClient({
       timeSpent: Number(row?.time_spent_sec) || 0,
       startTime: row?.start_time || undefined,
       endTime: row?.end_time || undefined,
-      hasMentorResponse: Boolean(row?.mentor_comment),
-      mentorComment: row?.mentor_comment || undefined,
+      hasMentorResponse: Boolean(getMentorCommentText(row)),
+      mentorComment: getMentorCommentText(row) || undefined,
     }));
 
     return {
@@ -793,7 +897,7 @@ export default function FeedbackClient({
                               mentorDeadlines={selectedPlanData.mentorDeadlines}
                               userTasks={selectedPlanData.userTasks}
                               dailyEvents={selectedPlanData.dailyEvents}
-                              mentorReview={publishedFeedback ?? undefined}
+                              mentorReview={feedbackText || undefined}
                               size="full"
                             />
                           </div>
@@ -849,9 +953,11 @@ export default function FeedbackClient({
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={handleSendFeedback}
-                            className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
+                            disabled={isSubmitting}
+                            className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2 disabled:bg-gray-400 disabled:shadow-none"
                           >
-                            <Send size={14} /> 총평 리포트 전송
+                            <Send size={14} />{" "}
+                            {isSubmitting ? "전송 중..." : "총평 리포트 전송"}
                           </button>
                         </div>
                       </div>
@@ -1058,7 +1164,7 @@ export default function FeedbackClient({
           mentorDeadlines={expandedPlanData.mentorDeadlines}
           plannerTasks={expandedPlanData.userTasks as any}
           dailyEvents={expandedPlanData.dailyEvents}
-          mentorReview={publishedFeedback ?? undefined}
+          mentorReview={feedbackText || undefined}
         />
       )}
     </div>

@@ -7,6 +7,15 @@ import type {
 } from "@/lib/menteeAdapters";
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 
+type PlannerCardScaleContext = {
+    date: Date;
+    isToday: boolean;
+    mentorTaskCount: number;
+    plannerTaskCount: number;
+    scheduleEventCount: number;
+    totalCount: number;
+};
+
 interface PlannerCollectionViewProps {
     currentDate: Date;
     daysInMonth: number;
@@ -22,6 +31,11 @@ interface PlannerCollectionViewProps {
     cardClassName?: string;
     fillCard?: boolean;
     fillScale?: number;
+    cardAspectClass?: string;
+    getCardScale?: (context: PlannerCardScaleContext) => number | undefined;
+    showCardScaleControls?: boolean;
+    onIncreaseCardScale?: (date: Date, currentScale: number) => void;
+    onDecreaseCardScale?: (date: Date, currentScale: number) => void;
     showDateLabel?: boolean;
     dateLabelClassName?: string;
 }
@@ -40,6 +54,11 @@ export default function PlannerCollectionView({
     cardClassName,
     fillCard = false,
     fillScale,
+    cardAspectClass,
+    getCardScale,
+    showCardScaleControls = false,
+    onIncreaseCardScale,
+    onDecreaseCardScale,
     showDateLabel = false,
     dateLabelClassName
 }: PlannerCollectionViewProps) {
@@ -66,6 +85,17 @@ export default function PlannerCollectionView({
                         (task) => task.deadline && isSameDay(task.deadline, date)
                     );
                     const record = getDailyRecord(date);
+                    const totalCount =
+                        mentorDeadlines.length + userTasksForDate.length + dailyEvents.length;
+                    const cardScale = getCardScale?.({
+                        date,
+                        isToday: isTodayDate,
+                        mentorTaskCount: mentorDeadlines.length,
+                        plannerTaskCount: userTasksForDate.length,
+                        scheduleEventCount: dailyEvents.length,
+                        totalCount,
+                    });
+                    const displayedScale = cardScale ?? (fillCard ? (fillScale ?? 0.34) : 0.24);
 
                     // Generate time blocks from actual tasks for today
                     const allTasksForDay = [...mentorDeadlines, ...userTasksForDate, ...dailyEvents.filter(e => e.taskType === 'plan')];
@@ -85,6 +115,20 @@ export default function PlannerCollectionView({
                             onClick={() => onDateClick(date)}
                             fill={fillCard}
                             fillScale={fillScale}
+                            previewScale={cardScale}
+                            showScaleControls={showCardScaleControls}
+                            onIncreaseScale={
+                                showCardScaleControls
+                                    ? () => onIncreaseCardScale?.(date, displayedScale)
+                                    : undefined
+                            }
+                            onDecreaseScale={
+                                showCardScaleControls
+                                    ? () => onDecreaseCardScale?.(date, displayedScale)
+                                    : undefined
+                            }
+                            scaleLabel={showCardScaleControls ? `${displayedScale.toFixed(2)}x` : undefined}
+                            aspectClass={cardAspectClass}
                             className={cardClassName}
                         />
                     );

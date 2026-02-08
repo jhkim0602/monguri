@@ -14,6 +14,21 @@ export const profileIdQuerySchema = z.object({
   profileId: uuidSchema,
 });
 
+export const profileUpdateBodySchema = z
+  .object({
+    profileId: uuidSchema,
+    name: z.string().min(1).max(100).optional().nullable(),
+    intro: z.string().max(500).optional().nullable(),
+    avatarUrl: z.string().max(1_200_000).optional().nullable(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.intro !== undefined ||
+      data.avatarUrl !== undefined,
+    { message: "No fields to update." },
+  );
+
 export const taskIdParamSchema = z.object({
   taskId: uuidSchema,
 });
@@ -90,4 +105,15 @@ export const plannerOverviewQuerySchema = z.object({
   menteeId: uuidSchema,
   from: dateStringSchema.optional(),
   to: dateStringSchema.optional(),
+});
+
+export const plannerDailyRecordQuerySchema = z.object({
+  menteeId: uuidSchema,
+  date: dateStringSchema,
+});
+
+export const plannerDailyRecordUpdateBodySchema = z.object({
+  menteeId: uuidSchema,
+  date: dateStringSchema,
+  memo: z.string().max(2000).optional().nullable(),
 });

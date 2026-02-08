@@ -24,6 +24,9 @@ export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+    const [plannerPreviewScaleMode, setPlannerPreviewScaleMode] = useState<"auto" | "manual" | "per-card">("auto");
+    const [manualPlannerPreviewScale, setManualPlannerPreviewScale] = useState(0.24);
+    const [perCardPlannerPreviewScale, setPerCardPlannerPreviewScale] = useState<Record<string, number>>({});
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
@@ -353,6 +356,43 @@ export default function CalendarPage() {
         ? scheduleEvents.filter(e => e.date && isSameDay(e.date, selectedDate))
         : [];
 
+    const MIN_PREVIEW_SCALE = 0.18;
+    const MAX_PREVIEW_SCALE = 0.34;
+    const PREVIEW_SCALE_STEP = 0.01;
+
+    const clampPreviewScale = (value: number) =>
+        Math.min(MAX_PREVIEW_SCALE, Math.max(MIN_PREVIEW_SCALE, Number(value.toFixed(2))));
+
+    const getAutoPlannerCardScale = (totalCount: number) => {
+        if (totalCount >= 8) return 0.2;
+        if (totalCount >= 6) return 0.22;
+        if (totalCount >= 4) return 0.24;
+        if (totalCount >= 2) return 0.26;
+        return 0.28;
+    };
+
+    const resolvePlannerCardScale = (date: Date, totalCount: number) => {
+        if (plannerPreviewScaleMode === "manual") {
+            return manualPlannerPreviewScale;
+        }
+        if (plannerPreviewScaleMode === "per-card") {
+            const dateKey = toDateString(date);
+            return perCardPlannerPreviewScale[dateKey] ?? getAutoPlannerCardScale(totalCount);
+        }
+        return getAutoPlannerCardScale(totalCount);
+    };
+
+    const adjustPerCardScale = (date: Date, currentScale: number, delta: number) => {
+        const dateKey = toDateString(date);
+        setPerCardPlannerPreviewScale((prev) => {
+            const baseScale = prev[dateKey] ?? currentScale;
+            return {
+                ...prev,
+                [dateKey]: clampPreviewScale(baseScale + delta),
+            };
+        });
+    };
+
     // Generate month calendar grid
     const calendarDays = [];
     for (let i = 0; i < startingDayOfWeek; i++) {
@@ -417,6 +457,72 @@ export default function CalendarPage() {
                         <ChevronRight size={24} className="text-gray-600" />
                     </button>
                 </div>
+
+                {viewMode === "week" && (
+                    <div className="mb-4 rounded-xl border border-gray-200 bg-white px-3 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold text-gray-700">미리보기 스케일</span>
+                            <div className="inline-flex rounded-lg bg-gray-100 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setPlannerPreviewScaleMode("auto")}
+                                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${plannerPreviewScaleMode === "auto"
+                                        ? "bg-white text-gray-900 shadow-sm"
+                                        : "text-gray-500"
+                                        }`}
+                                >
+                                    자동
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPlannerPreviewScaleMode("manual")}
+                                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${plannerPreviewScaleMode === "manual"
+                                        ? "bg-white text-gray-900 shadow-sm"
+                                        : "text-gray-500"
+                                        }`}
+                                >
+                                    전체 조절
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPlannerPreviewScaleMode("per-card")}
+                                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${plannerPreviewScaleMode === "per-card"
+                                        ? "bg-white text-gray-900 shadow-sm"
+                                        : "text-gray-500"
+                                        }`}
+                                >
+                                    카드별
+                                </button>
+                            </div>
+                        </div>
+                        {plannerPreviewScaleMode === "manual" ? (
+                            <div className="mt-3 flex items-center gap-2">
+                                <span className="text-[11px] text-gray-500">작게</span>
+                                <input
+                                    type="range"
+                                    min={MIN_PREVIEW_SCALE}
+                                    max={MAX_PREVIEW_SCALE}
+                                    step={PREVIEW_SCALE_STEP}
+                                    value={manualPlannerPreviewScale}
+                                    onChange={(e) => setManualPlannerPreviewScale(clampPreviewScale(Number(e.target.value)))}
+                                    className="w-full accent-primary"
+                                />
+                                <span className="text-[11px] text-gray-500">크게</span>
+                                <span className="w-12 text-right text-[11px] font-semibold text-gray-700">
+                                    {manualPlannerPreviewScale.toFixed(2)}x
+                                </span>
+                            </div>
+                        ) : plannerPreviewScaleMode === "per-card" ? (
+                            <p className="mt-2 text-[11px] text-gray-500">
+                                카드 우측 상단의 +/- 버튼으로 날짜별 스케일을 개별 조절합니다.
+                            </p>
+                        ) : (
+                            <p className="mt-2 text-[11px] text-gray-500">
+                                날짜별 일정 개수에 따라 자동으로 축소/확대합니다.
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {viewMode === 'month' ? (
                     /* Monthly Grid (Keywords) */
@@ -516,6 +622,15 @@ export default function CalendarPage() {
                         dailyRecords={dailyRecords}
                         mentorTasks={mentorTasks}
                         plannerTasks={plannerTasks}
+                        cardAspectClass="aspect-[3.5/5]"
+                        getCardScale={({ date, totalCount }) => resolvePlannerCardScale(date, totalCount)}
+                        showCardScaleControls={plannerPreviewScaleMode === "per-card"}
+                        onIncreaseCardScale={(date, currentScale) =>
+                            adjustPerCardScale(date, currentScale, PREVIEW_SCALE_STEP)
+                        }
+                        onDecreaseCardScale={(date, currentScale) =>
+                            adjustPerCardScale(date, currentScale, -PREVIEW_SCALE_STEP)
+                        }
                     />
                 )}
 

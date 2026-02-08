@@ -1,5 +1,6 @@
 import { HttpError } from "@/lib/httpErrors";
 import {
+  type PlannerTaskRow,
   createPlannerTask,
   deletePlannerTask,
   getPlannerTaskById,
@@ -28,16 +29,28 @@ type PlannerTaskSubject = {
   textColorHex: string | null;
 };
 
+type PlannerTaskAttachment = {
+  id: string;
+  fileId?: string;
+  name: string;
+  type: "pdf" | "image";
+  url: string | null;
+  previewUrl: string | null;
+};
+
 type PlannerTaskResponse = {
   id: string;
   menteeId: string;
   subject: PlannerTaskSubject | null;
   title: string;
+  description: string | null;
   date: string;
   completed: boolean;
   timeSpentSec: number | null;
   startTime: string | null;
   endTime: string | null;
+  mentorComment: string | null;
+  attachments: PlannerTaskAttachment[];
   createdAt: string;
   recurringGroupId?: string | null;
 };
@@ -59,34 +72,94 @@ const mapSubject = (subject: {
   };
 };
 
-const mapPlannerTask = (task: {
-  id: string;
-  mentee_id: string;
-  title: string;
-  date: string;
-  completed: boolean;
-  time_spent_sec: number | null;
-  start_time: string | null;
-  end_time: string | null;
-  created_at: string;
-  recurring_group_id?: string | null;
-  subjects: {
-    id: string;
-    slug: string;
-    name: string;
-    color_hex: string | null;
-    text_color_hex: string | null;
-  } | null;
-}): PlannerTaskResponse => ({
+const getString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const isPdfAttachment = (
+  mimeType: string | null,
+  name: string,
+  url: string | null,
+) => {
+  const normalizedMime = (mimeType ?? "").toLowerCase();
+  if (normalizedMime === "application/pdf") return true;
+  const lowerName = name.toLowerCase();
+  if (lowerName.endsWith(".pdf")) return true;
+  return (url ?? "").toLowerCase().includes(".pdf");
+};
+
+const mapPlannerTaskAttachments = (
+  materials: PlannerTaskRow["materials"],
+): PlannerTaskAttachment[] => {
+  if (!Array.isArray(materials)) return [];
+
+  const mapped: Array<PlannerTaskAttachment | null> = materials.map(
+    (material, index): PlannerTaskAttachment | null => {
+      if (!material || typeof material !== "object") return null;
+      const row = material as Record<string, unknown>;
+
+      const fileId = getString(row.fileId) ?? getString(row.file_id);
+      const name =
+        getString(row.name) ??
+        getString(row.title) ??
+        getString(row.originalName) ??
+        getString(row.original_name) ??
+        `첨부 파일 ${index + 1}`;
+      const mimeType = getString(row.mimeType) ?? getString(row.mime_type);
+      const explicitType = getString(row.type);
+      const givenPreviewUrl =
+        getString(row.previewUrl) ?? getString(row.preview_url);
+      const givenDownloadUrl =
+        getString(row.url) ??
+        getString(row.downloadUrl) ??
+        getString(row.download_url);
+
+      const type: "pdf" | "image" =
+        explicitType === "pdf" || explicitType === "image"
+          ? explicitType
+          : isPdfAttachment(
+                mimeType,
+                name,
+                givenPreviewUrl ?? givenDownloadUrl,
+              )
+            ? "pdf"
+            : "image";
+
+      const baseUrl = fileId ? `/api/files/${fileId}` : null;
+      const previewUrl =
+        givenPreviewUrl ??
+        (baseUrl ? `${baseUrl}?mode=preview` : type === "image" ? givenDownloadUrl : null);
+      const downloadUrl = givenDownloadUrl ?? (baseUrl ? `${baseUrl}?mode=download` : null);
+
+      return {
+        id: fileId ?? `planner-material-${index}`,
+        fileId: fileId ?? undefined,
+        name,
+        type,
+        url: downloadUrl,
+        previewUrl,
+      };
+    },
+  );
+
+  return mapped.filter((item): item is PlannerTaskAttachment => item !== null);
+};
+
+const mapPlannerTask = (task: PlannerTaskRow): PlannerTaskResponse => ({
   id: task.id,
   menteeId: task.mentee_id,
   subject: mapSubject(task.subjects),
   title: task.title,
+  description: task.description,
   date: task.date,
   completed: task.completed,
   timeSpentSec: task.time_spent_sec,
   startTime: task.start_time,
   endTime: task.end_time,
+  mentorComment: task.mentor_comment,
+  attachments: mapPlannerTaskAttachments(task.materials),
   createdAt: task.created_at,
   recurringGroupId: task.recurring_group_id,
 });

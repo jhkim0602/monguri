@@ -144,11 +144,21 @@ type ApiPlannerTask = {
   menteeId: string;
   subject: ApiSubject | null;
   title: string;
+  description?: string | null;
   date: string;
   completed: boolean;
   timeSpentSec: number | null;
   startTime: string | null;
   endTime: string | null;
+  mentorComment?: string | null;
+  attachments?: {
+    id?: string;
+    fileId?: string;
+    name: string;
+    type: "pdf" | "image";
+    url?: string | null;
+    previewUrl?: string | null;
+  }[];
   recurringGroupId: string | null;
   createdAt: string;
 };
@@ -206,7 +216,7 @@ export function adaptPlannerTasksToUi(
       categoryId: subject?.slug ?? fallbackCategory?.id ?? "unknown",
       subject: subjectName,
       badgeColor,
-      description: "직접 세운 학습 계획입니다.",
+      description: task.description || "직접 세운 학습 계획입니다.",
       status: task.completed ? "submitted" : "pending",
       deadline: parseDateString(task.date),
       completed: task.completed,
@@ -214,11 +224,11 @@ export function adaptPlannerTasksToUi(
       isRunning: false,
       isMentorTask: false,
       studyRecord: null,
-      attachments: [],
+      attachments: task.attachments ?? [],
       submissions: [],
       feedbackFiles: [],
-      mentorComment: "",
-      hasMentorResponse: false,
+      mentorComment: task.mentorComment ?? "",
+      hasMentorResponse: Boolean(task.mentorComment),
       startTime: task.startTime ?? undefined,
       endTime: task.endTime ?? undefined,
       recurringGroupId: task.recurringGroupId,
@@ -268,6 +278,13 @@ type ApiDailyRecord = {
   date: string;
   studyTimeMin: number;
   mood: "best" | "good" | "normal" | "bad" | "worst" | null;
+  memo?: string | null;
+  comment?: string | null;
+  dailyGoal?: string | null;
+  daily_goal?: string | null;
+  dailyNote?: string | null;
+  daily_note?: string | null;
+  note?: string | null;
 };
 
 export type DailyRecordLike = {
@@ -287,7 +304,15 @@ export function adaptDailyRecordsToUi(
     date: parseDateString(record.date),
     studyTime: record.studyTimeMin * 60,
     mood: record.mood,
-    memo: "",
+    memo:
+      record.memo ??
+      record.comment ??
+      record.dailyGoal ??
+      record.daily_goal ??
+      record.dailyNote ??
+      record.daily_note ??
+      record.note ??
+      "",
     studyTimeBlocks: {},
   }));
 }
@@ -298,22 +323,66 @@ type ApiProfile = {
   name: string | null;
   avatar_url: string | null;
   intro: string | null;
+  d_day_date?: string | null;
+  d_day_target_date?: string | null;
+  dday_date?: string | null;
+  target_date?: string | null;
+  exam_date?: string | null;
+  d_day_label?: string | null;
+  d_day_name?: string | null;
+  dday_label?: string | null;
+  dday_name?: string | null;
+  target_label?: string | null;
+  exam_label?: string | null;
 };
 
 export type UiProfile = {
   name: string;
   role: string;
   dDay: number | null;
+  dDayLabel: string | null;
   avatar: string;
+  intro: string;
+};
+
+const calculateDDay = (targetDateString?: string | null): number | null => {
+  if (!targetDateString) return null;
+  const targetDate = new Date(`${targetDateString}T00:00:00`);
+  if (Number.isNaN(targetDate.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Math.ceil(
+    (targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
 };
 
 export function adaptProfileToUi(profile: ApiProfile | null): UiProfile | null {
   if (!profile) return null;
 
+  const dDayTargetDate =
+    profile.d_day_date ??
+    profile.d_day_target_date ??
+    profile.dday_date ??
+    profile.target_date ??
+    profile.exam_date ??
+    null;
+  const dDayLabel =
+    profile.d_day_label ??
+    profile.d_day_name ??
+    profile.dday_label ??
+    profile.dday_name ??
+    profile.target_label ??
+    profile.exam_label ??
+    null;
+
   return {
     name: profile.name ?? "",
     role: profile.role,
-    dDay: null,
+    dDay: calculateDDay(dDayTargetDate),
+    dDayLabel,
     avatar: profile.avatar_url ?? "",
+    intro: profile.intro ?? "",
   };
 }

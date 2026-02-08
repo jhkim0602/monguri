@@ -48,6 +48,19 @@ export default function PlannerDetailView({
   // Removed localStorage logic - rely purely on props
 
   const rawUserTasks = userTasksProp ?? [];
+  const inferredMentorReviewFromTasks = rawUserTasks.find((task: any) => {
+    const comment = task?.mentorComment ?? task?.mentor_comment;
+    return typeof comment === "string" && comment.trim().length > 0;
+  });
+  const resolvedMentorReview =
+    (typeof mentorReview === "string" && mentorReview.trim().length > 0
+      ? mentorReview
+      : null) ??
+    (typeof inferredMentorReviewFromTasks?.mentorComment === "string"
+      ? inferredMentorReviewFromTasks.mentorComment
+      : typeof inferredMentorReviewFromTasks?.mentor_comment === "string"
+        ? inferredMentorReviewFromTasks.mentor_comment
+        : "");
   const planTasksFromUser = rawUserTasks.filter(
     (task: any) => task.taskType === "plan",
   );
@@ -207,6 +220,17 @@ export default function PlannerDetailView({
           </span>
           <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
             {memo ? `"${memo}"` : "오늘의 메모가 없습니다."}
+          </p>
+        </div>
+
+        <div className="w-full bg-violet-50/60 rounded-lg p-3 border border-violet-100/80">
+          <span className="text-xs font-bold text-violet-600 mb-1 block">
+            Mentor Comment
+          </span>
+          <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
+            {resolvedMentorReview
+              ? `"${resolvedMentorReview}"`
+              : "아직 멘토 코멘트가 없습니다."}
           </p>
         </div>
 

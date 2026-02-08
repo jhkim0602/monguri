@@ -161,7 +161,7 @@ export default function FeedbackCollectionPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
-            <header className="bg-white px-6 pt-12 pb-5 flex items-center gap-4 border-b border-gray-100/60 sticky top-0 z-10">
+            <header className="bg-white px-6 safe-top-header-lg pb-5 flex items-center gap-4 border-b border-gray-100/60 sticky top-0 z-10">
                 <button
                     type="button"
                     onClick={() => router.push("/mypage")}

@@ -14,11 +14,11 @@ export default function MenteeLayout({
 
   return (
     /* App-like UI: Prevent global scrolling */
-    <div className="min-h-screen w-full bg-[#F2F2F7] flex justify-center shadow-2xl h-screen overflow-hidden">
+    <div className="min-h-screen h-[100dvh] w-full bg-[#F2F2F7] flex justify-center shadow-2xl overflow-hidden">
       <div
-        className={`mobile-container relative bg-white ${isChatRoute ? "h-full" : "min-h-screen"}`}
+        className={`mobile-container relative bg-white ${isChatRoute ? "h-full min-h-[100dvh]" : "min-h-screen min-h-[100dvh]"}`}
       >
-        <main className={isChatRoute ? "h-full min-h-0" : "pb-24 min-h-screen"}>
+        <main className={isChatRoute ? "h-full min-h-0" : "pb-24 min-h-[100dvh]"}>
           {children}
         </main>
         {!isChatRoute && <BottomNav />}

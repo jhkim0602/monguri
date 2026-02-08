@@ -99,10 +99,21 @@ export default function StudentsClient({
                           {student.grade}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400">
-                        {/* {student.school} • D-{student.dDay} */}
-                        {student.goal}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-400 truncate max-w-[320px]">
+                          {student.goal}
+                        </p>
+                        {typeof student.dDay === "number" && (
+                          <span className="text-[10px] font-bold text-blue-600 whitespace-nowrap">
+                            {(student.dDayLabel ?? "D-day") + " "}
+                            {student.dDay > 0
+                              ? `D-${student.dDay}`
+                              : student.dDay === 0
+                                ? "D-Day"
+                                : `D+${Math.abs(student.dDay)}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>

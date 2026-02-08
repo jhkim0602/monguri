@@ -12,6 +12,17 @@ export type MentorMenteeRow = {
     name: string | null;
     avatar_url: string | null;
     intro: string | null;
+    d_day_date?: string | null;
+    d_day_target_date?: string | null;
+    dday_date?: string | null;
+    target_date?: string | null;
+    exam_date?: string | null;
+    d_day_label?: string | null;
+    d_day_name?: string | null;
+    dday_label?: string | null;
+    dday_name?: string | null;
+    target_label?: string | null;
+    exam_label?: string | null;
   } | null;
 };
 
@@ -25,13 +36,7 @@ export async function getMentorByMenteeId(menteeId: string) {
       mentee_id,
       status,
       started_at,
-      mentor:profiles!mentor_mentee_mentor_id_fkey(
-        id,
-        role,
-        name,
-        avatar_url,
-        intro
-      )
+      mentor:profiles!mentor_mentee_mentor_id_fkey(*)
     `,
     )
     .eq("mentee_id", menteeId)
@@ -56,13 +61,7 @@ export async function getMenteesByMentorId(mentorId: string) {
       mentee_id,
       status,
       started_at,
-      mentee:profiles!mentor_mentee_mentee_id_fkey(
-        id,
-        role,
-        name,
-        avatar_url,
-        intro
-      )
+      mentee:profiles!mentor_mentee_mentee_id_fkey(*)
     `,
     )
     .eq("mentor_id", mentorId)
@@ -83,6 +82,17 @@ export async function getMenteesByMentorId(mentorId: string) {
       name: string | null;
       avatar_url: string | null;
       intro: string | null;
+      d_day_date?: string | null;
+      d_day_target_date?: string | null;
+      dday_date?: string | null;
+      target_date?: string | null;
+      exam_date?: string | null;
+      d_day_label?: string | null;
+      d_day_name?: string | null;
+      dday_label?: string | null;
+      dday_name?: string | null;
+      target_label?: string | null;
+      exam_label?: string | null;
     } | null;
   })[];
 }
@@ -90,15 +100,7 @@ export async function getMenteesByMentorId(mentorId: string) {
 export async function getMenteeDetailById(menteeId: string) {
   const { data, error } = await supabaseServer
     .from("profiles")
-    .select(
-      `
-      id,
-      role,
-      name,
-      avatar_url,
-      intro
-    `,
-    )
+    .select("*")
     .eq("id", menteeId)
     .single();
 

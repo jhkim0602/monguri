@@ -37,6 +37,9 @@ body {
   max-width: 430px;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   background-color: white;
   position: relative;
@@ -56,7 +59,19 @@ body {
 }
 
 .safe-bottom {
-  padding-bottom: 80px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.safe-top-header-lg {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 3rem);
+}
+
+.safe-top-header-md {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 2.5rem);
+}
+
+.safe-top-header-sm {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 2rem);
 }
 
 /* iOS-style card */

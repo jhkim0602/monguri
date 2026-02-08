@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import FeedbackCard from "./FeedbackCard";
-import { Search, Library, Calculator, Languages, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Search, Library, Calculator, Languages, ChevronLeft, ChevronRight, Star, type LucideIcon } from "lucide-react";
 import type { MentorTaskLike, PlannerTaskLike } from "@/lib/menteeAdapters";
 
 interface FeedbackArchiveProps {
@@ -9,11 +9,30 @@ interface FeedbackArchiveProps {
     onOpenTask?: (task: any) => void;
 }
 
+type SubjectId = "korean" | "math" | "english";
+type StarredBySubject = Record<SubjectId, string[]>;
+
+const STAR_STORAGE_KEY = "mentee-starred-feedback-by-subject";
+const LEGACY_STAR_STORAGE_KEY = "mentee-starred-feedback";
+const EMPTY_STARRED_BY_SUBJECT: StarredBySubject = {
+    korean: [],
+    math: [],
+    english: [],
+};
+
+const normalizeSubjectId = (value?: string | null): SubjectId | null => {
+    if (value === "korean" || value === "math" || value === "english") {
+        return value;
+    }
+    return null;
+};
+
 export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTask }: FeedbackArchiveProps) {
-    const [activeSubject, setActiveSubject] = useState("korean");
+    const [activeSubject, setActiveSubject] = useState<SubjectId>("korean");
     const [openFeedbackId, setOpenFeedbackId] = useState<string | number | null>(null);
-    const [starredIds, setStarredIds] = useState<string[]>([]);
+    const [starredBySubject, setStarredBySubject] = useState<StarredBySubject>(EMPTY_STARRED_BY_SUBJECT);
     const [showStarredOnly, setShowStarredOnly] = useState(false);
+    const [legacyStarredIds, setLegacyStarredIds] = useState<string[] | null>(null);
 
     // Sort & Filter State
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -21,31 +40,43 @@ export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTas
 
     // Persistence for stars
     useEffect(() => {
-        const saved = localStorage.getItem("mentee-starred-feedback");
+        const saved = localStorage.getItem(STAR_STORAGE_KEY);
         if (saved) {
             try {
-                setStarredIds(JSON.parse(saved));
+                const parsed = JSON.parse(saved) as Partial<StarredBySubject>;
+                setStarredBySubject({
+                    korean: Array.isArray(parsed?.korean) ? parsed.korean : [],
+                    math: Array.isArray(parsed?.math) ? parsed.math : [],
+                    english: Array.isArray(parsed?.english) ? parsed.english : [],
+                });
+                return;
             } catch (e) {
-                console.error("Failed to parse starred IDs", e);
+                console.error("Failed to parse subject-starred IDs", e);
+            }
+        }
+
+        const legacySaved = localStorage.getItem(LEGACY_STAR_STORAGE_KEY);
+        if (legacySaved) {
+            try {
+                const parsed = JSON.parse(legacySaved);
+                if (Array.isArray(parsed)) {
+                    setLegacyStarredIds(parsed.filter((id): id is string => typeof id === "string"));
+                }
+            } catch (e) {
+                console.error("Failed to parse legacy starred IDs", e);
             }
         }
     }, []);
 
     useEffect(() => {
-        localStorage.setItem("mentee-starred-feedback", JSON.stringify(starredIds));
-    }, [starredIds]);
-
-    const toggleStar = (id: string) => {
-        setStarredIds(prev =>
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-        );
-    };
+        localStorage.setItem(STAR_STORAGE_KEY, JSON.stringify(starredBySubject));
+    }, [starredBySubject]);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 5;
 
-    const SUBJECTS = [
+    const SUBJECTS: { id: SubjectId; name: string; color: string; icon: LucideIcon }[] = [
         { id: 'korean', name: '국어', color: 'emerald', icon: Library },
         { id: 'math', name: '수학', color: 'blue', icon: Calculator },
         { id: 'english', name: '영어', color: 'purple', icon: Languages },
@@ -69,7 +100,7 @@ export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTas
                 title: generateSimpleSummary(task.mentorFeedback || ""),
                 taskTitle: task.title,
                 subject: task.subject,
-                subjectId: task.categoryId,
+                subjectId: normalizeSubjectId(task.categoryId),
                 subjectColor: mapSubjectColor(task.categoryId),
                 date: task.deadline || new Date(),
                 content: task.mentorFeedback,
@@ -88,24 +119,53 @@ export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTas
                 title: generateSimpleSummary(task.mentorComment || ""),
                 taskTitle: task.title,
                 subject: getSubjectName(task.categoryId),
-                subjectId: task.categoryId,
+                subjectId: normalizeSubjectId(task.categoryId),
                 subjectColor: mapSubjectColor(task.categoryId),
                 date: task.deadline || new Date(),
                 content: task.mentorComment ?? "",
                 originalTask: task, // Store full task for modal
             }));
 
-        return [...mentorFeedbacks, ...userFeedbacks];
+        return [...mentorFeedbacks, ...userFeedbacks].filter((item) => !!item.subjectId);
     }, [mentorTasks, userTasks]);
 
+    useEffect(() => {
+        if (!legacyStarredIds) return;
+
+        const migrated: StarredBySubject = { korean: [], math: [], english: [] };
+        legacyStarredIds.forEach((id) => {
+            const target = FEEDBACK_DATA.find((item) => item.id === id);
+            if (!target?.subjectId) return;
+            if (!migrated[target.subjectId].includes(id)) {
+                migrated[target.subjectId].push(id);
+            }
+        });
+        setStarredBySubject(migrated);
+        setLegacyStarredIds(null);
+        localStorage.removeItem(LEGACY_STAR_STORAGE_KEY);
+    }, [FEEDBACK_DATA, legacyStarredIds]);
+
+    const activeSubjectStarredIds = starredBySubject[activeSubject] ?? [];
+
+    const toggleStar = (id: string, subjectId: SubjectId) => {
+        setStarredBySubject((prev) => {
+            const current = prev[subjectId] ?? [];
+            const next = current.includes(id)
+                ? current.filter((item) => item !== id)
+                : [...current, id];
+            return {
+                ...prev,
+                [subjectId]: next,
+            };
+        });
+    };
+
     // 1. Filter by Subject
-    let processedFeedbacks = FEEDBACK_DATA.filter(f => f.subjectId === activeSubject || showStarredOnly);
+    let processedFeedbacks = FEEDBACK_DATA.filter((item) => item.subjectId === activeSubject);
 
     // Filter by Starred if active
     if (showStarredOnly) {
-        processedFeedbacks = FEEDBACK_DATA.filter(f => starredIds.includes(f.id));
-    } else {
-        processedFeedbacks = processedFeedbacks.filter(f => f.subjectId === activeSubject);
+        processedFeedbacks = processedFeedbacks.filter((item) => activeSubjectStarredIds.includes(item.id));
     }
 
     // 2. Filter by Period
@@ -171,7 +231,7 @@ export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTas
         setOpenFeedbackId(prev => prev === id ? null : id);
     };
 
-    const handleTabChange = (subjectId: string) => {
+    const handleTabChange = (subjectId: SubjectId) => {
         setActiveSubject(subjectId);
         setCurrentPage(1);
         setOpenFeedbackId(null);
@@ -223,13 +283,14 @@ export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTas
                         setShowStarredOnly(!showStarredOnly);
                         setCurrentPage(1);
                     }}
+                    aria-label="중요 필터"
+                    title="중요 필터"
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${showStarredOnly
                         ? "bg-amber-50 border-amber-200 text-amber-600 shadow-sm"
                         : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
                         }`}
                 >
                     <Star size={12} fill={showStarredOnly ? "currentColor" : "none"} strokeWidth={showStarredOnly ? 0 : 2} />
-                    중요함
                 </button>
 
                 <div className="flex items-center gap-4">
@@ -279,8 +340,8 @@ export default function FeedbackArchive({ mentorTasks, userTasks = [], onOpenTas
                             content={item.content}
                             isOpen={openFeedbackId === item.id}
                             onToggle={() => handleToggle(item.id)}
-                            isStarred={starredIds.includes(item.id)}
-                            onToggleStar={() => toggleStar(item.id)}
+                            isStarred={activeSubjectStarredIds.includes(item.id)}
+                            onToggleStar={() => toggleStar(item.id, activeSubject)}
                             onOpenTask={() => onOpenTask?.(item.originalTask)}
                         />
                     ))

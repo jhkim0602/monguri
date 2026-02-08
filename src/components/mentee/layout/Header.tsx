@@ -12,7 +12,7 @@ interface HeaderProps {
 export default function Header({ title, rightElement, variant = 'default' }: HeaderProps) {
     if (variant === 'clean') {
         return (
-            <header className="px-6 pt-12 pb-6 flex justify-between items-center bg-white border-b border-gray-50">
+            <header className="px-6 safe-top-header-lg pb-6 flex justify-between items-center bg-white border-b border-gray-50">
                 <h1 className="text-xl font-bold text-gray-900 border-l-4 border-primary pl-3">{title}</h1>
                 <div className="flex items-center h-10">
                     {rightElement}
@@ -23,7 +23,7 @@ export default function Header({ title, rightElement, variant = 'default' }: Hea
 
     // Default variant (Original style)
     return (
-        <header className="px-6 pt-8 pb-4 flex justify-between items-center bg-white">
+        <header className="px-6 safe-top-header-sm pb-4 flex justify-between items-center bg-white">
             <h1 className="text-2xl font-bold text-blue-900">{title}</h1>
             <div className="flex items-center">
                 {rightElement || (

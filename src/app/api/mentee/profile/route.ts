@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
-import { profileIdQuerySchema } from "@/lib/validators/mentee";
-import { getMenteeProfile } from "@/services/menteeService";
+import {
+  profileIdQuerySchema,
+  profileUpdateBodySchema,
+} from "@/lib/validators/mentee";
+import {
+  getProfileForMenteePage,
+  updateMenteeProfile,
+} from "@/services/menteeService";
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +24,28 @@ export async function GET(request: Request) {
       );
     }
 
-    const profile = await getMenteeProfile(parsed.data.profileId);
+    const profile = await getProfileForMenteePage(parsed.data.profileId);
+    return NextResponse.json({ profile });
+  } catch (error) {
+    return handleRouteError(error);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json().catch(() => null);
+    const parsed = profileUpdateBodySchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
+    }
+
+    const profile = await updateMenteeProfile(parsed.data.profileId, {
+      name: parsed.data.name,
+      intro: parsed.data.intro,
+      avatarUrl: parsed.data.avatarUrl,
+    });
+
     return NextResponse.json({ profile });
   } catch (error) {
     return handleRouteError(error);

@@ -19,10 +19,9 @@ import {
   HelpCircle,
   Folder,
 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Attachment {
@@ -250,6 +249,15 @@ export default function TaskDetailView({
   };
 
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const handleBackNavigation = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/planner");
+  };
 
   useEffect(() => {
     if (mode === "modal") return;
@@ -264,17 +272,22 @@ export default function TaskDetailView({
 
   return (
     <div
-      className={`${mode === "page" ? "min-h-screen bg-gray-50 pb-32" : "h-full bg-white"} overflow-y-auto`}
+      className={
+        mode === "page"
+          ? "min-h-screen bg-gray-50 pb-32"
+          : "h-full bg-white overflow-y-auto"
+      }
     >
       {/* Top Header - Only for Page mode */}
       {mode === "page" && (
-        <header className="bg-white px-4 pt-12 pb-5 flex items-center gap-4 sticky top-0 z-10 border-b border-gray-100/50 backdrop-blur-xl">
-          <Link
-            href="/planner"
+        <header className="bg-white px-4 safe-top-header-lg pb-5 flex items-center gap-4 sticky top-0 z-10 border-b border-gray-100/50 backdrop-blur-xl">
+          <button
+            type="button"
+            onClick={handleBackNavigation}
             className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
           >
             <ChevronLeft size={24} />
-          </Link>
+          </button>
           <div className="flex-1">
             <h1 className="text-[17px] font-black text-gray-900 tracking-tight truncate">
               {task.title}
@@ -290,53 +303,51 @@ export default function TaskDetailView({
       <div
         className={`${mode === "page" ? "max-w-[430px] mx-auto" : "w-full"} px-6 pt-4 pb-8 space-y-6`}
       >
-        {/* Section 1: Task Information (Unified) - Only for Mentor Tasks */}
-        {isMentorTask && (
-          <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-4 relative overflow-hidden">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 mb-4">
-                <span
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-tight ${
-                    isMentorTask
-                      ? "bg-primary/10 text-primary"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {isMentorTask ? "과제 정보" : "학습 목표"}
-                </span>
-                <span className="text-[10px] text-gray-400 font-bold ml-auto">
-                  {isMentorTask ? "Mentor's Library" : "Self Planning"}
-                </span>
-              </div>
-              <h2 className="text-[18px] font-black text-gray-900 leading-tight">
-                {task.title}
-              </h2>
-              <p className="text-[13px] text-gray-500 font-medium leading-relaxed mt-1">
-                {task.description ||
-                  (isMentorTask
-                    ? "멘토가 배정한 과제입니다."
-                    : "직접 세운 학습 계획입니다.")}
-              </p>
+        {/* Section 1: Task Information (Unified) */}
+        <section className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm space-y-4 relative overflow-hidden">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-4">
+              <span
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-tight ${
+                  isMentorTask
+                    ? "bg-primary/10 text-primary"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {isMentorTask ? "과제 정보" : "학습 목표"}
+              </span>
+              <span className="text-[10px] text-gray-400 font-bold ml-auto">
+                {isMentorTask ? "Mentor's Library" : "Self Planning"}
+              </span>
             </div>
+            <h2 className="text-[18px] font-black text-gray-900 leading-tight">
+              {task.title}
+            </h2>
+            <p className="text-[13px] text-gray-500 font-medium leading-relaxed mt-1">
+              {task.description ||
+                (isMentorTask
+                  ? "멘토가 배정한 과제입니다."
+                  : "직접 세운 학습 계획입니다.")}
+            </p>
+          </div>
 
-            {/* Mentor Attachments (Only if they exist) */}
-            {task.attachments && task.attachments.length > 0 && (
-              <div className="pt-2">
-                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">
-                  멘토 첨부 파일
-                </p>
-                <div className="space-y-3">
-                  {task.attachments.map((file, idx) => (
-                    <FileCard key={idx} file={file} />
-                  ))}
-                </div>
+          {/* Task Attachments */}
+          {task.attachments && task.attachments.length > 0 && (
+            <div className="pt-2">
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">
+                {isMentorTask ? "멘토 첨부 파일" : "학습 첨부 파일"}
+              </p>
+              <div className="space-y-3">
+                {task.attachments.map((file, idx) => (
+                  <FileCard key={idx} file={file} />
+                ))}
               </div>
-            )}
-            <div
-              className={`absolute top-0 left-0 w-1.5 h-full ${isMentorTask ? "bg-primary" : "bg-gray-200"}`}
-            />
-          </section>
-        )}
+            </div>
+          )}
+          <div
+            className={`absolute top-0 left-0 w-1.5 h-full ${isMentorTask ? "bg-primary" : "bg-gray-200"}`}
+          />
+        </section>
 
         {/* Section 2: Study Record / Submission (Unified) */}
         <section
@@ -664,30 +675,57 @@ export default function TaskDetailView({
 }
 
 function FileCard({ file }: { file: Attachment }) {
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const hasDirectPreviewUrl =
+    typeof file.previewUrl === "string" &&
+    file.previewUrl.length > 0 &&
+    !file.previewUrl.startsWith("/api/files/");
+  const [previewSrc, setPreviewSrc] = useState<string | null>(
+    hasDirectPreviewUrl ? file.previewUrl! : null,
+  );
+  const [isLoadingPreview, setIsLoadingPreview] = useState(
+    Boolean(file.fileId) && !hasDirectPreviewUrl,
+  );
   const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
-    if (!file.fileId || file.type !== "image") return;
+    if (hasDirectPreviewUrl) {
+      setPreviewSrc(file.previewUrl!);
+      setIsLoadingPreview(false);
+      return;
+    }
+
+    if (!file.fileId) {
+      setPreviewSrc(null);
+      setIsLoadingPreview(false);
+      return;
+    }
+
     let isMounted = true;
     let objectUrl: string | null = null;
 
     const loadPreview = async () => {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return;
+      setIsLoadingPreview(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
 
-      const res = await fetch(`/api/files/${file.fileId}?mode=preview`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
+        const res = await fetch(`/api/files/${file.fileId}?mode=preview`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
 
-      const blob = await res.blob();
-      objectUrl = URL.createObjectURL(blob);
-      if (isMounted) {
-        setPreviewSrc(objectUrl);
-      } else {
-        URL.revokeObjectURL(objectUrl);
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (isMounted) {
+          setPreviewSrc(objectUrl);
+        } else {
+          URL.revokeObjectURL(objectUrl);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingPreview(false);
+        }
       }
     };
 
@@ -699,10 +737,20 @@ function FileCard({ file }: { file: Attachment }) {
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [file.fileId, file.type]);
+  }, [file.fileId, file.previewUrl, hasDirectPreviewUrl]);
 
   const handleDownload = async () => {
-    if (!file.fileId || isDownloading) return;
+    if (isDownloading) return;
+
+    if (!file.fileId) {
+      if (file.url) {
+        window.open(file.url, "_blank", "noopener,noreferrer");
+      } else {
+        alert("다운로드할 수 있는 파일 정보가 없습니다.");
+      }
+      return;
+    }
+
     setIsDownloading(true);
     try {
       const { data } = await supabase.auth.getSession();
@@ -735,8 +783,13 @@ function FileCard({ file }: { file: Attachment }) {
   };
 
   const handlePreview = async () => {
-    if (file.type === "image" && previewSrc) {
+    if (previewSrc) {
       window.open(previewSrc, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (hasDirectPreviewUrl && file.previewUrl) {
+      window.open(file.previewUrl, "_blank", "noopener,noreferrer");
       return;
     }
 
@@ -760,6 +813,9 @@ function FileCard({ file }: { file: Attachment }) {
     window.open(url, "_blank", "noopener,noreferrer");
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
+
+  const canDownload = Boolean(file.fileId || file.url);
+  const canPreview = Boolean(previewSrc || hasDirectPreviewUrl || file.fileId);
 
   return (
     <div className="bg-gray-50 rounded-[24px] border border-gray-100 overflow-hidden group">
@@ -790,9 +846,9 @@ function FileCard({ file }: { file: Attachment }) {
         <button
           type="button"
           onClick={handleDownload}
-          disabled={!file.fileId || isDownloading}
+          disabled={!canDownload || isDownloading}
           className={`p-2 transition-colors ${
-            file.fileId
+            canDownload
               ? "text-gray-400 hover:text-gray-900"
               : "text-gray-300 cursor-not-allowed"
           }`}
@@ -808,24 +864,39 @@ function FileCard({ file }: { file: Attachment }) {
               alt={file.name}
               className="w-full h-full object-cover"
             />
-          ) : (
+          ) : isLoadingPreview ? (
             <div className="flex flex-col items-center gap-2 text-gray-300">
               <ImageIcon size={40} />
               <span className="text-[10px] font-bold uppercase tracking-widest">
                 Preview Loading
               </span>
             </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-gray-300">
+              <ImageIcon size={40} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">
+                Preview Unavailable
+              </span>
+            </div>
           )
         ) : (
-          <div className="flex flex-col items-center gap-2">
-            <FileText size={40} className="text-gray-300" />
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              PDF Preview
-            </span>
-          </div>
+          previewSrc ? (
+            <iframe
+              src={previewSrc}
+              title={`${file.name} PDF Preview`}
+              className="w-full h-full bg-white"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <FileText size={40} className="text-gray-300" />
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                {isLoadingPreview ? "PDF Loading" : "PDF Preview Unavailable"}
+              </span>
+            </div>
+          )
         )}
         <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          {file.fileId ? (
+          {canPreview ? (
             <button
               type="button"
               onClick={handlePreview}

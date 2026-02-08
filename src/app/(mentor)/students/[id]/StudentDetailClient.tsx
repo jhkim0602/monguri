@@ -232,6 +232,19 @@ export default function StudentDetailClient({
               <span className="flex items-center gap-1.5">
                 <Clock size={16} /> 목표: {student.goal}
               </span>
+              {typeof student.dDay === "number" && (
+                <>
+                  <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                  <span className="text-blue-600 font-bold">
+                    {(student.dDayLabel ?? "D-day") + " "}
+                    {student.dDay > 0
+                      ? `D-${student.dDay}`
+                      : student.dDay === 0
+                        ? "D-Day"
+                        : `D+${Math.abs(student.dDay)}`}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

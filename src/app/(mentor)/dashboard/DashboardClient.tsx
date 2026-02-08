@@ -161,6 +161,16 @@ export default function DashboardClient({
                       <span className="font-bold text-gray-700">목표: </span>
                       {student.goal}
                     </p>
+                    {typeof student.dDay === "number" && (
+                      <p className="text-[11px] font-bold text-blue-600">
+                        {(student.dDayLabel ?? "D-day") + " "}
+                        {student.dDay > 0
+                          ? `D-${student.dDay}`
+                          : student.dDay === 0
+                            ? "D-Day"
+                            : `D+${Math.abs(student.dDay)}`}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Link>
