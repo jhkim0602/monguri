@@ -111,6 +111,18 @@ export default function AssignTaskModal({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(false);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
+
+  /**
+   * [개발 가이드] 추후 백엔드 연동 시 사용할 솔루션 데이터 인터페이스
+   * interface SubjectSolution {
+   *   id: string;
+   *   name: string;
+   *   subjectId: string;
+   *   materials: { id: string; title: string; type: string; url: string; }[];
+   * }
+   */
+  // const [selectedSolutionId, setSelectedSolutionId] = useState("");
+
   const [directUploads, setDirectUploads] = useState<DirectUploadItem[]>([]);
   const [uploadingDirectFiles, setUploadingDirectFiles] = useState(false);
   const [directUploadError, setDirectUploadError] = useState<string | null>(null);
@@ -232,17 +244,17 @@ export default function AssignTaskModal({
       const libraryMaterialsPayload = selectedMaterials.map((material) =>
         material.type === "link"
           ? {
-              title: material.title,
-              type: "link",
-              url: material.url,
-              sourceMaterialId: material.id,
-            }
+            title: material.title,
+            type: "link",
+            url: material.url,
+            sourceMaterialId: material.id,
+          }
           : {
-              title: material.title,
-              type: material.type,
-              fileId: material.file_id,
-              sourceMaterialId: material.id,
-            },
+            title: material.title,
+            type: material.type,
+            fileId: material.file_id,
+            sourceMaterialId: material.id,
+          },
       );
 
       let directUploadPayload: {
@@ -404,11 +416,10 @@ export default function AssignTaskModal({
                   <div
                     key={material.id}
                     onClick={() => handleSelectResource(material.id)}
-                    className={`flex items-center justify-between p-3.5 mb-2 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-blue-50/80 border-blue-300 ring-1 ring-blue-200 shadow-sm"
-                        : "bg-white border-gray-200 hover:border-blue-200 hover:bg-blue-50/30"
-                    }`}
+                    className={`flex items-center justify-between p-3.5 mb-2 rounded-xl border transition-all cursor-pointer ${isSelected
+                      ? "bg-blue-50/80 border-blue-300 ring-1 ring-blue-200 shadow-sm"
+                      : "bg-white border-gray-200 hover:border-blue-200 hover:bg-blue-50/30"
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
@@ -418,11 +429,10 @@ export default function AssignTaskModal({
                       </div>
 
                       <div
-                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                          isSelected
-                            ? "bg-blue-500 border-blue-500 text-white"
-                            : "border-gray-300 bg-white"
-                        }`}
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isSelected
+                          ? "bg-blue-500 border-blue-500 text-white"
+                          : "border-gray-300 bg-white"
+                          }`}
                       >
                         {isSelected && <CheckCircle2 size={12} />}
                       </div>
@@ -490,15 +500,35 @@ export default function AssignTaskModal({
                 <button
                   key={subj}
                   onClick={() => setSubject(subj)}
-                  className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                    subject === subj
-                      ? "bg-gray-900 text-white border-gray-900"
-                      : "border-gray-200 hover:bg-gray-50"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${subject === subj
+                    ? "bg-gray-900 text-white border-gray-900"
+                    : "border-gray-200 hover:bg-gray-50"
+                    }`}
                 >
                   {subj}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* 솔루션 선택 UI (정적 배치 - 로직 제외) */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+              과목별 솔루션 (자동 구성 예정)
+            </label>
+            <div className="relative">
+              <select
+                disabled // 로직 구현 전까지 비활성화 표시
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl bg-gray-50 text-gray-400 outline-none appearance-none text-sm font-medium cursor-not-allowed"
+                defaultValue=""
+              >
+                <option value="" disabled>과목을 선택하면 솔루션이 활성화됩니다</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+              </div>
             </div>
           </div>
 
