@@ -31,7 +31,7 @@ export default function DailyPlannerCard({
   fillScale,
   className = "",
 }: DailyPlannerCardProps) {
-  const sizeClass = fill ? "h-full" : "aspect-[3/5]";
+  const sizeClass = fill ? "h-full" : "aspect-[3.5/5]";
   const scale = fill ? (fillScale ?? 0.34) : 0.28;
   const scaledSize = fill ? `${100 / scale}%` : undefined;
 
@@ -43,7 +43,7 @@ export default function DailyPlannerCard({
   return (
     <div
       onClick={onClick}
-      className={`relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm rounded-sm flex flex-col ${sizeClass} ${className}`}
+      className={`relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm rounded-2xl flex flex-col ${sizeClass} ${className}`}
     >
       {fill ? (
         <div
@@ -66,19 +66,34 @@ export default function DailyPlannerCard({
           />
         </div>
       ) : (
-        <div className="absolute inset-0 origin-top-left scale-[0.24] pointer-events-none">
-          <div className="w-[520px]">
-            <PlannerDetailView
-              date={date}
-              dailyRecord={{ studyTime, memo, menteeComment, mentorReply: derivedReview }}
-              mentorDeadlines={mentorDeadlines}
-              userTasks={userTasks}
-              dailyEvents={dailyEvents}
-              mentorReview={derivedReview}
-              size="page"
-            />
+        <>
+          {/* Custom Header - Unscaled */}
+          <div className="h-9 px-3 flex items-center justify-between border-b border-gray-50 bg-white z-10">
+            <span className="text-xs font-bold text-gray-900">
+              {date.getMonth() + 1}월 {date.getDate()}일
+            </span>
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+              {((studyTime || 0) / 3600).toFixed(0).padStart(2, '0')}:{(((studyTime || 0) % 3600) / 60).toFixed(0).padStart(2, '0')}
+            </span>
           </div>
-        </div>
+
+          {/* Scaled Body Content */}
+          <div className="flex-1 relative bg-white w-full overflow-hidden">
+            <div className="absolute top-0 left-0 origin-top-left scale-[0.23] w-[550px] pointer-events-none translate-y-[-10px]">
+              <PlannerDetailView
+                date={date}
+                dailyRecord={{ studyTime, memo, menteeComment, mentorReply: derivedReview }}
+                mentorDeadlines={mentorDeadlines}
+                userTasks={userTasks}
+                dailyEvents={dailyEvents}
+                mentorReview={derivedReview}
+                size="page"
+                showHeader={false}
+                magnified={true}
+              />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -15,8 +15,9 @@ interface PlannerDetailViewProps {
   mentorReview?: string;
   onEditReview?: () => void;
   onTaskClick?: (task: any) => void;
-  size?: "modal" | "page" | "collection" | "mini" | "full";
+  size?: "modal" | "page" | "collection" | "mini" | "full" | "thumbnail";
   showHeader?: boolean;
+  magnified?: boolean;
 }
 
 export default function PlannerDetailView({
@@ -30,6 +31,7 @@ export default function PlannerDetailView({
   onTaskClick,
   size = "modal",
   showHeader = true,
+  magnified = false,
 }: PlannerDetailViewProps) {
   if (!date) return null;
 
@@ -158,8 +160,8 @@ export default function PlannerDetailView({
   // Instead, onTaskClick should be used to navigate to detail/modal.
 
   const sizeClass =
-    size === "collection"
-      ? "w-[92vw] max-w-[720px] h-[90vh] max-h-[90vh]"
+    size === "collection" || size === "thumbnail"
+      ? "w-full h-full"
       : size === "page"
         ? "max-w-[520px] md:max-w-[560px]"
         : size === "mini"
@@ -168,76 +170,80 @@ export default function PlannerDetailView({
             ? "w-full h-full"
             : "max-w-[430px]";
   const aspectClass =
-    size === "collection" || size === "mini" || size === "full"
+    size === "collection" || size === "mini" || size === "full" || size === "thumbnail"
       ? ""
       : "aspect-[3/5]";
   const maxHeightClass =
-    size === "collection" || size === "mini" || size === "full"
+    size === "collection" || size === "mini" || size === "full" || size === "thumbnail"
       ? ""
       : "max-h-[95vh]";
 
   const containerClass =
-    size === "mini" || size === "full"
+    size === "mini" || size === "full" || size === "collection" || size === "thumbnail"
       ? `bg-white w-full h-full flex flex-col relative overflow-hidden ${size === "full" ? "border border-gray-100 rounded-2xl shadow-sm" : ""}`
       : `bg-white w-full ${sizeClass} ${aspectClass} ${maxHeightClass} flex flex-col shadow-2xl relative overflow-hidden rounded-md`;
 
   return (
     <div className={containerClass}>
       {showHeader ? (
-        <div className="w-full h-14 border-b border-gray-100 bg-gray-50 px-6 flex items-center justify-between shrink-0">
+        <div className={`w-full border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0 ${size === "thumbnail" ? "h-auto py-3 px-4" : "h-16 px-6"}`}>
           <span
-            className={`text-lg font-bold ${isToday ? "text-primary" : "text-gray-900"}`}
+            className={`font-bold ${isToday ? "text-primary" : "text-gray-900"} ${size === "thumbnail" ? "text-lg" : "text-2xl"}`}
           >
-            {normalizedDate.getMonth() + 1}월 {normalizedDate.getDate()}일 (
-            {dayNames[normalizedDate.getDay()]})
+            {normalizedDate.getMonth() + 1}월 {normalizedDate.getDate()}일
+            {size !== "thumbnail" && ` (${dayNames[normalizedDate.getDay()]})`}
           </span>
           <div className="flex items-baseline gap-1.5 font-black">
-            <span className="text-[9px] uppercase tracking-[0.16em] text-blue-400">
-              Study Time
-            </span>
-            <span className="text-[16px] tabular-nums text-blue-600">
+            {size !== "thumbnail" && (
+              <span className="text-[11px] uppercase tracking-[0.16em] text-blue-400">
+                Study Time
+              </span>
+            )}
+            <span className={`${size === "thumbnail" ? "text-sm" : "text-xl"} tabular-nums text-blue-600`}>
               {formatTime(studyTimeSeconds)}
             </span>
           </div>
         </div>
       ) : null}
 
-      <div className="flex-1 p-2 flex flex-col gap-2 overflow-hidden">
-        {/* 멘티 코멘트 */}
-        <div className="w-full bg-sky-50/50 rounded-lg p-3 border border-sky-100/50">
-          <span className="text-xs font-bold text-sky-600 mb-1 block">
-            💬 멘티 코멘트
-          </span>
-          <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
-            {menteeComment ? `"${menteeComment}"` : "아직 코멘트가 없습니다."}
-          </p>
-        </div>
+      <div className="flex-1 p-3 flex flex-col gap-3 overflow-hidden">
+        {/* 멘티 코멘트 (썸네일 제외) */}
+        {size !== "thumbnail" && (
+          <div className="w-full bg-sky-50/50 rounded-xl p-4 border border-sky-100/50 shrink-0">
+            <span className={`${magnified ? "text-base mb-2" : "text-sm mb-1.5"} font-bold text-sky-600 block`}>
+              💬 멘티 코멘트
+            </span>
+            <p className={`${magnified ? "text-lg leading-relaxed" : "text-base"} text-gray-700 font-medium italic line-clamp-3`}>
+              {menteeComment ? `"${menteeComment}"` : "아직 코멘트가 없습니다."}
+            </p>
+          </div>
+        )}
 
-        {/* 멘토 총평 */}
-        {mentorReplyFromRecord && (
-          <div className="w-full bg-orange-50/50 rounded-lg p-3 border border-orange-100/50">
-            <span className="text-xs font-bold text-orange-600 mb-1 block">
+        {/* 멘토 총평 (썸네일 제외) */}
+        {size !== "thumbnail" && mentorReplyFromRecord && (
+          <div className="w-full bg-orange-50/50 rounded-xl p-4 border border-orange-100/50 shrink-0">
+            <span className={`${magnified ? "text-base mb-2" : "text-sm mb-1.5"} font-bold text-orange-600 block`}>
               📝 멘토 총평
             </span>
-            <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
+            <p className={`${magnified ? "text-lg leading-relaxed" : "text-base"} text-gray-700 font-medium italic line-clamp-3`}>
               "{mentorReplyFromRecord}"
             </p>
           </div>
         )}
 
-        <div className="flex-1 flex gap-2 w-full overflow-hidden min-h-0">
-          <div className="w-[60%] flex flex-col gap-1.5 overflow-y-auto custom-scrollbar pr-1 min-h-0">
+        <div className="flex-1 flex gap-3 w-full overflow-hidden min-h-0">
+          <div className="w-[60%] flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-1 min-h-0">
             {sessionGroups.map((group, index) => {
               if (group.items.length === 0) return null;
               return (
                 <div
                   key={group.category.id}
-                  className={`pt-1 ${index > 0 ? "border-t border-dashed border-gray-200" : ""}`}
+                  className={`pt-2 ${index > 0 ? "border-t border-dashed border-gray-200" : ""}`}
                 >
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-1">
                     <span
                       style={{ color: group.category.textColorHex }}
-                      className="text-[9px] font-black"
+                      className="text-xs font-black"
                     >
                       {group.category.name}영역
                     </span>
@@ -299,7 +305,7 @@ export default function PlannerDetailView({
                             {checkboxButton}
                             <div className="flex-1 min-w-0">
                               <p
-                                className={`text-[11px] font-bold text-gray-800 truncate ${completed ? "text-gray-400 line-through" : ""}`}
+                                className={`font-bold text-gray-800 truncate ${magnified ? "text-2xl leading-tight py-1" : "text-[11px]"} ${completed ? "text-gray-400 line-through" : ""}`}
                               >
                                 {item.title}
                               </p>
@@ -323,7 +329,7 @@ export default function PlannerDetailView({
                               )}
                             </div>
                             <p
-                              className={`text-[11px] font-bold truncate ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}
+                              className={`font-bold truncate ${magnified ? "text-2xl leading-tight py-1" : "text-[11px]"} ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}
                             >
                               {item.title}
                             </p>

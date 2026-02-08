@@ -60,9 +60,9 @@ export default function PlannerDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      {/* Modal Content - Big Planner Page */}
+      {/* Modal Content - Mobile Simulation */}
       <div
-        className="bg-white w-full max-w-[720px] max-h-[95vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden rounded-md"
+        className="bg-white w-full sm:w-[430px] h-full sm:h-[90vh] sm:max-h-[850px] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden sm:rounded-[40px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button (Absolute Top Right) */}
