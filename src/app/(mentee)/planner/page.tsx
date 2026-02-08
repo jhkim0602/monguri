@@ -59,6 +59,10 @@ export default function PlannerPage() {
             date1.getFullYear() === date2.getFullYear();
     };
 
+    const isPlannerTask = (
+        task: MentorTaskLike | PlannerTaskLike,
+    ): task is PlannerTaskLike => task.isMentorTask === false;
+
     const toDateString = (date: Date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -395,16 +399,16 @@ export default function PlannerPage() {
             if (response.ok) {
                 const json = await response.json();
                 const createdTask = json?.task ? adaptPlannerTasksToUi([json.task])[0] : null;
-                if (createdTask) { // Explicitly mapping only essential fields
+                if (createdTask) {
+                    const nextTask: PlannerTaskLike = {
+                        ...createdTask,
+                        isRunning: false,
+                        timeSpent: 0
+                    };
                     setTasks(prev => {
                         const next = [
                             ...prev,
-                            {
-                                ...createdTask,
-                                isRunning: false,
-                                isMentorTask: false,
-                                timeSpent: 0
-                            }
+                            nextTask
                         ];
                         persistCache(next);
                         return next;
@@ -423,13 +427,13 @@ export default function PlannerPage() {
         if (!targetTask || targetTask.isMentorTask) return;
 
         const nextCompleted = !targetTask.completed;
+        const nextStatus: PlannerTaskLike["status"] = nextCompleted ? "submitted" : "pending";
         // Optimistic update
         setTasks(prev => {
             const next = prev.map(task => {
-                if (String(task.id) === taskIdStr) {
-                    return { ...task, completed: nextCompleted, status: nextCompleted ? 'submitted' : 'pending' };
-                }
-                return task;
+                if (String(task.id) !== taskIdStr) return task;
+                if (!isPlannerTask(task)) return task;
+                return { ...task, completed: nextCompleted, status: nextStatus };
             });
             persistCache(next);
             return next;

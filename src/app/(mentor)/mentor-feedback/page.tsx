@@ -5,6 +5,10 @@ import FeedbackClient from "./FeedbackClient";
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  readMentorFeedbackCache,
+  writeMentorFeedbackCache,
+} from "@/lib/mentorFeedbackCache";
 
 function FeedbackPageContent() {
   const searchParams = useSearchParams();
@@ -17,38 +21,82 @@ function FeedbackPageContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPendingItems = async () => {
+    let isMounted = true;
+    const loadUser = async () => {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
+        if (!isMounted) return;
         if (!user) {
           setError("로그인이 필요합니다.");
+          setIsLoading(false);
           return;
         }
 
         setMentorId(user.id);
+      } catch (err) {
+        console.error("Feedback Fetch Error:", err);
+        setError("피드백 목록을 불러오는데 실패했습니다.");
+        setIsLoading(false);
+      }
+    };
 
+    loadUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!mentorId) return;
+
+    const cached = readMentorFeedbackCache(mentorId);
+    if (cached) {
+      setItems(cached.data.items);
+      setIsLoading(false);
+      if (!cached.stale) {
+        return () => {
+          isMounted = false;
+        };
+      }
+    }
+
+    const fetchPendingItems = async () => {
+      try {
         const response = await fetch(
-          `/api/mentor/feedback/pending?mentorId=${encodeURIComponent(user.id)}`,
+          `/api/mentor/feedback/pending?mentorId=${encodeURIComponent(mentorId)}`,
         );
         const result = await response.json();
 
+        if (!isMounted) return;
+
         if (result.success) {
           setItems(result.data);
+          writeMentorFeedbackCache(mentorId, { items: result.data });
         } else {
           setError(result.error);
         }
       } catch (err) {
         console.error("Feedback Fetch Error:", err);
-        setError("피드백 목록을 불러오는데 실패했습니다.");
+        if (isMounted) {
+          setError("피드백 목록을 불러오는데 실패했습니다.");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchPendingItems();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mentorId]);
 
   if (isLoading) {
     return (

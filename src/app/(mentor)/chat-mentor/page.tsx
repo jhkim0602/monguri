@@ -25,6 +25,12 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import MentorMeetingRequestCard from "@/components/mentor/chat/MentorMeetingRequestCard";
+import {
+  getCachedSignedUrl,
+  readMentorChatCache,
+  setCachedSignedUrl,
+  writeMentorChatCache,
+} from "@/lib/mentorChatCache";
 
 const ATTACHMENT_BUCKET = "chat-attachments";
 
@@ -125,10 +131,28 @@ export default function MentorChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageIdsRef = useRef<Set<string>>(new Set());
+  const isLoadingMessagesRef = useRef(false);
+  const pendingScrollAdjustRef = useRef<{
+    prevScrollHeight: number;
+    prevScrollTop: number;
+  } | null>(null);
+  const shouldScrollToBottomRef = useRef(true);
+  const PAGE_SIZE = 50;
+
+  const persistCache = useCallback(
+    (nextMessages: ChatMessage[]) => {
+      if (!selectedStudentId) return;
+      writeMentorChatCache(selectedStudentId, { messages: nextMessages });
+    },
+    [selectedStudentId]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -214,23 +238,36 @@ export default function MentorChatPage() {
     };
   }, []);
 
-  const hydrateAttachments = useCallback(async (list: ChatAttachment[]) => {
-    const hydrated = await Promise.all(
-      list.map(async (attachment) => {
-        const { data, error } = await supabase.storage
-          .from(ATTACHMENT_BUCKET)
-          .createSignedUrl(attachment.path, 60 * 5);
+  const fetchSignedUrl = useCallback(async (path: string) => {
+    const cached = getCachedSignedUrl(path);
+    if (cached !== undefined) return cached;
 
-        if (error || !data?.signedUrl) {
-          return { ...attachment, signed_url: null };
-        }
+    const { data, error } = await supabase.storage
+      .from(ATTACHMENT_BUCKET)
+      .createSignedUrl(path, 60 * 5);
 
-        return { ...attachment, signed_url: data.signedUrl };
-      })
-    );
-
-    return hydrated;
+    const signedUrl = error ? null : data?.signedUrl ?? null;
+    setCachedSignedUrl(path, signedUrl);
+    return signedUrl;
   }, []);
+
+  const hydrateAttachments = useCallback(
+    async (list: ChatAttachment[]) => {
+      const hydrated = await Promise.all(
+        list.map(async (attachment) => {
+          const cached = getCachedSignedUrl(attachment.path);
+          if (cached !== undefined) {
+            return { ...attachment, signed_url: cached };
+          }
+          const signedUrl = await fetchSignedUrl(attachment.path);
+          return { ...attachment, signed_url: signedUrl };
+        })
+      );
+
+      return hydrated;
+    },
+    [fetchSignedUrl]
+  );
 
   const normalizeMessage = useCallback(
     async (raw: ChatMessage) => {
@@ -244,44 +281,103 @@ export default function MentorChatPage() {
     [hydrateAttachments]
   );
 
-  const loadMessages = useCallback(async () => {
-    if (!selectedStudentId) return;
+  const fetchMessagesPage = useCallback(
+    async (cursor?: string | null) => {
+      if (!selectedStudentId) return null;
 
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select(
-        "id, mentor_mentee_id, sender_id, body, message_type, created_at, chat_attachments(id, message_id, bucket, path, mime_type, size_bytes, width, height)"
-      )
-      .eq("mentor_mentee_id", selectedStudentId)
-      .order("created_at", { ascending: true })
-      .limit(100);
-
-    if (error || !data) return;
-
-    const normalized = await Promise.all(data.map(normalizeMessage));
-    setMessages(normalized);
-  }, [selectedStudentId, normalizeMessage]);
-
-  const fetchMessageById = useCallback(
-    async (messageId: string) => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("chat_messages")
         .select(
           "id, mentor_mentee_id, sender_id, body, message_type, created_at, chat_attachments(id, message_id, bucket, path, mime_type, size_bytes, width, height)"
         )
-        .eq("id", messageId)
-        .single();
+        .eq("mentor_mentee_id", selectedStudentId)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+
+      if (cursor) {
+        query = query.lt("created_at", cursor);
+      }
+
+      const { data, error } = await query;
 
       if (error || !data) return null;
 
-      return normalizeMessage(data);
+      const normalized = await Promise.all(data.map(normalizeMessage));
+      return {
+        items: normalized.reverse(),
+        rawCount: data.length,
+      };
     },
-    [normalizeMessage]
+    [selectedStudentId, normalizeMessage]
   );
+
+  const loadMessages = useCallback(async () => {
+    if (!selectedStudentId) return;
+
+    const cached = readMentorChatCache<{ messages: ChatMessage[] }>(
+      selectedStudentId
+    );
+    if (cached?.data?.messages?.length) {
+      setMessages(cached.data.messages);
+      setHasMore(cached.data.messages.length >= PAGE_SIZE);
+      if (!cached.stale) {
+        return;
+      }
+    }
+
+    if (isLoadingMessagesRef.current) return;
+    isLoadingMessagesRef.current = true;
+
+    const page = await fetchMessagesPage();
+    if (!page) {
+      isLoadingMessagesRef.current = false;
+      return;
+    }
+
+    setMessages(page.items);
+    setHasMore(page.rawCount >= PAGE_SIZE);
+    persistCache(page.items);
+    shouldScrollToBottomRef.current = true;
+    isLoadingMessagesRef.current = false;
+  }, [selectedStudentId, fetchMessagesPage, persistCache]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!selectedStudentId || !hasMore || isLoadingMore) return;
+    const oldest = messages[0];
+    if (!oldest?.created_at) return;
+
+    setIsLoadingMore(true);
+    if (chatScrollRef.current) {
+      pendingScrollAdjustRef.current = {
+        prevScrollHeight: chatScrollRef.current.scrollHeight,
+        prevScrollTop: chatScrollRef.current.scrollTop,
+      };
+    }
+
+    const page = await fetchMessagesPage(oldest.created_at);
+    if (!page || page.items.length === 0) {
+      setHasMore(false);
+      setIsLoadingMore(false);
+      return;
+    }
+
+    setMessages((prev) => [...page.items, ...prev]);
+    setHasMore(page.rawCount >= PAGE_SIZE);
+    setIsLoadingMore(false);
+  }, [
+    selectedStudentId,
+    hasMore,
+    isLoadingMore,
+    messages,
+    fetchMessagesPage,
+  ]);
 
   useEffect(() => {
     if (!selectedStudentId) return;
 
+    setMessages([]);
+    setHasMore(true);
+    shouldScrollToBottomRef.current = true;
     loadMessages();
 
     const channel = supabase
@@ -295,10 +391,16 @@ export default function MentorChatPage() {
           filter: `mentor_mentee_id=eq.${selectedStudentId}`,
         },
         async (payload) => {
-          const messageId = payload.new.id as string;
-          const fullMessage = await fetchMessageById(messageId);
-
-          if (!fullMessage) return;
+          const fullMessage = payload.new as ChatMessage;
+          if (chatScrollRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } =
+              chatScrollRef.current;
+            const isNearBottom =
+              scrollHeight - (scrollTop + clientHeight) < 160;
+            shouldScrollToBottomRef.current = isNearBottom;
+          } else {
+            shouldScrollToBottomRef.current = true;
+          }
 
           setMessages((prev) => {
             if (prev.some((item) => item.id === fullMessage.id)) {
@@ -333,13 +435,14 @@ export default function MentorChatPage() {
         },
         async (payload) => {
           const rawAttachment = payload.new as ChatAttachment;
-          const { data, error } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(rawAttachment.path, 60 * 5);
+          if (!messageIdsRef.current.has(rawAttachment.message_id)) {
+            return;
+          }
 
+          const signedUrl = await fetchSignedUrl(rawAttachment.path);
           const hydrated: ChatAttachment = {
             ...rawAttachment,
-            signed_url: error ? null : data?.signedUrl ?? null,
+            signed_url: signedUrl,
           };
 
           setMessages((prev) =>
@@ -364,26 +467,40 @@ export default function MentorChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedStudentId, loadMessages, fetchMessageById]);
+  }, [selectedStudentId, loadMessages, fetchSignedUrl]);
 
   useEffect(() => {
     if (!chatScrollRef.current) return;
-    const scrollToBottom = () => {
-      const container = chatScrollRef.current;
-      if (!container) return;
+    const container = chatScrollRef.current;
+    if (!container) return;
+
+    if (pendingScrollAdjustRef.current) {
+      const { prevScrollHeight, prevScrollTop } =
+        pendingScrollAdjustRef.current;
+      const nextScrollHeight = container.scrollHeight;
+      container.scrollTop =
+        nextScrollHeight - prevScrollHeight + prevScrollTop;
+      pendingScrollAdjustRef.current = null;
+      return;
+    }
+
+    if (shouldScrollToBottomRef.current) {
       container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-    };
-    const timer = setTimeout(scrollToBottom, 120);
-    return () => clearTimeout(timer);
+      shouldScrollToBottomRef.current = false;
+    }
   }, [messages, selectedStudentId]);
 
-  const updateScrollState = () => {
+  const updateScrollState = useCallback(() => {
     const container = chatScrollRef.current;
     if (!container) return;
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
     setShowScrollToBottom(distanceFromBottom > 800);
-  };
+
+    if (container.scrollTop <= 40 && hasMore && !isLoadingMore) {
+      loadOlderMessages();
+    }
+  }, [hasMore, isLoadingMore, loadOlderMessages]);
 
   useEffect(() => {
     const container = chatScrollRef.current;
@@ -392,7 +509,7 @@ export default function MentorChatPage() {
     container.addEventListener("scroll", handleScroll);
     updateScrollState();
     return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [updateScrollState]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -408,6 +525,7 @@ export default function MentorChatPage() {
     if (!trimmed || !mentorId || !selectedStudentId || isSending) return;
 
     setIsSending(true);
+    shouldScrollToBottomRef.current = true;
     const { error } = await supabase.from("chat_messages").insert({
       mentor_mentee_id: selectedStudentId,
       sender_id: mentorId,
@@ -428,6 +546,7 @@ export default function MentorChatPage() {
     }
 
     setIsSending(true);
+    shouldScrollToBottomRef.current = true;
 
     const fileArray = Array.from(files);
     const messageType = fileArray.every((file) => file.type.startsWith("image/"))
@@ -490,6 +609,13 @@ export default function MentorChatPage() {
       )
     );
   };
+
+  useEffect(() => {
+    messageIdsRef.current = new Set(messages.map((msg) => msg.id));
+    if (messages.length > 0) {
+      persistCache(messages);
+    }
+  }, [messages, persistCache]);
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
   const selectedSubject = selectedStudent
@@ -797,6 +923,11 @@ export default function MentorChatPage() {
                   className="chat-scroll relative h-full overflow-y-auto px-6 py-6"
                 >
                   <div className="min-h-full flex flex-col justify-end gap-2">
+                    {isLoadingMore && (
+                      <div className="text-center text-xs text-slate-400">
+                        이전 메시지 불러오는 중...
+                      </div>
+                    )}
                     {isLoading && (
                       <div className="text-center text-xs text-slate-400">
                         메시지를 불러오는 중...
