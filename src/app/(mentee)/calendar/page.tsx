@@ -610,6 +610,10 @@ export default function CalendarPage() {
                         플래너 모아보기
                     </button>
                 </div>
+
+
+
+
             </div>
 
             {/* Content */}
@@ -621,7 +625,24 @@ export default function CalendarPage() {
                     <div className="flex flex-col items-center">
                         <h2 className="text-2xl font-bold">
                             {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
-                            {viewMode === 'week' && <span className="text-sm font-normal text-gray-400 ml-2">플래너 모아보기</span>}
+                            {viewMode === 'week' && (
+                                <span className="text-sm font-normal text-gray-400 ml-2">
+                                    총 공부시간 : {(() => {
+                                        const totalSeconds = dailyRecords
+                                            .filter(record => {
+                                                if (!record.date) return false;
+                                                const recordDate = new Date(record.date);
+                                                return recordDate.getMonth() === currentDate.getMonth() &&
+                                                       recordDate.getFullYear() === currentDate.getFullYear();
+                                            })
+                                            .reduce((acc, curr) => acc + (curr.studyTime || 0), 0);
+
+                                        const hours = Math.floor(totalSeconds / 3600);
+                                        const minutes = Math.floor((totalSeconds % 3600) / 60);
+                                        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                    })()}
+                                </span>
+                            )}
                         </h2>
                     </div>
                     <button onClick={nextPeriod} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
