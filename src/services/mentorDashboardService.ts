@@ -3,15 +3,17 @@ import { getRecentChatsByMentorId } from "@/repositories/chatRepository";
 import { getMenteesByMentorId } from "@/repositories/mentorMenteeRepository";
 import { ensureMentorProfile } from "@/services/mentorAccessService";
 import { getPendingFeedbackItems } from "@/services/mentorFeedbackService";
+import { getUpcomingMeetingsByMentorId } from "@/repositories/meetingRepository";
 
 export async function getMentorDashboardData(mentorId: string) {
   const mentorProfile = await ensureMentorProfile(mentorId);
 
   const menteesData = await getMenteesByMentorId(mentorId);
 
-  const [recentChatsResult, pendingFeedbackResult] = await Promise.allSettled([
+  const [recentChatsResult, pendingFeedbackResult, upcomingMeetingsResult] = await Promise.allSettled([
     getRecentChatsByMentorId(mentorId, 5),
     getPendingFeedbackItems(mentorId),
+    getUpcomingMeetingsByMentorId(mentorId, 5),
   ]);
 
   if (recentChatsResult.status === "rejected") {
@@ -23,12 +25,22 @@ export async function getMentorDashboardData(mentorId: string) {
       pendingFeedbackResult.reason,
     );
   }
+  if (upcomingMeetingsResult.status === "rejected") {
+    console.error(
+      "Dashboard upcomingMeetings query failed:",
+      upcomingMeetingsResult.reason,
+    );
+  }
 
   const recentChatsRaw =
     recentChatsResult.status === "fulfilled" ? recentChatsResult.value : [];
   const pendingFeedbackItems =
     pendingFeedbackResult.status === "fulfilled"
       ? pendingFeedbackResult.value
+      : [];
+  const upcomingMeetingsRaw =
+    upcomingMeetingsResult.status === "fulfilled"
+      ? upcomingMeetingsResult.value
       : [];
 
   const mentees = menteesData.map(adaptMenteeToUi);
@@ -80,12 +92,21 @@ export async function getMentorDashboardData(mentorId: string) {
     status: item.status,
   }));
 
+  const upcomingMeetings = upcomingMeetingsRaw.map((meeting) => ({
+    id: meeting.id,
+    studentName: meeting.studentName,
+    topic: meeting.topic,
+    confirmedTime: meeting.confirmed_time,
+    zoomLink: meeting.zoom_link,
+  }));
+
   return {
     mentorName: mentorProfile.name || "멘토",
     mentees,
     recentActivity: [], // Dashboard currently doesn't render this
     recentChats,
     recentFeedback,
+    upcomingMeetings,
     stats: {
       totalMentees: mentees.length,
       pendingFeedback: pendingFeedbackItems.length,

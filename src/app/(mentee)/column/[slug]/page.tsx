@@ -32,6 +32,9 @@ export default function ColumnDetailPage({
   useEffect(() => {
     const fetchArticle = async () => {
       try {
+        // Decode the slug to handle URL-encoded Korean characters
+        const decodedSlug = decodeURIComponent(params.slug);
+
         // Fetch article data
         const { data, error } = await supabase
           .from("columns")
@@ -46,7 +49,7 @@ export default function ColumnDetailPage({
               name
             )
           `)
-          .eq("slug", params.slug)
+          .eq("slug", decodedSlug)
           .eq("status", "published")
           .single();
 
@@ -57,19 +60,6 @@ export default function ColumnDetailPage({
             ...data,
             author: { name: (data.author as any)?.name || "정보 없음" }
         });
-
-        // Increment view count (fire and forget)
-        const incrementView = async () => {
-             const { error } = await supabase.rpc("increment_view_count", { row_id: data.id });
-             if (error) {
-                 // Fallback if RPC fails
-                  await supabase
-                  .from("columns")
-                  .update({ view_count: (data as any).view_count + 1 })
-                  .eq("id", data.id);
-             }
-        };
-        incrementView();
 
       } catch (error) {
         console.error("Error fetching article:", error);

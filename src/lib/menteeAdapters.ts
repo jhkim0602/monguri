@@ -268,6 +268,9 @@ type ApiDailyRecord = {
   date: string;
   studyTimeMin: number;
   mood: "best" | "good" | "normal" | "bad" | "worst" | null;
+  menteeComment?: string | null;
+  mentorReply?: string | null;
+  mentorReplyAt?: string | null;
 };
 
 export type DailyRecordLike = {
@@ -277,6 +280,9 @@ export type DailyRecordLike = {
   mood: "best" | "good" | "normal" | "bad" | "worst" | null;
   memo: string;
   studyTimeBlocks: { [key: string]: string };
+  menteeComment: string | null;
+  mentorReply: string | null;
+  mentorReplyAt: string | null;
 };
 
 export function adaptDailyRecordsToUi(
@@ -289,6 +295,9 @@ export function adaptDailyRecordsToUi(
     mood: record.mood,
     memo: "",
     studyTimeBlocks: {},
+    menteeComment: record.menteeComment ?? null,
+    mentorReply: record.mentorReply ?? null,
+    mentorReplyAt: record.mentorReplyAt ?? null,
   }));
 }
 

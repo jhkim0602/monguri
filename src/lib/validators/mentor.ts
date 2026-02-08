@@ -12,10 +12,12 @@ export const mentorStudentIdParamSchema = z.object({
 
 export const mentorFeedbackSubmitBodySchema = z.object({
   mentorId: uuidSchema,
-  taskId: uuidSchema,
+  taskId: uuidSchema.optional(),
+  menteeId: uuidSchema.optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   comment: z.string().min(1).max(2000),
   rating: z.number().int().min(1).max(5).optional(),
-  type: z.enum(["mentor_task", "planner_task"]),
+  type: z.enum(["mentor_task", "planner_task", "daily_plan"]),
 });
 
 export const mentorTaskCreateBodySchema = z

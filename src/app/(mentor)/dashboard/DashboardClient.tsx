@@ -18,10 +18,20 @@ import {
   Loader2,
   RefreshCw,
   CheckCircle2,
+  Clock,
+  Video,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MentorMentee, MentorTask } from "@/features/mentor/types";
 import { supabase } from "@/lib/supabaseClient";
+
+type UpcomingMeeting = {
+  id: string;
+  studentName: string;
+  topic: string;
+  confirmedTime: string;
+  zoomLink: string | null;
+};
 
 type DashboardDataProps = {
   mentorName: string;
@@ -46,6 +56,7 @@ type DashboardDataProps = {
     date: string;
     status: "pending" | "completed" | "reviewed" | "submitted";
   }[];
+  upcomingMeetings?: UpcomingMeeting[];
   stats: {
     totalMentees: number;
     pendingFeedback: number;
@@ -82,6 +93,7 @@ export default function DashboardClient({
   recentActivity,
   recentChats,
   recentFeedback,
+  upcomingMeetings = [],
   stats,
 }: DashboardDataProps) {
   const isMountedRef = useRef(true);
@@ -444,6 +456,11 @@ export default function DashboardClient({
                 <CalendarIcon size={18} />
               </div>
               <h3 className="font-bold text-gray-900">다가오는 일정</h3>
+              {upcomingMeetings.length > 0 && (
+                <span className="bg-green-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                  {upcomingMeetings.length}
+                </span>
+              )}
             </div>
             <Link
               href="/schedule"
@@ -454,16 +471,87 @@ export default function DashboardClient({
           </div>
 
           <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
-            <div className="h-full bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
-              <p className="text-xs font-bold text-gray-500 mb-2">
-                일정 연동 준비중
-              </p>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
-                일정 기능이 연결되면
-                <br />
-                실제 상담/미팅 일정이 표시됩니다.
-              </p>
-            </div>
+            {upcomingMeetings.length === 0 ? (
+              <div className="h-full bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                <CalendarIcon size={24} className="text-gray-300 mb-2" />
+                <p className="text-xs font-bold text-gray-500 mb-1">
+                  예정된 일정이 없습니다
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  학생이 상담을 요청하면
+                  <br />
+                  이곳에 표시됩니다.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {upcomingMeetings.slice(0, 3).map((meeting) => {
+                  const dateObj = new Date(meeting.confirmedTime);
+                  const isToday = new Date().toDateString() === dateObj.toDateString();
+                  const isTomorrow = new Date(Date.now() + 86400000).toDateString() === dateObj.toDateString();
+                  const dateLabel = isToday
+                    ? "오늘"
+                    : isTomorrow
+                    ? "내일"
+                    : `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+                  const timeStr = dateObj.toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  });
+
+                  return (
+                    <Link
+                      href="/schedule"
+                      key={meeting.id}
+                      className="block bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-xl border border-green-100 hover:border-green-200 transition-all group"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                              isToday
+                                ? "bg-green-500 text-white"
+                                : "bg-green-100 text-green-700"
+                            }`}
+                          >
+                            {dateLabel}
+                          </span>
+                          <span className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                            <Clock size={10} />
+                            {timeStr}
+                          </span>
+                        </div>
+                        {meeting.zoomLink ? (
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-blue-600">
+                            <Video size={10} />
+                            준비완료
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-orange-500 animate-pulse">
+                            링크 필요
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm font-bold text-gray-900 truncate mb-0.5">
+                        {meeting.studentName} 학생
+                      </p>
+                      <p className="text-[11px] text-gray-500 truncate">
+                        {meeting.topic || "멘토링 상담"}
+                      </p>
+                    </Link>
+                  );
+                })}
+                {upcomingMeetings.length > 3 && (
+                  <Link
+                    href="/schedule"
+                    className="block text-center py-2 text-xs font-bold text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                  >
+                    +{upcomingMeetings.length - 3}개 더보기
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
 

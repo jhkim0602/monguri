@@ -12,7 +12,6 @@ type Column = {
   title: string;
   subtitle: string | null;
   status: "draft" | "published" | "archived";
-  view_count: number;
   created_at: string;
   published_at: string | null;
   slug: string;
@@ -111,7 +110,6 @@ export default function MentorColumnsPage() {
                 <th className="px-6 py-3 w-[40px]">#</th>
                 <th className="px-6 py-3">제목</th>
                 <th className="px-6 py-3 w-[120px]">상태</th>
-                <th className="px-6 py-3 w-[100px] text-center">조회수</th>
                 <th className="px-6 py-3 w-[150px]">작성일</th>
                 <th className="px-6 py-3 w-[120px] text-right">관리</th>
               </tr>
@@ -151,9 +149,6 @@ export default function MentorColumnsPage() {
                         ? "임시저장"
                         : "보관됨"}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-center text-gray-600 font-medium">
-                    {col.view_count.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-gray-500">
                     {format(new Date(col.created_at), "yyyy. MM. dd", {

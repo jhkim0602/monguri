@@ -36,6 +36,9 @@ type PlannerDailyRecord = {
   date: string;
   studyTimeMin: number;
   mood: "best" | "good" | "normal" | "bad" | "worst" | null;
+  menteeComment: string | null;
+  mentorReply: string | null;
+  mentorReplyAt: string | null;
 };
 
 type PlannerOverviewFilters = {
@@ -85,6 +88,9 @@ export async function getPlannerOverview(
     date: record.date,
     studyTimeMin: record.study_time_min,
     mood: record.mood,
+    menteeComment: record.mentee_comment,
+    mentorReply: record.mentor_reply,
+    mentorReplyAt: record.mentor_reply_at,
   }));
 
   return {

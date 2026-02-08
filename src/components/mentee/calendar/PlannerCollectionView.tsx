@@ -82,6 +82,8 @@ export default function PlannerCollectionView({
                             userTasks={userTasksForDate}
                             dailyEvents={dailyEvents}
                             studyTimeBlocks={studyTimeBlocks}
+                            menteeComment={record?.menteeComment}
+                            mentorReview={record?.mentorReply}
                             onClick={() => onDateClick(date)}
                             fill={fillCard}
                             fillScale={fillScale}

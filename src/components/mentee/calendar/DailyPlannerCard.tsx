@@ -9,7 +9,8 @@ interface DailyPlannerCardProps {
   userTasks: any[];
   dailyEvents: any[];
   studyTimeBlocks: { [key: string]: string };
-  mentorReview?: string;
+  menteeComment?: string | null;
+  mentorReview?: string | null;
   onClick?: () => void;
   fill?: boolean;
   fillScale?: number;
@@ -23,6 +24,7 @@ export default function DailyPlannerCard({
   mentorDeadlines = [],
   userTasks = [],
   dailyEvents = [],
+  menteeComment,
   mentorReview,
   onClick,
   fill = false,
@@ -54,7 +56,7 @@ export default function DailyPlannerCard({
         >
           <PlannerDetailView
             date={date}
-            dailyRecord={{ studyTime, memo }}
+            dailyRecord={{ studyTime, memo, menteeComment, mentorReply: derivedReview }}
             mentorDeadlines={mentorDeadlines}
             userTasks={userTasks}
             dailyEvents={dailyEvents}
@@ -68,7 +70,7 @@ export default function DailyPlannerCard({
           <div className="w-[520px]">
             <PlannerDetailView
               date={date}
-              dailyRecord={{ studyTime, memo }}
+              dailyRecord={{ studyTime, memo, menteeComment, mentorReply: derivedReview }}
               mentorDeadlines={mentorDeadlines}
               userTasks={userTasks}
               dailyEvents={dailyEvents}

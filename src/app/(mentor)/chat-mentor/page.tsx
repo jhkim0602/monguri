@@ -923,7 +923,7 @@ export default function MentorChatPage() {
                   ref={chatScrollRef}
                   className="chat-scroll relative h-full overflow-y-auto px-6 py-6"
                 >
-                  <div className="min-h-full flex flex-col justify-end gap-2">
+                  <div className="min-h-full flex flex-col justify-end py-4 px-2">
                     {isLoadingMore && (
                       <div className="text-center text-xs text-slate-400">
                         이전 메시지 불러오는 중...
@@ -934,108 +934,140 @@ export default function MentorChatPage() {
                         메시지를 불러오는 중...
                       </div>
                     )}
-                    {messages.map((msg) => {
+                    {messages.map((msg, index) => {
                       const isMe = msg.sender_id === mentorId;
-                      const senderLabel = isMe
-                        ? "멘토 (나)"
-                        : selectedStudent.name;
-                      const timeLabel = new Date(msg.created_at).toLocaleTimeString(
-                        "ko-KR",
-                        {
+                      const prevMsg = messages[index - 1];
+
+                      // Check if it's a sequential message (same sender, within 1 minute)
+                      const isSequence =
+                        prevMsg &&
+                        prevMsg.sender_id === msg.sender_id &&
+                        prevMsg.message_type !== "system" && // Don't group with system messages
+                        msg.message_type !== "system" &&
+                        (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() < 60000);
+
+                      const senderLabel = isMe ? "멘토 (나)" : selectedStudent.name;
+                      const timeLabel = new Date(msg.created_at).toLocaleTimeString("ko-KR", {
                           hour: "2-digit",
                           minute: "2-digit",
-                        }
-                      );
+                        });
 
-                      return msg.message_type === "system" ? (
-                        <div key={msg.id} className="w-full flex justify-center my-4">
-                          {msg.body?.startsWith("MEETING_CONFIRMED:") ? (
-                            <MeetingConfirmedMessage
-                                requestId={msg.body.split(":")[1]}
-                                isSender={isMe}
-                            />
-                          ) : (
-                            <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
-                                {msg.body}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
+                      if (msg.message_type === "system") {
+                        return (
+                          <div key={msg.id} className="w-full flex justify-center my-4">
+                            {msg.body?.startsWith("MEETING_CONFIRMED:") ? (
+                              <MeetingConfirmedMessage
+                                  requestId={msg.body.split(":")[1]}
+                                  isSender={isMe}
+                              />
+                            ) : (
+                              <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
+                                  {msg.body}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
                         <div
                           key={msg.id}
-                          className={`flex gap-4 p-4 hover:bg-slate-50/50 transition-colors ${
-                            isMe ? "flex-row-reverse text-right" : ""
-                          }`}
+                          className={`flex gap-3 relative group ${
+                            isMe ? "flex-row-reverse" : ""
+                          } ${isSequence ? "mt-[2px]" : "mt-5"}`}
                         >
-                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-200 shadow-sm border border-white">
-                            {(isMe ? null : selectedStudent?.avatarUrl) ? (
-                              <img
-                                src={
-                                  (isMe
-                                    ? ""
-                                    : selectedStudent?.avatarUrl) || ""
-                                }
-                                alt="profile"
-                                className="h-full w-full object-cover"
-                              />
+                          {/* Avatar Area (40px width) */}
+                          <div className="flex-shrink-0 w-10 flex flex-col items-center">
+                            {!isSequence && !isMe ? (
+                              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-200 shadow-sm border border-white">
+                                 {selectedStudent?.avatarUrl ? (
+                                  <img
+                                    src={selectedStudent.avatarUrl}
+                                    alt="profile"
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : null}
+                              </div>
                             ) : null}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-500">
-                              <span className="font-semibold text-slate-900 text-[14px]">
-                                {senderLabel}
-                              </span>
-                              <span className="text-[12px] text-slate-400">
-                                {timeLabel}
-                              </span>
-                              {isMe && (
-                                <span className="flex items-center gap-1 text-[12px] text-slate-400">
-                                  <CheckCheck className="h-3 w-3" />
-                                  전송됨
-                                </span>
-                              )}
-                            </div>
-                            {msg.body && msg.message_type !== "meeting_request" ? (
-                              <div className="mt-1.5 text-[17px] leading-relaxed text-slate-800">
-                                {msg.body}
-                              </div>
-                            ) : null}
-                            {msg.message_type === "meeting_request" && msg.body?.startsWith("MEETING_REQUEST:") && (
-                                <div className="mt-2">
-                                  <MentorMeetingRequestCard requestId={msg.body.split(":")[1]} />
-                                </div>
-                            )}
-                            {msg.chat_attachments?.length ? (
-                              <div className="mt-2 flex flex-col gap-2">
-                                {msg.chat_attachments.map((attachment) => {
-                                  if (
-                                    attachment.signed_url &&
-                                    attachment.mime_type?.startsWith("image/")
-                                  ) {
-                                    return (
-                                      <img
-                                        key={attachment.id}
-                                        src={attachment.signed_url}
-                                        alt="attachment"
-                                        className="max-w-[280px] rounded-2xl border border-white/60"
-                                      />
-                                    );
-                                  }
 
-                                  return (
-                                    <a
-                                      key={attachment.id}
-                                      href={attachment.signed_url ?? "#"}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-xs underline text-slate-600"
-                                    >
-                                      파일 다운로드
-                                    </a>
-                                  );
-                                })}
+                          {/* Message Content Area */}
+                          <div
+                            className={`flex flex-col max-w-[75%] ${
+                              isMe ? "items-end" : "items-start"
+                            }`}
+                          >
+                            {/* Header (Name & Time) - Show only if not sequence */}
+                            {!isSequence && (
+                              <div className={`flex items-end gap-2 mb-1 ${
+                                isMe ? "flex-row-reverse" : "flex-row"
+                              }`}>
+                                <span className="font-semibold text-slate-900 text-[14px]">
+                                  {senderLabel}
+                                </span>
+                                <span className="text-[12px] text-slate-400">
+                                  {timeLabel}
+                                </span>
+                                {isMe && (
+                                  <span className="flex items-center gap-1 text-[12px] text-slate-400">
+                                    <CheckCheck className="h-3 w-3" />
+                                    전송됨
+                                  </span>
+                                )}
                               </div>
-                            ) : null}
+                            )}
+
+                            {/* Message Body */}
+                            <div className={`flex flex-col gap-1 w-full ${isMe ? "items-end" : "items-start"}`}>
+                              {msg.body && msg.message_type !== "meeting_request" ? (
+                                <div className={`text-[15px] leading-relaxed text-slate-800 break-words whitespace-pre-wrap ${
+                                  isMe ? "text-right" : "text-left"
+                                }`}>
+                                  {msg.body}
+                                </div>
+                              ) : null}
+
+                              {/* Meeting Request Card */}
+                              {msg.message_type === "meeting_request" && msg.body?.startsWith("MEETING_REQUEST:") && (
+                                  <div className="mt-1">
+                                    <MentorMeetingRequestCard requestId={msg.body.split(":")[1]} />
+                                  </div>
+                              )}
+
+                              {/* Attachments */}
+                              {msg.chat_attachments?.length ? (
+                                <div className={`mt-1 flex flex-col gap-2 ${isMe ? "items-end" : "items-start"}`}>
+                                  {msg.chat_attachments.map((attachment) => {
+                                    if (
+                                      attachment.signed_url &&
+                                      attachment.mime_type?.startsWith("image/")
+                                    ) {
+                                      return (
+                                        <img
+                                          key={attachment.id}
+                                          src={attachment.signed_url}
+                                          alt="attachment"
+                                          className="max-w-[280px] rounded-xl border border-slate-100 shadow-sm bg-white"
+                                        />
+                                      );
+                                    }
+
+                                    return (
+                                      <a
+                                        key={attachment.id}
+                                        href={attachment.signed_url ?? "#"}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-2 px-3 py-2 bg-white rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors border border-slate-200 shadow-sm"
+                                      >
+                                        <Paperclip size={14} className="text-slate-400"/>
+                                        파일 다운로드
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                       );

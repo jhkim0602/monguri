@@ -6,7 +6,10 @@ import {
     ChevronRight,
     Flag,
     Plus,
-    X
+    X,
+    MessageCircle,
+    Check,
+    Loader2
 } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
@@ -54,6 +57,13 @@ export default function PlannerPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<{ id: string | number, recurringGroupId: string | null } | null>(null);
 
+    // Daily Comment State
+    const [menteeComment, setMenteeComment] = useState("");
+    const [mentorReply, setMentorReply] = useState<string | null>(null);
+    const [mentorReplyAt, setMentorReplyAt] = useState<string | null>(null);
+    const [isCommentSaving, setIsCommentSaving] = useState(false);
+    const commentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Helpers
     const isSameDay = (date1: Date, date2: Date) => {
         return date1.getDate() === date2.getDate() &&
@@ -81,6 +91,58 @@ export default function PlannerPage() {
             setRefreshTick((prev) => prev + 1);
         }, 250);
     }, []);
+
+    // Load daily comment
+    const loadDailyComment = useCallback(async (menteeIdVal: string, dateStr: string) => {
+        try {
+            const res = await fetch(`/api/mentee/planner/daily-comment?menteeId=${menteeIdVal}&date=${dateStr}`);
+            if (res.ok) {
+                const json = await res.json();
+                if (json.success) {
+                    setMenteeComment(json.data.menteeComment || "");
+                    setMentorReply(json.data.mentorReply || null);
+                    setMentorReplyAt(json.data.mentorReplyAt || null);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load daily comment", e);
+        }
+    }, []);
+
+    // Save daily comment (debounced)
+    const saveDailyComment = useCallback(async (comment: string) => {
+        if (!menteeId) return;
+        const dateStr = toDateString(currentDate);
+
+        setIsCommentSaving(true);
+        try {
+            await fetch("/api/mentee/planner/daily-comment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    menteeId,
+                    date: dateStr,
+                    comment,
+                }),
+            });
+        } catch (e) {
+            console.error("Failed to save daily comment", e);
+        } finally {
+            setIsCommentSaving(false);
+        }
+    }, [menteeId, currentDate]);
+
+    const handleCommentChange = (value: string) => {
+        setMenteeComment(value);
+
+        // Debounce save
+        if (commentSaveTimerRef.current) {
+            clearTimeout(commentSaveTimerRef.current);
+        }
+        commentSaveTimerRef.current = setTimeout(() => {
+            saveDailyComment(value);
+        }, 1000);
+    };
 
     const persistCache = (
         nextTasks: Array<MentorTaskLike | PlannerTaskLike>,
@@ -368,6 +430,19 @@ export default function PlannerPage() {
         setStudyTimeBlocks(generateTimeBlocksFromTasks(tasks));
     }, [tasks]);
 
+    // Load daily comment when date or menteeId changes
+    useEffect(() => {
+        if (!menteeId) return;
+        const dateStr = toDateString(currentDate);
+        loadDailyComment(menteeId, dateStr);
+
+        return () => {
+            if (commentSaveTimerRef.current) {
+                clearTimeout(commentSaveTimerRef.current);
+            }
+        };
+    }, [menteeId, currentDate, loadDailyComment]);
+
     // Handlers
     const handlePrevDay = () => {
         const prev = new Date(currentDate);
@@ -583,18 +658,55 @@ export default function PlannerPage() {
 
             <div className="px-4 space-y-4 pb-8">
                 {/* Mentee Comment Card */}
-                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <Flag size={18} className="text-orange-500 fill-orange-500" />
+                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                            <Flag size={18} className="text-orange-500 fill-orange-500" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <p className="text-[10px] font-bold text-gray-400">멘티 코멘트</p>
+                                {isCommentSaving && (
+                                    <Loader2 size={10} className="animate-spin text-gray-400" />
+                                )}
+                                {!isCommentSaving && menteeComment && (
+                                    <Check size={10} className="text-green-500" />
+                                )}
+                            </div>
+                            <input
+                                type="text"
+                                value={menteeComment}
+                                onChange={(e) => handleCommentChange(e.target.value)}
+                                placeholder="오늘 하루 요약이나 코멘트를 남겨주세요"
+                                className="w-full text-sm placeholder-gray-300 border-none p-0 focus:ring-0 font-medium"
+                            />
+                        </div>
                     </div>
-                    <div className="flex-1">
-                        <p className="text-[10px] font-bold text-gray-400 mb-1">멘티 코멘트</p>
-                        <input
-                            type="text"
-                            placeholder="오늘 하루 요약이나 코멘트를 남겨주세요"
-                            className="w-full text-sm placeholder-gray-300 border-none p-0 focus:ring-0 font-medium"
-                        />
-                    </div>
+
+                    {/* Mentor Reply */}
+                    {mentorReply && (
+                        <div className="flex items-start gap-3 pt-3 border-t border-gray-100">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                <MessageCircle size={18} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-[10px] font-bold text-blue-600">멘토 답글</p>
+                                    {mentorReplyAt && (
+                                        <p className="text-[9px] text-gray-400">
+                                            {new Date(mentorReplyAt).toLocaleDateString("ko-KR", {
+                                                month: "short",
+                                                day: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit"
+                                            })}
+                                        </p>
+                                    )}
+                                </div>
+                                <p className="text-sm text-gray-700 font-medium">{mentorReply}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <PlannerTasks
