@@ -10,11 +10,11 @@ import {
 } from "lucide-react";
 import Header from "@/components/mentee/layout/Header";
 import { supabase } from "@/lib/supabaseClient";
+import { adaptProfileToUi } from "@/lib/menteeAdapters";
 import {
-    adaptProfileToUi,
-} from "@/lib/menteeAdapters";
-
-
+    readMenteeMyPageCache,
+    writeMenteeMyPageCache,
+} from "@/lib/menteeMyPageCache";
 export default function MyPage() {
     const router = useRouter();
 
@@ -23,6 +23,7 @@ export default function MyPage() {
     const [profileName, setProfileName] = useState("");
     const [profileIntro, setProfileIntro] = useState("서울대학교 입학을 목표로 열공 중 ✨");
     const [profileAvatar, setProfileAvatar] = useState("");
+    const [userId, setUserId] = useState<string | null>(null);
 
     // Data States
     const [isLoading, setIsLoading] = useState(true);
@@ -36,31 +37,65 @@ export default function MyPage() {
     useEffect(() => {
         let isMounted = true;
 
+        const loadUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            const user = data?.user;
+            if (!isMounted) return;
+            if (!user) {
+                if (!hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
+                }
+                return;
+            }
+            setUserId(user.id);
+        };
+
+        loadUser();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []); // Only load once
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!userId) return;
+
+        const cached = readMenteeMyPageCache(userId);
+        if (cached?.data?.profile) {
+            const nextProfile = cached.data.profile;
+            setProfileName(nextProfile.name);
+            setProfileAvatar(nextProfile.avatar);
+            if (!isEditModalOpen) {
+                setTempName(nextProfile.name);
+                setTempAvatar(nextProfile.avatar);
+            }
+            setIsLoading(false);
+            if (!cached.stale) {
+                return () => {
+                    isMounted = false;
+                };
+            }
+        }
+
         const load = async () => {
-            if (!hasLoadedRef.current) {
+            if (!hasLoadedRef.current && !cached) {
                 setIsLoading(true);
             }
             try {
-                const { data } = await supabase.auth.getUser();
-                const user = data?.user;
-                if (!user) return;
-
-                // Load Profile Only (Tasks removed as FeedbackArchive moved)
-                const profileRes = await fetch(`/api/mentee/profile?profileId=${user.id}`);
-
-                if (profileRes.ok) {
-                    const profileJson = await profileRes.json();
-                    const nextProfile = adaptProfileToUi(profileJson.profile ?? null);
-                    if (isMounted && nextProfile) {
-                        setProfileName(nextProfile.name);
-                        // setProfileIntro(nextProfile.intro); // If API returned intro
-                        setProfileAvatar(nextProfile.avatar);
-                        if (!isEditModalOpen) {
-                            setTempName(nextProfile.name);
-                            // setTempIntro(nextProfile.intro);
-                            setTempAvatar(nextProfile.avatar);
-                        }
+                const profileRes = await fetch(`/api/mentee/profile?profileId=${userId}`);
+                if (!profileRes.ok) return;
+                const profileJson = await profileRes.json();
+                const nextProfile = adaptProfileToUi(profileJson.profile ?? null);
+                if (isMounted && nextProfile) {
+                    setProfileName(nextProfile.name);
+                    setProfileAvatar(nextProfile.avatar);
+                    if (!isEditModalOpen) {
+                        setTempName(nextProfile.name);
+                        setTempAvatar(nextProfile.avatar);
                     }
+                    writeMenteeMyPageCache(userId, { profile: nextProfile });
                 }
             } finally {
                 if (isMounted && !hasLoadedRef.current) {
@@ -75,7 +110,7 @@ export default function MyPage() {
         return () => {
             isMounted = false;
         };
-    }, []); // Only load once
+    }, [userId, isEditModalOpen]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
