@@ -61,7 +61,11 @@ export async function getMenteesByMentorId(mentorId: string) {
         role,
         name,
         avatar_url,
-        intro
+        intro,
+        goal,
+        target_exam,
+        target_date,
+        grade
       )
     `,
     )
@@ -70,12 +74,51 @@ export async function getMenteesByMentorId(mentorId: string) {
     .order("started_at", { ascending: false });
 
   if (error) {
+    // If error is due to missing columns, try without new fields
+    if (error.message.includes("goal") || error.message.includes("target_")) {
+      const { data: fallbackData, error: fallbackError } = await supabaseServer
+        .from("mentor_mentee")
+        .select(
+          `
+          id,
+          mentor_id,
+          mentee_id,
+          status,
+          started_at,
+          mentee:profiles!mentor_mentee_mentee_id_fkey(
+            id,
+            role,
+            name,
+            avatar_url,
+            intro
+          )
+        `,
+        )
+        .eq("mentor_id", mentorId)
+        .eq("status", "active")
+        .order("started_at", { ascending: false });
+
+      if (fallbackError) {
+        throw new Error(fallbackError.message);
+      }
+
+      return (fallbackData ?? []) as unknown as (Omit<MentorMenteeRow, "mentor"> & {
+        mentee: {
+          id: string;
+          role: "mentor" | "mentee" | "admin";
+          name: string | null;
+          avatar_url: string | null;
+          intro: string | null;
+          goal?: string | null;
+          target_exam?: string | null;
+          target_date?: string | null;
+          grade?: string | null;
+        } | null;
+      })[];
+    }
     throw new Error(error.message);
   }
 
-  // Map the nested 'mentee' object to a top-level 'mentee' property consistent with MentorMenteeRow structure if needed,
-  // or acturally we need to return a type that includes mentee profile info.
-  // Let's adjust the return type or just return the raw data which is close enough to what we need.
   return (data ?? []) as unknown as (Omit<MentorMenteeRow, "mentor"> & {
     mentee: {
       id: string;
@@ -83,6 +126,10 @@ export async function getMenteesByMentorId(mentorId: string) {
       name: string | null;
       avatar_url: string | null;
       intro: string | null;
+      goal?: string | null;
+      target_exam?: string | null;
+      target_date?: string | null;
+      grade?: string | null;
     } | null;
   })[];
 }
@@ -90,15 +137,7 @@ export async function getMenteesByMentorId(mentorId: string) {
 export async function getMenteeDetailById(menteeId: string) {
   const { data, error } = await supabaseServer
     .from("profiles")
-    .select(
-      `
-      id,
-      role,
-      name,
-      avatar_url,
-      intro
-    `,
-    )
+    .select("*")
     .eq("id", menteeId)
     .single();
 
@@ -106,9 +145,17 @@ export async function getMenteeDetailById(menteeId: string) {
     throw new Error(error.message);
   }
 
-  // TODO: Aggregate stats from other tables (study_records, etc.)
+  // Backward compatible mapping with new profile fields
   return {
-    ...data,
+    id: data.id,
+    role: data.role,
+    name: data.name,
+    avatar_url: data.avatar_url,
+    intro: data.intro,
+    goal: data.goal ?? null,
+    target_exam: data.target_exam ?? null,
+    target_date: data.target_date ?? null,
+    grade: data.grade ?? null,
     stats: {
       studyHours: 0,
       attendanceRate: "0%",

@@ -6,6 +6,7 @@ import {
   submitTaskFeedback,
   submitPlannerTaskFeedback,
 } from "@/services/mentorTaskService";
+import { updateMentorReply } from "@/repositories/dailyRecordsRepository";
 
 export async function POST(request: Request) {
   try {
@@ -18,12 +19,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const { mentorId, taskId, comment, rating, type } = parsed.data;
+    const { mentorId, taskId, menteeId, date, comment, rating, type } = parsed.data;
 
     if (type === "mentor_task") {
+      if (!taskId) {
+        return NextResponse.json(
+          { success: false, error: "taskId is required for mentor_task" },
+          { status: 400 },
+        );
+      }
       await submitTaskFeedback(taskId, mentorId, comment, rating ?? 5);
     } else if (type === "planner_task") {
+      if (!taskId) {
+        return NextResponse.json(
+          { success: false, error: "taskId is required for planner_task" },
+          { status: 400 },
+        );
+      }
       await submitPlannerTaskFeedback(taskId, mentorId, comment);
+    } else if (type === "daily_plan") {
+      if (!menteeId || !date) {
+        return NextResponse.json(
+          { success: false, error: "menteeId and date are required for daily_plan" },
+          { status: 400 },
+        );
+      }
+      await updateMentorReply(menteeId, date, comment);
     } else {
       return NextResponse.json(
         { success: false, error: "Invalid task type" },

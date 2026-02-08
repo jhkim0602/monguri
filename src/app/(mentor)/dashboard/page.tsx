@@ -113,6 +113,7 @@ export default function DashboardPage() {
       recentActivity={data.recentActivity}
       recentChats={data.recentChats}
       recentFeedback={data.recentFeedback}
+      upcomingMeetings={data.upcomingMeetings}
       stats={data.stats}
     />
   );

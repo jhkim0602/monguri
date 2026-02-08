@@ -40,6 +40,8 @@ export default function PlannerDetailView({
   const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
   const isToday = false;
   const memo = dailyRecord?.memo || "";
+  const menteeComment = dailyRecord?.menteeComment || null;
+  const mentorReplyFromRecord = dailyRecord?.mentorReply || mentorReview || null;
 
   const pad2 = (value: number) => String(value).padStart(2, "0");
   const formatDateInput = (target: Date) =>
@@ -201,14 +203,27 @@ export default function PlannerDetailView({
       ) : null}
 
       <div className="flex-1 p-2 flex flex-col gap-2 overflow-hidden">
+        {/* 멘티 코멘트 */}
         <div className="w-full bg-sky-50/50 rounded-lg p-3 border border-sky-100/50">
           <span className="text-xs font-bold text-sky-600 mb-1 block">
-            Daily Memo
+            💬 멘티 코멘트
           </span>
           <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
-            {memo ? `"${memo}"` : "오늘의 메모가 없습니다."}
+            {menteeComment ? `"${menteeComment}"` : "아직 코멘트가 없습니다."}
           </p>
         </div>
+
+        {/* 멘토 총평 */}
+        {mentorReplyFromRecord && (
+          <div className="w-full bg-orange-50/50 rounded-lg p-3 border border-orange-100/50">
+            <span className="text-xs font-bold text-orange-600 mb-1 block">
+              📝 멘토 총평
+            </span>
+            <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
+              "{mentorReplyFromRecord}"
+            </p>
+          </div>
+        )}
 
         <div className="flex-1 flex gap-2 w-full overflow-hidden min-h-0">
           <div className="w-[60%] flex flex-col gap-1.5 overflow-y-auto custom-scrollbar pr-1 min-h-0">

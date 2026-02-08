@@ -6,6 +6,21 @@ import {
 import { MentorMenteeRow } from "@/repositories/mentorMenteeRepository";
 import { MentorTaskRow } from "@/repositories/mentorTasksRepository";
 
+function calculateDDay(targetDate: string | null | undefined): number | null {
+  if (!targetDate) return null;
+
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffTime = target.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays;
+}
+
 export function adaptMenteeToUi(
   row: Omit<MentorMenteeRow, "mentor"> & {
     mentee: {
@@ -14,20 +29,28 @@ export function adaptMenteeToUi(
       name: string | null;
       avatar_url: string | null;
       intro: string | null;
+      goal?: string | null;
+      target_exam?: string | null;
+      target_date?: string | null;
+      grade?: string | null;
     } | null;
   },
 ): MentorMentee {
+  const mentee = row.mentee;
   return {
     id: row.mentee_id,
-    name: row.mentee?.name || "이름 없음",
-    grade: "고3", // Default or fetch from profile if added
-    track: "수능/정시", // Default or fetch
-    goal: row.mentee?.intro || "목표가 설정되지 않았습니다.",
-    avatarUrl: row.mentee?.avatar_url || undefined,
+    name: mentee?.name || "이름 없음",
+    grade: mentee?.grade || "고3",
+    track: "수능/정시",
+    goal: mentee?.goal || mentee?.intro || "목표가 설정되지 않았습니다.",
+    targetExam: mentee?.target_exam || undefined,
+    targetDate: mentee?.target_date || null,
+    dDay: calculateDDay(mentee?.target_date),
+    avatarUrl: mentee?.avatar_url || undefined,
     stats: {
-      studyHours: 0, // Needs aggregation query
-      attendanceRate: "0%", // Needs aggregation query
-      tasksCompleted: 0, // Needs aggregation query
+      studyHours: 0,
+      attendanceRate: "0%",
+      tasksCompleted: 0,
     },
   };
 }

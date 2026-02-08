@@ -9,7 +9,8 @@ export type ModalType =
   | "info"
   | "confirm"
   | "input"
-  | "schedule_adjust";
+  | "schedule_adjust"
+  | "default";
 
 interface ModalProps {
   isOpen: boolean;
@@ -107,35 +108,41 @@ export default function CommonModal({
         onClick={onClose}
       />
       <div
-        className={`relative bg-white rounded-2xl shadow-2xl w-full ${maxWidthClass} p-6 transform transition-all duration-300 ${isOpen ? "scale-100 translate-y-0" : "scale-95 translate-y-4"}`}
+        className={`relative bg-white rounded-2xl shadow-2xl w-full ${maxWidthClass} ${size === "2xl" || size === "full" ? "p-0" : "p-6"} transform transition-all duration-300 ${isOpen ? "scale-100 translate-y-0" : "scale-95 translate-y-4"} overflow-hidden`}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
         >
           <X size={20} />
         </button>
 
-        <div className="flex flex-col items-center text-center">
-          <div
-            className={`mb-4 p-3 rounded-full ${
-              type === "success"
-                ? "bg-green-50"
-                : type === "error"
-                  ? "bg-red-50"
-                  : type === "confirm"
-                    ? "bg-blue-50"
-                    : type === "schedule_adjust"
-                      ? "bg-purple-50"
-                      : "bg-gray-50"
-            }`}
-          >
-            {getIcon()}
-          </div>
+        <div className={`flex flex-col ${size === "2xl" || size === "full" ? "" : "items-center text-center"} ${size === "2xl" || size === "full" ? "p-8" : ""}`}>
 
-          <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+          {/* Hide header icon/title for custom layouts if preferred, or keep them aligned left */}
+          {size !== "2xl" && size !== "full" && (
+             <>
+              <div
+                className={`mb-4 p-3 rounded-full ${
+                  type === "success"
+                    ? "bg-green-50"
+                    : type === "error"
+                      ? "bg-red-50"
+                      : type === "confirm"
+                        ? "bg-blue-50"
+                        : type === "schedule_adjust"
+                          ? "bg-purple-50"
+                          : "bg-gray-50"
+                }`}
+              >
+                {getIcon()}
+              </div>
 
-          <div className="text-sm text-gray-500 mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+             </>
+          )}
+
+          <div className={`text-sm text-gray-500 ${size === "2xl" || size === "full" ? "w-full" : "mb-6"}`}>
             {typeof content === "string" ? <p>{content}</p> : content}
           </div>
 

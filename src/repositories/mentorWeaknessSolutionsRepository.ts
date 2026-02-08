@@ -61,7 +61,14 @@ export async function listMentorWeaknessSolutions(mentorId: string) {
     throw error;
   }
 
-  return (data ?? []) as MentorWeaknessSolutionRow[];
+  // Transform Supabase join arrays to single objects
+  const transformed = (data ?? []).map((row: any) => ({
+    ...row,
+    subject: Array.isArray(row.subject) ? row.subject[0] ?? null : row.subject ?? null,
+    material: Array.isArray(row.material) ? row.material[0] ?? null : row.material ?? null,
+  }));
+
+  return transformed as MentorWeaknessSolutionRow[];
 }
 
 export async function createMentorWeaknessSolution(
@@ -83,7 +90,15 @@ export async function createMentorWeaknessSolution(
     throw error;
   }
 
-  return data as MentorWeaknessSolutionRow;
+  // Transform Supabase join arrays to single objects
+  const row = data as any;
+  const transformed = {
+    ...row,
+    subject: Array.isArray(row.subject) ? row.subject[0] ?? null : row.subject ?? null,
+    material: Array.isArray(row.material) ? row.material[0] ?? null : row.material ?? null,
+  };
+
+  return transformed as MentorWeaknessSolutionRow;
 }
 
 export async function archiveMentorWeaknessSolution(

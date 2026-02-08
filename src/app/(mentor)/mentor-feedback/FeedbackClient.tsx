@@ -128,6 +128,11 @@ export default function FeedbackClient({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Daily comment state for plan type
+  const [dailyMenteeComment, setDailyMenteeComment] = useState<string | null>(null);
+  const [dailyMentorReply, setDailyMentorReply] = useState<string | null>(null);
+  const [isDailyCommentLoading, setIsDailyCommentLoading] = useState(false);
+
   const handleDownloadAttachment = async (
     fileId: string | null | undefined,
     name: string,
@@ -315,6 +320,39 @@ export default function FeedbackClient({
     [selectedItem],
   );
 
+  // Load daily comment when plan item is selected
+  useEffect(() => {
+    if (!selectedItem || selectedItem.type !== "plan") {
+      setDailyMenteeComment(null);
+      setDailyMentorReply(null);
+      return;
+    }
+
+    const loadDailyComment = async () => {
+      setIsDailyCommentLoading(true);
+      try {
+        const planDate = toDate(selectedItem.date);
+        const dateStr = toDateKey(planDate);
+        const res = await fetch(
+          `/api/mentee/planner/daily-comment?menteeId=${selectedItem.studentId}&date=${dateStr}`
+        );
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setDailyMenteeComment(json.data.menteeComment || null);
+            setDailyMentorReply(json.data.mentorReply || null);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load daily comment", e);
+      } finally {
+        setIsDailyCommentLoading(false);
+      }
+    };
+
+    loadDailyComment();
+  }, [selectedItem]);
+
   useEffect(() => {
     if (!selectedItem) {
       setFeedbackText("");
@@ -332,7 +370,7 @@ export default function FeedbackClient({
     }
 
     if (selectedItem.type === "plan") {
-      setFeedbackText(publishedFeedback ?? "");
+      setFeedbackText(dailyMentorReply ?? publishedFeedback ?? "");
     }
   }, [
     selectedItemId,
@@ -340,6 +378,7 @@ export default function FeedbackClient({
     selectedTaskFeedback,
     selectedSelfFeedback,
     publishedFeedback,
+    dailyMentorReply,
   ]);
 
   // --- Handlers ---
@@ -488,13 +527,63 @@ export default function FeedbackClient({
       return;
     }
 
+    // For plan types - save to daily_records
+    if (selectedItem.type === "plan") {
+      if (!feedbackText.trim()) {
+        alert("답글 내용을 입력해주세요.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const planDate = toDate(selectedItem.date);
+        const dateStr = toDateKey(planDate);
+
+        const response = await fetch("/api/mentor/feedback/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mentorId,
+            menteeId: selectedItem.studentId,
+            date: dateStr,
+            comment: feedbackText,
+            type: "daily_plan",
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          setPublishedFeedback(feedbackText);
+          setDailyMentorReply(feedbackText);
+          openModal({
+            title: "전송 완료",
+            content: "✅ 일일 플래너 답글이 전송되었습니다.",
+            type: "success",
+          });
+        } else {
+          openModal({
+            title: "전송 실패",
+            content: result.error || "알 수 없는 오류가 발생했습니다.",
+            type: "confirm",
+          });
+        }
+      } catch (error) {
+        console.error("Daily plan feedback submit error:", error);
+        alert("답글 전송 중 오류가 발생했습니다.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     // For other types (mock implementation)
     openModal({
       title: "리포트 전송",
       content: "작성하신 총평을 전송하고 플래너에 반영하시겠습니까?",
       type: "confirm",
       onConfirm: () => {
-        setPublishedFeedback(feedbackText); // Apply feedback to card
+        setPublishedFeedback(feedbackText);
         openModal({
           title: "전송 완료",
           content: "✅ 리포트가 전송되었습니다.",
@@ -843,6 +932,30 @@ export default function FeedbackClient({
                             "
                           </p>
                         </div>
+
+                        {/* Mentee Daily Comment */}
+                        {isDailyCommentLoading ? (
+                          <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
+                            <p className="text-xs text-orange-600 font-medium">
+                              멘티 코멘트 로딩중...
+                            </p>
+                          </div>
+                        ) : dailyMenteeComment ? (
+                          <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
+                            <h4 className="text-xs font-bold text-orange-600 mb-2 flex items-center gap-1">
+                              💬 멘티 코멘트
+                            </h4>
+                            <p className="text-gray-900 font-medium">
+                              "{dailyMenteeComment}"
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
+                            <p className="text-xs text-gray-400 font-medium">
+                              아직 멘티가 코멘트를 작성하지 않았습니다.
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Feedback Input */}

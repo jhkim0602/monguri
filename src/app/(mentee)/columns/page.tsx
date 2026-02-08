@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { COLUMN_ARTICLES, COLUMN_SERIES } from "@/constants/mentee/columns";
+import { COLUMN_SERIES } from "@/constants/mentee/columns";
 import Header from "@/components/mentee/layout/Header";
 import {
   Bookmark,
@@ -11,55 +11,138 @@ import {
   List,
   Search,
 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
 
 type ViewMode = "card" | "list";
 
-const BOOKMARKS_KEY = "column-bookmarks";
+type Column = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  slug: string;
+  series_id: string;
+  cover_image_url: string | null;
+  created_at: string;
+  author: {
+    name: string;
+  };
+};
 
 export default function ColumnsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [search, setSearch] = useState("");
   const [seriesFilter, setSeriesFilter] = useState("all");
   const [bookmarksOnly, setBookmarksOnly] = useState(false);
-  const [bookmarks, setBookmarks] = useState<string[]>([]);
+
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = localStorage.getItem(BOOKMARKS_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) setBookmarks(parsed);
-    } catch {
-      // ignore storage errors
-    }
+    fetchColumns();
+    fetchBookmarks();
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-  }, [bookmarks]);
+  const fetchColumns = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("columns")
+        .select(`
+          id,
+          title,
+          subtitle,
+          slug,
+          series_id,
+          cover_image_url,
+          created_at,
+          author:author_id (
+            name
+          )
+        `)
+        .eq("status", "published")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Transform data to match our needs (handling the join)
+      const formattedData = data?.map(item => ({
+        ...item,
+        author: { name: (item.author as any)?.name || "정보 없음" }
+      })) || [];
+
+      setColumns(formattedData);
+    } catch (error) {
+      console.error("Error fetching columns:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBookmarks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("column_bookmarks")
+        .select("column_id")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setBookmarkedIds(data?.map(b => b.column_id) || []);
+    } catch (error) {
+      console.error("Error fetching bookmarks:", error);
+    }
+  };
+
+  const toggleBookmark = async (columnId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("로그인이 필요합니다.");
+        return;
+      }
+
+      if (bookmarkedIds.includes(columnId)) {
+        // Remove bookmark
+        const { error } = await supabase
+          .from("column_bookmarks")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("column_id", columnId);
+
+        if (error) throw error;
+        setBookmarkedIds(prev => prev.filter(id => id !== columnId));
+      } else {
+        // Add bookmark
+        const { error } = await supabase
+          .from("column_bookmarks")
+          .insert({ user_id: user.id, column_id: columnId });
+
+        if (error) throw error;
+        setBookmarkedIds(prev => [...prev, columnId]);
+      }
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+      alert("북마크 처리에 실패했습니다.");
+    }
+  };
 
   const filteredArticles = useMemo(() => {
     const normalized = search.trim().toLowerCase();
-    return COLUMN_ARTICLES.filter((article) => {
-      if (seriesFilter !== "all" && article.seriesId !== seriesFilter) return false;
-      if (bookmarksOnly && !bookmarks.includes(article.slug)) return false;
+    return columns.filter((article) => {
+      if (seriesFilter !== "all" && article.series_id !== seriesFilter) return false;
+      if (bookmarksOnly && !bookmarkedIds.includes(article.id)) return false;
       if (!normalized) return true;
       return (
         article.title.toLowerCase().includes(normalized) ||
-        article.subtitle.toLowerCase().includes(normalized) ||
-        article.excerpt.toLowerCase().includes(normalized) ||
-        article.author.toLowerCase().includes(normalized)
+        (article.subtitle && article.subtitle.toLowerCase().includes(normalized)) ||
+        article.author.name.toLowerCase().includes(normalized)
       );
     });
-  }, [bookmarks, bookmarksOnly, search, seriesFilter]);
-
-  const toggleBookmark = (slug: string) => {
-    setBookmarks((prev) =>
-      prev.includes(slug) ? prev.filter((item) => item !== slug) : [...prev, slug],
-    );
-  };
+  }, [columns, bookmarkedIds, bookmarksOnly, search, seriesFilter]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -152,30 +235,38 @@ export default function ColumnsPage() {
           </div>
         </div>
 
-        {filteredArticles.length === 0 ? (
+        {loading ? (
+             <div className="py-20 text-center text-sm font-bold text-gray-300">
+             로딩 중...
+           </div>
+        ) : filteredArticles.length === 0 ? (
           <div className="py-16 text-center text-sm font-bold text-gray-300 bg-white rounded-3xl border border-dashed border-gray-200">
             조건에 맞는 칼럼이 없습니다.
           </div>
         ) : viewMode === "card" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6">
             {filteredArticles.map((article) => {
-              const isBookmarked = bookmarks.includes(article.slug);
-              const series = COLUMN_SERIES.find((s) => s.id === article.seriesId);
+              const isBookmarked = bookmarkedIds.includes(article.id);
+
               const card = (
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all h-full flex flex-col">
-                  <div className="relative h-[150px]">
-                    <img
-                      src={article.coverImage}
-                      alt={article.title}
-                      className={`w-full h-full object-cover ${
-                        article.status !== "published" ? "grayscale" : ""
-                      }`}
-                    />
+                  <div className="relative h-[150px] bg-gray-100">
+                    {article.cover_image_url ? (
+                        <img
+                        src={article.cover_image_url}
+                        alt={article.title}
+                        className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <span className="text-xs font-bold">이미지 없음</span>
+                        </div>
+                    )}
                     <button
                       type="button"
                       onClick={(event) => {
                         event.preventDefault();
-                        toggleBookmark(article.slug);
+                        toggleBookmark(article.id);
                       }}
                       className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 shadow-md flex items-center justify-center"
                       aria-label="북마크"
@@ -190,81 +281,69 @@ export default function ColumnsPage() {
                   <div className="p-4 space-y-2 flex-1 flex flex-col">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-400 font-black">
-                        {article.author}
+                        {article.author.name}
                       </span>
                     </div>
                     <h3 className="text-sm font-black text-gray-900 line-clamp-2">
                       {article.title}
                     </h3>
                     <p className="text-[11px] text-gray-500 line-clamp-2">
-                      {article.excerpt}
+                      {article.subtitle}
                     </p>
                     <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold mt-auto">
-                      <span>{article.date}</span>
+                      <span>{format(new Date(article.created_at), "yyyy.MM.dd")}</span>
                     </div>
-                    {article.status !== "published" && (
-                      <div className="text-[10px] font-black text-gray-300">
-                        준비 중
-                      </div>
-                    )}
                   </div>
                 </div>
               );
 
-              return article.status === "published" ? (
-                <Link key={article.slug} href={`/column/${article.slug}`}>
+              return (
+                <Link key={article.id} href={`/column/${article.slug}`}>
                   {card}
                 </Link>
-              ) : (
-                <div key={article.slug} className="opacity-70">
-                  {card}
-                </div>
               );
             })}
           </div>
         ) : (
           <div className="space-y-3 pb-6">
             {filteredArticles.map((article) => {
-              const isBookmarked = bookmarks.includes(article.slug);
-              const series = COLUMN_SERIES.find((s) => s.id === article.seriesId);
+              const isBookmarked = bookmarkedIds.includes(article.id);
               const row = (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-all">
-                  <div className="w-20 h-16 rounded-xl overflow-hidden border border-gray-100 shrink-0">
-                    <img
-                      src={article.coverImage}
-                      alt={article.title}
-                      className={`w-full h-full object-cover ${
-                        article.status !== "published" ? "grayscale" : ""
-                      }`}
-                    />
+                  <div className="w-20 h-16 rounded-xl overflow-hidden border border-gray-100 shrink-0 bg-gray-100">
+                     {article.cover_image_url ? (
+                        <img
+                        src={article.cover_image_url}
+                        alt={article.title}
+                        className="w-full h-full object-cover"
+                        />
+                     ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                             <span className="text-[10px] font-bold">No Img</span>
+                        </div>
+                     )}
                   </div>
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-gray-400 font-bold">
-                        {article.author}
+                        {article.author.name}
                       </span>
                     </div>
                     <h3 className="text-sm font-black text-gray-900 truncate">
                       {article.title}
                     </h3>
                     <p className="text-[11px] text-gray-500 line-clamp-1">
-                      {article.excerpt}
+                      {article.subtitle}
                     </p>
                     <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold">
-                      <span>{article.date}</span>
-                      {article.status !== "published" && (
-                        <>
-                          <span>·</span>
-                          <span className="text-gray-300">준비 중</span>
-                        </>
-                      )}
+                      <span>{format(new Date(article.created_at), "yyyy.MM.dd")}</span>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={(event) => {
                       event.preventDefault();
-                      toggleBookmark(article.slug);
+                      toggleBookmark(article.id);
                     }}
                     className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"
                     aria-label="북마크"
@@ -278,14 +357,10 @@ export default function ColumnsPage() {
                 </div>
               );
 
-              return article.status === "published" ? (
-                <Link key={article.slug} href={`/column/${article.slug}`}>
+              return (
+                <Link key={article.id} href={`/column/${article.slug}`}>
                   {row}
                 </Link>
-              ) : (
-                <div key={article.slug} className="opacity-70">
-                  {row}
-                </div>
               );
             })}
           </div>

@@ -28,7 +28,7 @@ export default function MentorMeetingRequestCard({ requestId }: Props) {
         .from("meeting_requests")
         .select("*")
         .eq("id", requestId)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         setRequest(data);

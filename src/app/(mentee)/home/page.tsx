@@ -19,7 +19,7 @@ import {
   readMenteeHomeCache,
   writeMenteeHomeCache,
 } from "@/lib/menteeHomeCache";
-import { COLUMN_ARTICLES, COLUMN_SERIES } from "@/constants/mentee/columns";
+import { COLUMN_SERIES } from "@/constants/mentee/columns";
 import Link from "next/link";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
 
@@ -32,6 +32,7 @@ export default function Home() {
   const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
   const [planEvents, setPlanEvents] = useState<ScheduleEventLike[]>([]);
   const [profile, setProfile] = useState<UiProfile | null>(null);
+  const [columns, setColumns] = useState<any[]>([]); // Use flexible type for now or define proper interface
   const [isLoading, setIsLoading] = useState(true);
   const hasLoadedRef = useRef(false);
   const forceRefreshRef = useRef(false);
@@ -297,6 +298,25 @@ export default function Home() {
             ),
           ]);
 
+        // Fetch Columns directly from Supabase - simplified query
+        const { data: columnsData, error: columnsError } = await supabase
+          .from("columns")
+          .select("id, title, subtitle, slug, series_id, cover_image_url, created_at, published_at, author_id")
+          .eq("status", "published")
+          .order("published_at", { ascending: false });
+
+        if (columnsError) {
+          console.error("Error fetching columns:", columnsError);
+        }
+
+        if (isMounted) {
+          if (columnsData && columnsData.length > 0) {
+            setColumns(columnsData);
+          } else {
+            setColumns([]);
+          }
+        }
+
         const next: {
           mentorTasks: MentorTaskLike[];
           plannerTasks: PlannerTaskLike[];
@@ -426,10 +446,14 @@ export default function Home() {
         </div>
 
         <div className="space-y-8">
+          {/* Show series columns */}
           {COLUMN_SERIES.map((series, seriesIndex) => {
-            const seriesArticles = COLUMN_ARTICLES.filter(
-              (article) => article.seriesId === series.id,
+            // Filter columns for this series from the active fetched data
+            const seriesArticles = columns.filter(
+              (col) => col.series_id === series.id
             );
+            if (seriesArticles.length === 0) return null;
+
             return (
               <div key={series.id} className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -443,65 +467,76 @@ export default function Home() {
                   </div>
                 </div>
 
-                {seriesArticles.length === 0 ? (
-                  <div className="py-8 text-center text-xs font-bold text-gray-300 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
-                    준비 중인 칼럼이에요.
-                  </div>
-                ) : (
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                    {seriesArticles.map((article) => {
-                      const isComingSoon = article.status !== "published";
-                      const card = (
-                        <div className="min-w-[220px] max-w-[220px] bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all">
-                          <div className="h-[120px] w-full overflow-hidden">
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                  {seriesArticles.map((article) => {
+                    const isComingSoon = false; // article.status !== "published" (already filtered by query)
+
+                    const authorName = "서울대 멘토";
+
+                    const dateStr = article.published_at || article.created_at
+                      ? new Date(article.published_at || article.created_at).toLocaleDateString()
+                      : "";
+
+                    const card = (
+                      <div className="min-w-[220px] max-w-[220px] bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all">
+                        <div className="h-[120px] w-full overflow-hidden">
+                          {article.cover_image_url ? (
                             <img
-                              src={article.coverImage}
+                              src={article.cover_image_url}
                               alt={article.title}
                               className={`h-full w-full object-cover ${
                                 isComingSoon ? "grayscale" : ""
                               }`}
                             />
-                          </div>
-                          <div className="p-4 space-y-2">
-                            <span className="text-[10px] font-black text-gray-400">
-                              {article.author}
-                            </span>
-                            <h5 className="text-sm font-black text-gray-900 line-clamp-2">
-                              {article.title}
-                            </h5>
-                            <p className="text-[11px] text-gray-500 line-clamp-2">
-                              {article.excerpt}
-                            </p>
-                            <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold">
-                              <span>{article.date}</span>
+                          ) : (
+                            <div className="h-full w-full bg-gray-100 flex items-center justify-center text-gray-300 font-bold text-xs">
+                              No Image
                             </div>
-                            {isComingSoon && (
-                              <div className="text-[10px] font-black text-gray-300">
-                                준비 중
-                              </div>
-                            )}
+                          )}
+                        </div>
+                        <div className="p-4 space-y-2">
+                          <span className="text-[10px] font-black text-gray-400">
+                            {authorName}
+                          </span>
+                          <h5 className="text-sm font-black text-gray-900 line-clamp-2">
+                            {article.title}
+                          </h5>
+                          <p className="text-[11px] text-gray-500 line-clamp-2">
+                            {article.subtitle}
+                          </p>
+                          <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold">
+                            <span>{dateStr}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+
+                    if (isComingSoon) {
+                      return (
+                        <div key={article.id} className="relative">
+                          {card}
+                          <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] rounded-2xl flex items-center justify-center">
+                            <div className="bg-white px-4 py-2 rounded-full shadow-lg">
+                              <span className="text-xs font-black text-gray-700">
+                                📝 준비중
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );
+                    }
 
-                      return isComingSoon ? (
-                        <div key={article.slug} className="opacity-70">
-                          {card}
-                        </div>
-                      ) : (
-                        <Link
-                          key={article.slug}
-                          href={`/column/${article.slug}`}
-                        >
-                          {card}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-                {seriesIndex < COLUMN_SERIES.length - 1 && (
-                  <div className="border-b border-dashed border-gray-200 pt-6" />
-                )}
+                    return (
+                      <Link
+                        key={article.id}
+                        href={`/column/${article.slug}`}
+                        className="block"
+                      >
+                        {card}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

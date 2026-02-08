@@ -91,3 +91,26 @@ export const plannerOverviewQuerySchema = z.object({
   from: dateStringSchema.optional(),
   to: dateStringSchema.optional(),
 });
+
+export const profileUpdateBodySchema = z
+  .object({
+    profileId: uuidSchema,
+    name: z.string().min(1).max(100).optional(),
+    intro: z.string().max(500).optional().nullable(),
+    avatar_url: z.string().url().max(500).optional().nullable(),
+    goal: z.string().max(200).optional().nullable(),
+    target_exam: z.string().max(100).optional().nullable(),
+    target_date: dateStringSchema.optional().nullable(),
+    grade: z.string().max(50).optional().nullable(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.intro !== undefined ||
+      data.avatar_url !== undefined ||
+      data.goal !== undefined ||
+      data.target_exam !== undefined ||
+      data.target_date !== undefined ||
+      data.grade !== undefined,
+    { message: "No fields to update." }
+  );

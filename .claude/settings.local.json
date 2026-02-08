@@ -14,7 +14,13 @@
       "Bash(npx swc:*)",
       "Bash(npx next build:*)",
       "Bash(xxd:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(npx supabase:*)",
+      "Bash(supabase projects list:*)",
+      "Bash(export SUPABASE_ACCESS_TOKEN=sbp_b2839e38a7b7fbb6f5b10958bcf917e42f2ae27a)",
+      "Bash(supabase db execute:*)",
+      "Bash(supabase link:*)",
+      "Bash(curl:*)"
     ]
   }
 }
