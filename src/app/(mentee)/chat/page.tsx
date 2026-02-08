@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import MeetingRequestForm from "@/components/mentee/chat/MeetingRequestForm";
 import MeetingRequestCard from "@/components/mentee/chat/MeetingRequestCard";
+import {
+  getCachedSignedUrl,
+  readMenteeChatCache,
+  setCachedSignedUrl,
+  writeMenteeChatCache,
+} from "@/lib/menteeChatCache";
 
 const ATTACHMENT_BUCKET = "chat-attachments";
 
@@ -47,9 +53,30 @@ export default function ChatPage() {
   const [mentor, setMentor] = useState<MentorProfile | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const messageIdsRef = useRef<Set<string>>(new Set());
+  const isLoadingMessagesRef = useRef(false);
+  const pendingScrollAdjustRef = useRef<{
+    prevScrollHeight: number;
+    prevScrollTop: number;
+  } | null>(null);
+  const shouldScrollToBottomRef = useRef(true);
+  const PAGE_SIZE = 50;
+
+  const persistCache = useCallback(
+    (nextMessages: ChatMessage[]) => {
+      if (!mentorMenteeId) return;
+      writeMenteeChatCache(mentorMenteeId, {
+        messages: nextMessages,
+        mentor,
+      });
+    },
+    [mentorMenteeId, mentor]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -98,23 +125,36 @@ export default function ChatPage() {
     };
   }, []);
 
-  const hydrateAttachments = useCallback(async (list: ChatAttachment[]) => {
-    const hydrated = await Promise.all(
-      list.map(async (attachment) => {
-        const { data, error } = await supabase.storage
-          .from(ATTACHMENT_BUCKET)
-          .createSignedUrl(attachment.path, 60 * 5);
+  const fetchSignedUrl = useCallback(async (path: string) => {
+    const cached = getCachedSignedUrl(path);
+    if (cached !== undefined) return cached;
 
-        if (error || !data?.signedUrl) {
-          return { ...attachment, signed_url: null };
-        }
+    const { data, error } = await supabase.storage
+      .from(ATTACHMENT_BUCKET)
+      .createSignedUrl(path, 60 * 5);
 
-        return { ...attachment, signed_url: data.signedUrl };
-      })
-    );
-
-    return hydrated;
+    const signedUrl = error ? null : data?.signedUrl ?? null;
+    setCachedSignedUrl(path, signedUrl);
+    return signedUrl;
   }, []);
+
+  const hydrateAttachments = useCallback(
+    async (list: ChatAttachment[]) => {
+      const hydrated = await Promise.all(
+        list.map(async (attachment) => {
+          const cached = getCachedSignedUrl(attachment.path);
+          if (cached !== undefined) {
+            return { ...attachment, signed_url: cached };
+          }
+          const signedUrl = await fetchSignedUrl(attachment.path);
+          return { ...attachment, signed_url: signedUrl };
+        })
+      );
+
+      return hydrated;
+    },
+    [fetchSignedUrl]
+  );
 
   const normalizeMessage = useCallback(
     async (raw: ChatMessage) => {
@@ -128,44 +168,103 @@ export default function ChatPage() {
     [hydrateAttachments]
   );
 
-  const loadMessages = useCallback(async () => {
-    if (!mentorMenteeId) return;
+  const fetchMessagesPage = useCallback(
+    async (cursor?: string | null) => {
+      if (!mentorMenteeId) return null;
 
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select(
-        "id, mentor_mentee_id, sender_id, body, message_type, created_at, chat_attachments(id, message_id, bucket, path, mime_type, size_bytes, width, height)"
-      )
-      .eq("mentor_mentee_id", mentorMenteeId)
-      .order("created_at", { ascending: true })
-      .limit(50);
-
-    if (error || !data) {
-      return;
-    }
-
-    const normalized = await Promise.all(data.map(normalizeMessage));
-    setMessages(normalized);
-  }, [mentorMenteeId, normalizeMessage]);
-
-  const fetchMessageById = useCallback(
-    async (messageId: string) => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("chat_messages")
         .select(
           "id, mentor_mentee_id, sender_id, body, message_type, created_at, chat_attachments(id, message_id, bucket, path, mime_type, size_bytes, width, height)"
         )
-        .eq("id", messageId)
-        .single();
+        .eq("mentor_mentee_id", mentorMenteeId)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+
+      if (cursor) {
+        query = query.lt("created_at", cursor);
+      }
+
+      const { data, error } = await query;
 
       if (error || !data) {
         return null;
       }
 
-      return normalizeMessage(data);
+      const normalized = await Promise.all(data.map(normalizeMessage));
+      return {
+        items: normalized.reverse(),
+        rawCount: data.length,
+      };
     },
-    [normalizeMessage]
+    [mentorMenteeId, normalizeMessage]
   );
+
+  const loadMessages = useCallback(async () => {
+    if (!mentorMenteeId) return;
+    const cached = readMenteeChatCache<{
+      messages: ChatMessage[];
+      mentor: MentorProfile | null;
+    }>(mentorMenteeId);
+
+    if (cached?.data?.mentor && !mentor) {
+      setMentor(cached.data.mentor);
+    }
+    if (cached?.data?.messages?.length) {
+      setMessages(cached.data.messages);
+      setHasMore(cached.data.messages.length >= PAGE_SIZE);
+      if (!cached.stale) {
+        return;
+      }
+    }
+
+    if (isLoadingMessagesRef.current) return;
+    isLoadingMessagesRef.current = true;
+
+    const page = await fetchMessagesPage();
+    if (!page) {
+      isLoadingMessagesRef.current = false;
+      return;
+    }
+
+    setMessages(page.items);
+    setHasMore(page.rawCount >= PAGE_SIZE);
+    persistCache(page.items);
+    shouldScrollToBottomRef.current = true;
+    isLoadingMessagesRef.current = false;
+  }, [mentorMenteeId, fetchMessagesPage, persistCache]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!mentorMenteeId || !hasMore || isLoadingMore) return;
+    const oldest = messages[0];
+    if (!oldest?.created_at) return;
+
+    setIsLoadingMore(true);
+    if (listRef.current) {
+      pendingScrollAdjustRef.current = {
+        prevScrollHeight: listRef.current.scrollHeight,
+        prevScrollTop: listRef.current.scrollTop,
+      };
+    }
+
+    const page = await fetchMessagesPage(oldest.created_at);
+    if (!page || page.items.length === 0) {
+      setHasMore(false);
+      setIsLoadingMore(false);
+      return;
+    }
+
+    setMessages((prev) => [...page.items, ...prev]);
+    setHasMore(page.rawCount >= PAGE_SIZE);
+    setIsLoadingMore(false);
+  }, [mentorMenteeId, hasMore, isLoadingMore, messages, fetchMessagesPage]);
+
+  useEffect(() => {
+    messageIdsRef.current = new Set(messages.map((msg) => msg.id));
+    if (messages.length > 0) {
+      persistCache(messages);
+    }
+  }, [messages, persistCache]);
 
   useEffect(() => {
     if (!mentorMenteeId) return;
@@ -183,17 +282,30 @@ export default function ChatPage() {
           filter: `mentor_mentee_id=eq.${mentorMenteeId}`
         },
         async (payload) => {
-          const messageId = payload.new.id as string;
-          const fullMessage = await fetchMessageById(messageId);
-
-          if (!fullMessage) return;
+          const incoming = payload.new as ChatMessage;
+          if (listRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+            const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 120;
+            shouldScrollToBottomRef.current = isNearBottom;
+          } else {
+            shouldScrollToBottomRef.current = true;
+          }
 
           setMessages((prev) => {
-            if (prev.some((item) => item.id === fullMessage.id)) {
+            if (prev.some((item) => item.id === incoming.id)) {
               return prev;
             }
-            return [...prev, fullMessage].sort(
-              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            if (
+              prev.length === 0 ||
+              new Date(prev[prev.length - 1].created_at).getTime() <=
+                new Date(incoming.created_at).getTime()
+            ) {
+              return [...prev, incoming];
+            }
+            return [...prev, incoming].sort(
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime()
             );
           });
         }
@@ -207,13 +319,14 @@ export default function ChatPage() {
         },
         async (payload) => {
           const rawAttachment = payload.new as ChatAttachment;
-          const { data, error } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(rawAttachment.path, 60 * 5);
+          if (!messageIdsRef.current.has(rawAttachment.message_id)) {
+            return;
+          }
 
+          const signedUrl = await fetchSignedUrl(rawAttachment.path);
           const hydrated: ChatAttachment = {
             ...rawAttachment,
-            signed_url: error ? null : data?.signedUrl ?? null
+            signed_url: signedUrl
           };
 
           setMessages((prev) =>
@@ -238,17 +351,32 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [mentorMenteeId, loadMessages, fetchMessageById]);
+  }, [mentorMenteeId, loadMessages, fetchSignedUrl]);
 
   useEffect(() => {
-    if (!bottomRef.current) return;
-    bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    if (!listRef.current) return;
+
+    if (pendingScrollAdjustRef.current) {
+      const { prevScrollHeight, prevScrollTop } =
+        pendingScrollAdjustRef.current;
+      const nextScrollHeight = listRef.current.scrollHeight;
+      listRef.current.scrollTop =
+        nextScrollHeight - prevScrollHeight + prevScrollTop;
+      pendingScrollAdjustRef.current = null;
+      return;
+    }
+
+    if (shouldScrollToBottomRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+      shouldScrollToBottomRef.current = false;
+    }
   }, [messages]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || !userId || !mentorMenteeId || isSending) return;
 
     setIsSending(true);
+    shouldScrollToBottomRef.current = true;
     const { error } = await supabase.from("chat_messages").insert({
       mentor_mentee_id: mentorMenteeId,
       sender_id: userId,
@@ -267,6 +395,7 @@ export default function ChatPage() {
     if (!files || files.length === 0 || !userId || !mentorMenteeId || isSending) return;
 
     setIsSending(true);
+    shouldScrollToBottomRef.current = true;
 
     const fileArray = Array.from(files);
     const messageType = fileArray.every((file) => file.type.startsWith("image/"))
@@ -350,7 +479,21 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 px-4 pt-4 pb-8 space-y-4 overflow-y-auto">
+      <div
+        ref={listRef}
+        className="flex-1 min-h-0 px-4 pt-4 pb-8 space-y-4 overflow-y-auto"
+        onScroll={() => {
+          if (!listRef.current || isLoadingMore || !hasMore) return;
+          if (listRef.current.scrollTop <= 40) {
+            loadOlderMessages();
+          }
+        }}
+      >
+        {isLoadingMore && (
+          <p className="text-center text-xs text-gray-400">
+            이전 메시지 불러오는 중...
+          </p>
+        )}
         <div className="text-center pb-3">
           <span className="bg-gray-200/50 text-gray-500 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm border border-white">
             {dateLabel}
@@ -460,7 +603,6 @@ export default function ChatPage() {
               )
           );
         })}
-        <div ref={bottomRef} />
       </div>
 
       <div className="bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] shrink-0 transition-all duration-300 ease-in-out">
