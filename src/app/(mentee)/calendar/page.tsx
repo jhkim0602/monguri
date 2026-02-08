@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
@@ -9,6 +9,10 @@ import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectio
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import Header from "@/components/mentee/layout/Header";
 import { supabase } from "@/lib/supabaseClient";
+import {
+    readMenteeCalendarCache,
+    writeMenteeCalendarCache
+} from "@/lib/menteeCalendarCache";
 import {
     adaptDailyRecordsToUi,
     adaptMentorTasksToUi,
@@ -29,6 +33,7 @@ export default function CalendarPage() {
     const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [userId, setUserId] = useState<string | null>(null);
 
     // Add Task Modal State
     const [eventTitle, setEventTitle] = useState("");
@@ -46,6 +51,9 @@ export default function CalendarPage() {
     const [dailyRecords, setDailyRecords] = useState<DailyRecordLike[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
+    const forceRefreshRef = useRef(false);
+    const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [refreshTick, setRefreshTick] = useState(0);
 
     const pad2 = (value: number) => String(value).padStart(2, "0");
     const formatDateInput = (date: Date) =>
@@ -56,6 +64,16 @@ export default function CalendarPage() {
     };
     const addDays = (date: Date, days: number) =>
         new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+
+    const scheduleRefresh = useCallback(() => {
+        if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current);
+        }
+        refreshTimerRef.current = setTimeout(() => {
+            forceRefreshRef.current = true;
+            setRefreshTick((prev) => prev + 1);
+        }, 250);
+    }, []);
 
     const openAddModal = (date?: Date) => {
         const baseDate = date || selectedDate || new Date();
@@ -152,6 +170,7 @@ export default function CalendarPage() {
                 throw new Error(err.error || "Failed to save");
             }
 
+            forceRefreshRef.current = true;
             setRefreshKey(prev => prev + 1);
             setIsAddModalOpen(false);
         } catch (e: any) {
@@ -213,44 +232,236 @@ export default function CalendarPage() {
     useEffect(() => {
         let isMounted = true;
 
-        const load = async () => {
+        const loadUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            const user = data?.user;
+            if (!isMounted) return;
+            if (!user) {
+                if (!hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
+                }
+                return;
+            }
+            setUserId(user.id);
+        };
+
+        loadUser();
+
+        return () => {
+            isMounted = false;
+            if (refreshTimerRef.current) {
+                clearTimeout(refreshTimerRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!userId) return;
+
+        const channel = supabase
+            .channel(`mentee-calendar:${userId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "weekly_schedule_events",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "weekly_schedule_events",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "weekly_schedule_events",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "daily_records",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "daily_records",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "daily_records",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [userId, scheduleRefresh]);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!userId) return;
+
+        const { from, to } = getMonthRange(currentDate);
+        const cacheKey = `${userId}:${from}:${to}`;
+        const cached = readMenteeCalendarCache(cacheKey);
+        const forceRefresh = forceRefreshRef.current;
+        if (forceRefreshRef.current) {
+            forceRefreshRef.current = false;
+        }
+
+        if (cached) {
+            setMentorTasks(cached.data.mentorTasks);
+            setPlannerTasks(cached.data.plannerTasks);
+            setPlanEvents(cached.data.planEvents);
+            setDailyRecords(cached.data.dailyRecords);
             if (!hasLoadedRef.current) {
+                setIsLoading(false);
+                hasLoadedRef.current = true;
+            }
+        }
+
+        if (cached && !cached.stale && !forceRefresh) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const load = async () => {
+            if (!hasLoadedRef.current && !cached) {
                 setIsLoading(true);
             }
             try {
-                const { data } = await supabase.auth.getUser();
-                const user = data?.user;
-                if (!user) return;
-
-                const { from, to } = getMonthRange(currentDate);
-
                 const [mentorRes, plannerRes, overviewRes] = await Promise.all([
-                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
-                    fetch(`/api/mentee/planner/tasks?menteeId=${user.id}&from=${from}&to=${to}`),
-                    fetch(`/api/mentee/planner/overview?menteeId=${user.id}&from=${from}&to=${to}`)
+                    fetch(`/api/mentee/tasks?menteeId=${userId}`),
+                    fetch(`/api/mentee/planner/tasks?menteeId=${userId}&from=${from}&to=${to}`),
+                    fetch(`/api/mentee/planner/overview?menteeId=${userId}&from=${from}&to=${to}`)
                 ]);
+
+                const next = {
+                    mentorTasks: [] as MentorTaskLike[],
+                    plannerTasks: [] as PlannerTaskLike[],
+                    planEvents: [] as ScheduleEventLike[],
+                    dailyRecords: [] as DailyRecordLike[],
+                };
 
                 if (mentorRes.ok) {
                     const mentorJson = await mentorRes.json();
-                    if (isMounted && Array.isArray(mentorJson.tasks)) {
-                        setMentorTasks(adaptMentorTasksToUi(mentorJson.tasks));
+                    if (Array.isArray(mentorJson.tasks)) {
+                        next.mentorTasks = adaptMentorTasksToUi(mentorJson.tasks);
                     }
                 }
 
                 if (plannerRes.ok) {
                     const plannerJson = await plannerRes.json();
-                    if (isMounted && Array.isArray(plannerJson.tasks)) {
-                        setPlannerTasks(adaptPlannerTasksToUi(plannerJson.tasks));
+                    if (Array.isArray(plannerJson.tasks)) {
+                        next.plannerTasks = adaptPlannerTasksToUi(plannerJson.tasks);
                     }
                 }
 
                 if (overviewRes.ok) {
                     const overviewJson = await overviewRes.json();
-                    if (isMounted) {
-                        setPlanEvents(adaptPlanEventsToUi(overviewJson.scheduleEvents ?? []));
-                        setDailyRecords(adaptDailyRecordsToUi(overviewJson.dailyRecords ?? []));
-                    }
+                    next.planEvents = adaptPlanEventsToUi(overviewJson.scheduleEvents ?? []);
+                    next.dailyRecords = adaptDailyRecordsToUi(overviewJson.dailyRecords ?? []);
                 }
+
+                if (!isMounted) return;
+
+                setMentorTasks(next.mentorTasks);
+                setPlannerTasks(next.plannerTasks);
+                setPlanEvents(next.planEvents);
+                setDailyRecords(next.dailyRecords);
+                writeMenteeCalendarCache(cacheKey, next);
             } finally {
                 if (isMounted && !hasLoadedRef.current) {
                     setIsLoading(false);
@@ -264,7 +475,7 @@ export default function CalendarPage() {
         return () => {
             isMounted = false;
         };
-    }, [currentDate, refreshKey]);
+    }, [currentDate, refreshKey, userId, refreshTick]);
 
     const scheduleEvents = useMemo<ScheduleEventLike[]>(() => {
         const events: ScheduleEventLike[] = [];

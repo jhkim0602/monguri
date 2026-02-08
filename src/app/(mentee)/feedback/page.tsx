@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/mentee/layout/Header";
 import FeedbackArchive from "@/components/mentee/mypage/FeedbackArchive";
 import { Search } from "lucide-react";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { supabase } from "@/lib/supabaseClient";
+import {
+    readMenteeFeedbackCache,
+    writeMenteeFeedbackCache,
+} from "@/lib/menteeFeedbackCache";
 import {
     adaptMentorTasksToUi,
     adaptPlannerTasksToUi,
@@ -18,44 +22,216 @@ export default function FeedbackPage() {
     const router = useRouter();
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
 
     // Data States
     const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
     const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
+    const forceRefreshRef = useRef(false);
+    const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [refreshTick, setRefreshTick] = useState(0);
+
+    const scheduleRefresh = useCallback(() => {
+        if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current);
+        }
+        refreshTimerRef.current = setTimeout(() => {
+            forceRefreshRef.current = true;
+            setRefreshTick((prev) => prev + 1);
+        }, 250);
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
 
-        const load = async () => {
+        const loadUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            const user = data?.user;
+            if (!isMounted) return;
+            if (!user) {
+                if (!hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
+                }
+                return;
+            }
+            setUserId(user.id);
+        };
+
+        loadUser();
+
+        return () => {
+            isMounted = false;
+            if (refreshTimerRef.current) {
+                clearTimeout(refreshTimerRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!userId) return;
+
+        const channel = supabase
+            .channel(`mentee-feedback:${userId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "task_submissions",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "task_submissions",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "task_submissions",
+                    filter: `mentee_id=eq.${userId}`,
+                },
+                scheduleRefresh,
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [userId, scheduleRefresh]);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!userId) return;
+
+        const cacheKey = userId;
+        const cached = readMenteeFeedbackCache(cacheKey);
+        const forceRefresh = forceRefreshRef.current;
+        if (forceRefreshRef.current) {
+            forceRefreshRef.current = false;
+        }
+
+        if (cached) {
+            setMentorTasks(cached.data.mentorTasks);
+            setPlannerTasks(cached.data.plannerTasks);
             if (!hasLoadedRef.current) {
+                setIsLoading(false);
+                hasLoadedRef.current = true;
+            }
+        }
+
+        if (cached && !cached.stale && !forceRefresh) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const load = async () => {
+            if (!hasLoadedRef.current && !cached) {
                 setIsLoading(true);
             }
             try {
-                const { data } = await supabase.auth.getUser();
-                const user = data?.user;
-                if (!user) return;
-
                 const [tasksRes, plannerRes] = await Promise.all([
-                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
-                    fetch(`/api/mentee/planner/tasks?menteeId=${user.id}`)
+                    fetch(`/api/mentee/tasks?menteeId=${userId}`),
+                    fetch(`/api/mentee/planner/tasks?menteeId=${userId}`)
                 ]);
+
+                const next = {
+                    mentorTasks: [] as MentorTaskLike[],
+                    plannerTasks: [] as PlannerTaskLike[],
+                };
 
                 if (tasksRes.ok) {
                     const tasksJson = await tasksRes.json();
-                    if (isMounted && Array.isArray(tasksJson.tasks)) {
-                        setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
+                    if (Array.isArray(tasksJson.tasks)) {
+                        next.mentorTasks = adaptMentorTasksToUi(tasksJson.tasks);
                     }
                 }
 
                 if (plannerRes.ok) {
                     const plannerJson = await plannerRes.json();
-                    if (isMounted && Array.isArray(plannerJson.tasks)) {
-                        setPlannerTasks(adaptPlannerTasksToUi(plannerJson.tasks));
+                    if (Array.isArray(plannerJson.tasks)) {
+                        next.plannerTasks = adaptPlannerTasksToUi(plannerJson.tasks);
                     }
                 }
 
+                if (!isMounted) return;
+
+                setMentorTasks(next.mentorTasks);
+                setPlannerTasks(next.plannerTasks);
+                writeMenteeFeedbackCache(cacheKey, next);
             } finally {
                 if (isMounted && !hasLoadedRef.current) {
                     setIsLoading(false);
@@ -69,7 +245,7 @@ export default function FeedbackPage() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [userId, refreshTick]);
 
     const handleOpenTask = (task: any) => {
         // If it's a modal view we can use the modal, but if we want navigation we can use router push
