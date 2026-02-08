@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   X,
   Calendar,
@@ -36,6 +36,15 @@ type DirectUploadItem = {
   id: string;
   file: File;
   type: "pdf" | "image";
+};
+
+type WeaknessSolutionOption = {
+  id: string;
+  title: string;
+  subjectId: string | null;
+  subjectName: string | null;
+  materialId: string | null;
+  materialTitle: string | null;
 };
 
 const MATERIAL_TYPE_META: Record<
@@ -111,6 +120,14 @@ export default function AssignTaskModal({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(false);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
+
+  const [weaknessSolutions, setWeaknessSolutions] = useState<
+    WeaknessSolutionOption[]
+  >([]);
+  const [selectedSolutionId, setSelectedSolutionId] = useState("");
+  const [isSolutionsLoading, setIsSolutionsLoading] = useState(false);
+  const [solutionsError, setSolutionsError] = useState<string | null>(null);
+
   const [directUploads, setDirectUploads] = useState<DirectUploadItem[]>([]);
   const [uploadingDirectFiles, setUploadingDirectFiles] = useState(false);
   const [directUploadError, setDirectUploadError] = useState<string | null>(null);
@@ -123,12 +140,72 @@ export default function AssignTaskModal({
   const [deadlineTime, setDeadlineTime] = useState("23:59");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const loadSolutions = useCallback(async () => {
+    setIsSolutionsLoading(true);
+    setSolutionsError(null);
+
+    try {
+      const response = await fetch(
+        `/api/mentor/weakness-solutions?mentorId=${encodeURIComponent(mentorId)}`,
+      );
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "솔루션을 불러오지 못했습니다.");
+      }
+
+      const items = (result.data?.solutions ?? []) as WeaknessSolutionOption[];
+      setWeaknessSolutions(items);
+    } catch (error) {
+      console.error(error);
+      setSolutionsError("과목별 솔루션을 불러오지 못했습니다.");
+    } finally {
+      setIsSolutionsLoading(false);
+    }
+  }, [mentorId]);
+
+  const resetForm = () => {
+    setSubject("국어");
+    setTitle("");
+    setDescription("");
+    setDeadline("");
+    setDeadlineTime("23:59");
+    setSelectedMaterialIds([]);
+    setLibraryMaterials([]);
+    setIsLibraryOpen(false);
+    setMaterialsError(null);
+    setSelectedSolutionId("");
+    setDirectUploads([]);
+    setDirectUploadError(null);
+    setUploadingDirectFiles(false);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+      loadSolutions();
+    } else {
+      setIsLibraryOpen(false);
+      setIsSubmitting(false);
+    }
+  }, [isOpen, loadSolutions]);
+
+  useEffect(() => {
+    setSelectedSolutionId("");
+  }, [subject]);
+
   const selectedMaterials = useMemo(() => {
     const byId = new Map(libraryMaterials.map((m) => [m.id, m]));
     return selectedMaterialIds
       .map((id) => byId.get(id))
       .filter(Boolean) as MentorMaterialOption[];
   }, [libraryMaterials, selectedMaterialIds]);
+
+  const filteredSolutions = useMemo(() => {
+    return weaknessSolutions.filter(
+      (solution) => solution.subjectName === subject,
+    );
+  }, [weaknessSolutions, subject]);
 
   const handleDirectUploadChange = (files: FileList | null) => {
     if (!files) return;
@@ -207,6 +284,20 @@ export default function AssignTaskModal({
     );
   };
 
+  const applySolutionMaterial = async (solution: WeaknessSolutionOption) => {
+    if (!solution.materialId) return;
+
+    if (!libraryMaterials.some((item) => item.id === solution.materialId)) {
+      await loadMaterials();
+    }
+
+    setSelectedMaterialIds((prev) =>
+      prev.includes(solution.materialId!)
+        ? prev
+        : [solution.materialId!, ...prev],
+    );
+  };
+
   const handleSubmit = async () => {
     if (!title || !deadline) {
       alert("제목과 마감일은 필수입니다.");
@@ -232,17 +323,17 @@ export default function AssignTaskModal({
       const libraryMaterialsPayload = selectedMaterials.map((material) =>
         material.type === "link"
           ? {
-              title: material.title,
-              type: "link",
-              url: material.url,
-              sourceMaterialId: material.id,
-            }
+            title: material.title,
+            type: "link",
+            url: material.url,
+            sourceMaterialId: material.id,
+          }
           : {
-              title: material.title,
-              type: material.type,
-              fileId: material.file_id,
-              sourceMaterialId: material.id,
-            },
+            title: material.title,
+            type: material.type,
+            fileId: material.file_id,
+            sourceMaterialId: material.id,
+          },
       );
 
       let directUploadPayload: {
@@ -404,11 +495,10 @@ export default function AssignTaskModal({
                   <div
                     key={material.id}
                     onClick={() => handleSelectResource(material.id)}
-                    className={`flex items-center justify-between p-3.5 mb-2 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-blue-50/80 border-blue-300 ring-1 ring-blue-200 shadow-sm"
-                        : "bg-white border-gray-200 hover:border-blue-200 hover:bg-blue-50/30"
-                    }`}
+                    className={`flex items-center justify-between p-3.5 mb-2 rounded-xl border transition-all cursor-pointer ${isSelected
+                      ? "bg-blue-50/80 border-blue-300 ring-1 ring-blue-200 shadow-sm"
+                      : "bg-white border-gray-200 hover:border-blue-200 hover:bg-blue-50/30"
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
@@ -418,11 +508,10 @@ export default function AssignTaskModal({
                       </div>
 
                       <div
-                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                          isSelected
-                            ? "bg-blue-500 border-blue-500 text-white"
-                            : "border-gray-300 bg-white"
-                        }`}
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isSelected
+                          ? "bg-blue-500 border-blue-500 text-white"
+                          : "border-gray-300 bg-white"
+                          }`}
                       >
                         {isSelected && <CheckCircle2 size={12} />}
                       </div>
@@ -490,16 +579,66 @@ export default function AssignTaskModal({
                 <button
                   key={subj}
                   onClick={() => setSubject(subj)}
-                  className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                    subject === subj
-                      ? "bg-gray-900 text-white border-gray-900"
-                      : "border-gray-200 hover:bg-gray-50"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${subject === subj
+                    ? "bg-gray-900 text-white border-gray-900"
+                    : "border-gray-200 hover:bg-gray-50"
+                    }`}
                 >
                   {subj}
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 솔루션 선택 UI */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+              과목별 솔루션
+            </label>
+            <div className="relative">
+              <select
+                value={selectedSolutionId}
+                onChange={async (event) => {
+                  const nextId = event.target.value;
+                  setSelectedSolutionId(nextId);
+                  const selected = filteredSolutions.find(
+                    (solution) => solution.id === nextId,
+                  );
+                  if (selected) {
+                    await applySolutionMaterial(selected);
+                  }
+                }}
+                disabled={isSolutionsLoading || filteredSolutions.length === 0}
+                className={`w-full px-4 py-2 border border-gray-200 rounded-xl outline-none appearance-none text-sm font-medium ${
+                  isSolutionsLoading || filteredSolutions.length === 0
+                    ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700"
+                }`}
+              >
+                <option value="">
+                  {isSolutionsLoading
+                    ? "솔루션 불러오는 중..."
+                    : filteredSolutions.length === 0
+                      ? "해당 과목 솔루션 없음"
+                      : "솔루션을 선택하세요"}
+                </option>
+                {filteredSolutions.map((solution) => (
+                  <option key={solution.id} value={solution.id}>
+                    {solution.title}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+              </div>
+            </div>
+            {solutionsError && (
+              <p className="text-xs text-red-500 font-semibold mt-2">
+                {solutionsError}
+              </p>
+            )}
           </div>
 
           <div>
