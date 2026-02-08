@@ -165,78 +165,82 @@ export default function FeedbackClient({
     }
   };
 
-  // --- Data Aggregation ---
-  // 1. Tasks (From Props)
-  const taskItems = items.filter((i) => i.type === "task");
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
 
-  // 2. Plan Reviews (group by student + date)
-  const rawPlanItems = items.filter((i) => i.type === "plan");
-  const groupedPlans = new Map<string, FeedbackItem[]>();
-  rawPlanItems.forEach((item) => {
-    const key = `${item.studentId}-${toDateKey(item.date)}`;
-    const list = groupedPlans.get(key) ?? [];
-    list.push(item);
-    groupedPlans.set(key, list);
-  });
+  const { rawPlanItems, allItems } = useMemo(() => {
+      const taskItems = items.filter((i) => i.type === "task");
 
-  const planItems: FeedbackItem[] = Array.from(groupedPlans.entries()).map(
-    ([groupKey, groupedItems]) => {
-      const first = groupedItems[0];
-      const planDate = toDate(first.date);
-      const plannerTasks = groupedItems.map((i) => i.data);
-      const totalStudySeconds = plannerTasks.reduce(
-        (sum, row) => sum + (Number(row?.time_spent_sec) || 0),
-        0,
+      const rawPlanItems = items.filter((i) => i.type === "plan");
+      const groupedPlans = new Map<string, FeedbackItem[]>();
+      rawPlanItems.forEach((item) => {
+        const key = `${item.studentId}-${toDateKey(item.date)}`;
+        const list = groupedPlans.get(key) ?? [];
+        list.push(item);
+        groupedPlans.set(key, list);
+      });
+
+      const planItems: FeedbackItem[] = Array.from(groupedPlans.entries()).map(
+        ([groupKey, groupedItems]) => {
+          const first = groupedItems[0];
+          const planDate = toDate(first.date);
+          const plannerTasks = groupedItems.map((i) => i.data);
+          const totalStudySeconds = plannerTasks.reduce(
+            (sum, row) => sum + (Number(row?.time_spent_sec) || 0),
+            0,
+          );
+
+          return {
+            id: `plan-${groupKey}`,
+            type: "plan",
+            studentId: first.studentId,
+            studentName: first.studentName,
+            avatarUrl: first.avatarUrl,
+            title: `${planDate.getMonth() + 1}월 ${planDate.getDate()}일 플래너`,
+            subtitle: `완료한 할 일 ${plannerTasks.length}개`,
+            date: planDate,
+            status: "submitted",
+            data: {
+              plannerTasks,
+              totalStudySeconds,
+              dailyGoal: first.data?.dailyGoal ?? first.data?.daily_goal ?? "",
+            },
+          };
+        },
       );
 
-      return {
-        id: `plan-${groupKey}`,
-        type: "plan",
-        studentId: first.studentId,
-        studentName: first.studentName,
-        avatarUrl: first.avatarUrl,
-        title: `${planDate.getMonth() + 1}월 ${planDate.getDate()}일 플래너`,
-        subtitle: `완료한 할 일 ${plannerTasks.length}개`,
-        date: planDate,
-        status: "submitted",
-        data: {
-          plannerTasks,
-          totalStudySeconds,
-          dailyGoal: first.data?.dailyGoal ?? first.data?.daily_goal ?? "",
-        },
-      };
-    },
-  );
+      const selfItems: FeedbackItem[] = rawPlanItems
+        .filter(
+          (item) =>
+            !item.data?.is_mentor_task &&
+            hasUploadedSelfStudyFile(item.data?.materials),
+        )
+        .map((item) => {
+          const selfDate = toDate(item.date);
+          return {
+            id: `self-${item.id}`,
+            type: "self",
+            studentId: item.studentId,
+            studentName: item.studentName,
+            avatarUrl: item.avatarUrl,
+            title: item.data?.title || item.title || "자습 할 일",
+            subtitle: item.data?.subjects?.name || item.subtitle || "자습",
+            date: selfDate,
+            status: "submitted",
+            data: {
+              ...item.data,
+              plannerTaskId: item.data?.id,
+            },
+          };
+        });
 
-  // 3. Self-study task feedback items (student-created planner tasks only)
-  const selfItems: FeedbackItem[] = rawPlanItems
-    .filter(
-      (item) =>
-        !item.data?.is_mentor_task &&
-        hasUploadedSelfStudyFile(item.data?.materials),
-    )
-    .map((item) => {
-      const selfDate = toDate(item.date);
-      return {
-        id: `self-${item.id}`,
-        type: "self",
-        studentId: item.studentId,
-        studentName: item.studentName,
-        avatarUrl: item.avatarUrl,
-        title: item.data?.title || item.title || "자습 할 일",
-        subtitle: item.data?.subjects?.name || item.subtitle || "자습",
-        date: selfDate,
-        status: "submitted",
-        data: {
-          ...item.data,
-          plannerTaskId: item.data?.id,
-        },
-      };
-    });
+      const allItems = [...taskItems, ...planItems, ...selfItems].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      );
 
-  const allItems = [...taskItems, ...planItems, ...selfItems].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
+      return { rawPlanItems, allItems };
+    }, [items]);
 
   const resolvedInitialSelectedItemId = useMemo(() => {
     if (!initialSelectedItemId) return null;
@@ -278,26 +282,38 @@ export default function FeedbackClient({
     hasAppliedInitialSelection.current = true;
   }, [resolvedInitialSelectedItemId]);
 
-  // Apply Filters
-  const filteredItems = allItems.filter((item) => {
-    if (filterType !== "all" && item.type !== filterType) return false;
-    if (feedbackStatus === "pending" && item.status === "reviewed") return false;
-    return true;
-  });
+  const filteredItems = useMemo(() => {
+    return allItems.filter((item) => {
+      if (filterType !== "all" && item.type !== filterType) return false;
+      if (feedbackStatus === "pending" && item.status === "reviewed") return false;
+      return true;
+    });
+  }, [allItems, filterType, feedbackStatus]);
 
-  const selectedItem = allItems.find((i) => i.id === selectedItemId);
-  const selectedTaskFeedback =
-    selectedItem?.type === "task"
-      ? selectedItem.data?.task_feedback?.[0]?.comment ?? ""
-      : "";
-  const selectedSelfFeedback =
-    selectedItem?.type === "self"
-      ? selectedItem.data?.mentor_comment ??
-        selectedItem.data?.mentorComment ??
-        ""
-      : "";
-  const isTaskReviewed =
-    selectedItem?.type === "task" && selectedItem.status === "reviewed";
+  const selectedItem = useMemo(
+    () => allItems.find((i) => i.id === selectedItemId),
+    [allItems, selectedItemId],
+  );
+  const selectedTaskFeedback = useMemo(
+    () =>
+      selectedItem?.type === "task"
+        ? selectedItem.data?.task_feedback?.[0]?.comment ?? ""
+        : "",
+    [selectedItem],
+  );
+  const selectedSelfFeedback = useMemo(
+    () =>
+      selectedItem?.type === "self"
+        ? selectedItem.data?.mentor_comment ??
+          selectedItem.data?.mentorComment ??
+          ""
+        : "",
+    [selectedItem],
+  );
+  const isTaskReviewed = useMemo(
+    () => selectedItem?.type === "task" && selectedItem.status === "reviewed",
+    [selectedItem],
+  );
 
   useEffect(() => {
     if (!selectedItem) {

@@ -1,17 +1,13 @@
-import { adaptMenteeToUi, adaptMentorTaskToUi } from "@/lib/mentorAdapters";
+import { adaptMenteeToUi } from "@/lib/mentorAdapters";
 import { getRecentChatsByMentorId } from "@/repositories/chatRepository";
 import { getMenteesByMentorId } from "@/repositories/mentorMenteeRepository";
-import { getTasksByMentorId } from "@/repositories/mentorTasksRepository";
 import { ensureMentorProfile } from "@/services/mentorAccessService";
 import { getPendingFeedbackItems } from "@/services/mentorFeedbackService";
 
 export async function getMentorDashboardData(mentorId: string) {
   const mentorProfile = await ensureMentorProfile(mentorId);
 
-  const [menteesData, tasksData] = await Promise.all([
-    getMenteesByMentorId(mentorId),
-    getTasksByMentorId(mentorId),
-  ]);
+  const menteesData = await getMenteesByMentorId(mentorId);
 
   const [recentChatsResult, pendingFeedbackResult] = await Promise.allSettled([
     getRecentChatsByMentorId(mentorId, 5),
@@ -36,7 +32,6 @@ export async function getMentorDashboardData(mentorId: string) {
       : [];
 
   const mentees = menteesData.map(adaptMenteeToUi);
-  const tasks = tasksData.map(adaptMentorTaskToUi);
   const recentChats = recentChatsRaw
     .map((row) => {
       const latestMessage = row.chat_messages?.[0] ?? null;
@@ -88,7 +83,7 @@ export async function getMentorDashboardData(mentorId: string) {
   return {
     mentorName: mentorProfile.name || "멘토",
     mentees,
-    recentActivity: tasks.slice(0, 5), // Show recent 5 tasks
+    recentActivity: [], // Dashboard currently doesn't render this
     recentChats,
     recentFeedback,
     stats: {

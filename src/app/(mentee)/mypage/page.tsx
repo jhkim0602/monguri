@@ -15,6 +15,10 @@ import ProfileEditModal, {
 } from "@/components/mentee/mypage/ProfileEditModal";
 import { supabase } from "@/lib/supabaseClient";
 import { adaptProfileToUi, type UiProfile } from "@/lib/menteeAdapters";
+import {
+    readMenteeMyPageCache,
+    writeMenteeMyPageCache,
+} from "@/lib/menteeMyPageCache";
 
 export default function MyPage() {
     const router = useRouter();
@@ -31,29 +35,55 @@ export default function MyPage() {
     useEffect(() => {
         let isMounted = true;
 
+        const loadUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            const user = data?.user;
+            if (!isMounted) return;
+            if (!user) {
+                if (!hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
+                }
+                return;
+            }
+            setUserId(user.id);
+        };
+
+        loadUser();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []); // Only load once
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!userId) return;
+
+        const cached = readMenteeMyPageCache(userId);
+        if (cached?.data?.profile) {
+            const nextProfile = cached.data.profile;
+            setProfile(nextProfile);
+            setIsLoading(false);
+            if (!cached.stale) {
+                return () => {
+                    isMounted = false;
+                };
+            }
+        }
+
         const load = async () => {
-            if (!hasLoadedRef.current) {
+            if (!hasLoadedRef.current && !cached) {
                 setIsLoading(true);
             }
             try {
-                const { data } = await supabase.auth.getUser();
-                const user = data?.user;
-                if (!user) return;
-
-                if (isMounted) {
-                    setUserId(user.id);
-                }
-
-                const profileRes = await fetch(
-                    `/api/mentee/profile?profileId=${user.id}`
-                );
-
-                if (profileRes.ok) {
-                    const profileJson = await profileRes.json();
-                    const nextProfile = adaptProfileToUi(profileJson.profile ?? null);
-                    if (isMounted && nextProfile) {
-                        setProfile(nextProfile);
-                    }
+                const profileRes = await fetch(`/api/mentee/profile?profileId=${userId}`);
+                if (!profileRes.ok) return;
+                const profileJson = await profileRes.json();
+                const nextProfile = adaptProfileToUi(profileJson.profile ?? null);
+                if (isMounted && nextProfile) {
+                    setProfile(nextProfile);
+                    writeMenteeMyPageCache(userId, { profile: nextProfile });
                 }
             } finally {
                 if (isMounted && !hasLoadedRef.current) {
@@ -68,7 +98,7 @@ export default function MyPage() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [userId, isEditModalOpen]);
 
     const handleSaveProfile = async (data: ProfileEditData) => {
         if (!userId) return;
@@ -96,6 +126,8 @@ export default function MyPage() {
         const updatedProfile = adaptProfileToUi(result.profile);
         if (updatedProfile) {
             setProfile(updatedProfile);
+            // Update cache after save
+            writeMenteeMyPageCache(userId, { profile: updatedProfile });
         }
     };
 

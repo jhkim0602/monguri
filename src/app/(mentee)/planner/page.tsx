@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     ChevronLeft,
     ChevronRight,
@@ -24,6 +24,10 @@ import {
     type PlannerTaskLike,
     type UiProfile
 } from "@/lib/menteeAdapters";
+import {
+    readMenteePlannerCache,
+    writeMenteePlannerCache
+} from "@/lib/menteePlannerCache";
 
 export default function PlannerPage() {
     // 1. State from Sunbal + Head
@@ -41,6 +45,9 @@ export default function PlannerPage() {
     const [profile, setProfile] = useState<UiProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
+    const forceRefreshRef = useRef(false);
+    const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [refreshTick, setRefreshTick] = useState(0);
 
     // Modal State
     const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -54,11 +61,39 @@ export default function PlannerPage() {
             date1.getFullYear() === date2.getFullYear();
     };
 
+    const isPlannerTask = (
+        task: MentorTaskLike | PlannerTaskLike,
+    ): task is PlannerTaskLike => task.isMentorTask === false;
+
     const toDateString = (date: Date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
+    };
+
+    const scheduleRefresh = useCallback(() => {
+        if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current);
+        }
+        refreshTimerRef.current = setTimeout(() => {
+            forceRefreshRef.current = true;
+            setRefreshTick((prev) => prev + 1);
+        }, 250);
+    }, []);
+
+    const persistCache = (
+        nextTasks: Array<MentorTaskLike | PlannerTaskLike>,
+        nextCategories = categories,
+        nextSelectedCategoryId = selectedCategoryId,
+    ) => {
+        if (!menteeId) return;
+        const dateStr = toDateString(currentDate);
+        writeMenteePlannerCache(`${menteeId}:${dateStr}`, {
+            tasks: nextTasks,
+            categories: nextCategories,
+            selectedCategoryId: nextSelectedCategoryId,
+        });
     };
 
     const handleAddCategory = (name: string) => {
@@ -78,35 +113,164 @@ export default function PlannerPage() {
             ...randomColor
         };
 
-        setCategories([...categories, newCategory]);
+        const nextCategories = [...categories, newCategory];
+        setCategories(nextCategories);
+        persistCache(tasks, nextCategories, selectedCategoryId);
         return newCategory;
     };
 
-    // 2. Data Fetching (HEAD Logic)
     useEffect(() => {
         let isMounted = true;
-        const load = async () => {
+        const loadUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            const user = data?.user;
+            if (!isMounted) return;
+            if (!user) {
+                if (!hasLoadedRef.current) {
+                    setIsLoading(false);
+                    hasLoadedRef.current = true;
+                }
+                return;
+            }
+            setMenteeId(user.id);
+        };
+
+        loadUser();
+
+        return () => {
+            isMounted = false;
+            if (refreshTimerRef.current) {
+                clearTimeout(refreshTimerRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!menteeId) return;
+
+        const channel = supabase
+            .channel(`mentee-planner:${menteeId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${menteeId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${menteeId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "mentor_tasks",
+                    filter: `mentee_id=eq.${menteeId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${menteeId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${menteeId}`,
+                },
+                scheduleRefresh,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "planner_tasks",
+                    filter: `mentee_id=eq.${menteeId}`,
+                },
+                scheduleRefresh,
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [menteeId, scheduleRefresh]);
+
+    // 2. Data Fetching (with cache)
+    useEffect(() => {
+        let isMounted = true;
+        if (!menteeId) return;
+
+        const dateStr = toDateString(currentDate);
+        const cacheKey = `${menteeId}:${dateStr}`;
+        const cached = readMenteePlannerCache(cacheKey);
+        const forceRefresh = forceRefreshRef.current;
+        if (forceRefreshRef.current) {
+            forceRefreshRef.current = false;
+        }
+
+        const ensureSelectedCategory = (
+            nextCategories: { id: string }[],
+            nextSelectedId: string,
+        ) => {
+            if (nextCategories.find((cat) => cat.id === nextSelectedId)) {
+                return nextSelectedId;
+            }
+            return nextCategories[0]?.id ?? DEFAULT_CATEGORIES[0].id;
+        };
+
+        if (cached) {
+            setTasks(cached.data.tasks);
+            setCategories(cached.data.categories);
+            setSelectedCategoryId(
+                ensureSelectedCategory(
+                    cached.data.categories,
+                    cached.data.selectedCategoryId,
+                ),
+            );
             if (!hasLoadedRef.current) {
+                setIsLoading(false);
+                hasLoadedRef.current = true;
+            }
+        }
+
+        if (cached && !cached.stale && !forceRefresh) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const load = async () => {
+            if (!hasLoadedRef.current && !cached) {
                 setIsLoading(true);
             }
             try {
-                const { data } = await supabase.auth.getUser();
-                const user = data?.user;
-                if (!user) {
-                    console.log("No user found");
-                    return;
-                }
-
-                if (isMounted) {
-                    setMenteeId(user.id);
-                }
-
-                const dateStr = toDateString(currentDate);
                 const [mentorRes, plannerRes, subjectsRes, profileRes] = await Promise.all([
-                    fetch(`/api/mentee/tasks?menteeId=${user.id}`),
-                    fetch(`/api/mentee/planner/tasks?menteeId=${user.id}&date=${dateStr}`),
+                    fetch(`/api/mentee/tasks?menteeId=${menteeId}`),
+                    fetch(`/api/mentee/planner/tasks?menteeId=${menteeId}&date=${dateStr}`),
                     fetch(`/api/subjects`),
-                    fetch(`/api/mentee/profile?profileId=${user.id}`)
+                    fetch(`/api/mentee/profile?profileId=${menteeId}`)
                 ]);
 
                 if (profileRes.ok) {
@@ -116,10 +280,13 @@ export default function PlannerPage() {
                     }
                 }
 
+                let nextCategories = categories;
+                let nextSelectedCategoryId = selectedCategoryId;
+
                 if (subjectsRes.ok) {
                     const subjectsJson = await subjectsRes.json();
-                    if (isMounted && Array.isArray(subjectsJson.subjects) && subjectsJson.subjects.length > 0) {
-                        const nextCategories = subjectsJson.subjects.map((subject: any) => {
+                    if (Array.isArray(subjectsJson.subjects) && subjectsJson.subjects.length > 0) {
+                        nextCategories = subjectsJson.subjects.map((subject: any) => {
                             const fallback =
                                 DEFAULT_CATEGORIES.find((cat) => cat.id === subject.slug) ??
                                 DEFAULT_CATEGORIES[0];
@@ -130,10 +297,10 @@ export default function PlannerPage() {
                                 textColorHex: subject.textColorHex ?? fallback.textColorHex,
                             };
                         });
-                        setCategories(nextCategories);
-                        if (!nextCategories.find((cat: any) => cat.id === selectedCategoryId)) {
-                            setSelectedCategoryId(nextCategories[0]?.id ?? DEFAULT_CATEGORIES[0].id);
-                        }
+                        nextSelectedCategoryId = ensureSelectedCategory(
+                            nextCategories,
+                            nextSelectedCategoryId,
+                        );
                     }
                 }
 
@@ -167,9 +334,18 @@ export default function PlannerPage() {
                     }
                 }
 
-                if (isMounted) {
-                    setTasks([...mentorTasksForDate, ...plannerTasksForDate]);
-                }
+                if (!isMounted) return;
+
+                const nextTasks = [...mentorTasksForDate, ...plannerTasksForDate];
+                setCategories(nextCategories);
+                setSelectedCategoryId(nextSelectedCategoryId);
+                setTasks(nextTasks);
+
+                writeMenteePlannerCache(cacheKey, {
+                    tasks: nextTasks,
+                    categories: nextCategories,
+                    selectedCategoryId: nextSelectedCategoryId,
+                });
             } catch (e) {
                 console.error("Failed to load planner data", e);
             } finally {
@@ -185,7 +361,7 @@ export default function PlannerPage() {
         return () => {
             isMounted = false;
         };
-    }, [currentDate]);
+    }, [currentDate, menteeId, refreshTick]);
 
     // Sync studyTimeBlocks with tasks (UI Logic)
     useEffect(() => {
@@ -233,13 +409,20 @@ export default function PlannerPage() {
             if (response.ok) {
                 const json = await response.json();
                 const createdTask = json?.task ? adaptPlannerTasksToUi([json.task])[0] : null;
-                if (createdTask) { // Explicitly mapping only essential fields
-                    setTasks(prev => [...prev, {
+                if (createdTask) {
+                    const nextTask: PlannerTaskLike = {
                         ...createdTask,
                         isRunning: false,
-                        isMentorTask: false,
                         timeSpent: 0
-                    }]);
+                    };
+                    setTasks(prev => {
+                        const next = [
+                            ...prev,
+                            nextTask
+                        ];
+                        persistCache(next);
+                        return next;
+                    });
                 }
                 setNewTaskTitle("");
             }
@@ -254,13 +437,17 @@ export default function PlannerPage() {
         if (!targetTask || targetTask.isMentorTask) return;
 
         const nextCompleted = !targetTask.completed;
+        const nextStatus: PlannerTaskLike["status"] = nextCompleted ? "submitted" : "pending";
         // Optimistic update
-        setTasks(prev => prev.map(task => {
-            if (String(task.id) === taskIdStr) {
-                return { ...task, completed: nextCompleted, status: nextCompleted ? 'submitted' : 'pending' };
-            }
-            return task;
-        }));
+        setTasks(prev => {
+            const next = prev.map(task => {
+                if (String(task.id) !== taskIdStr) return task;
+                if (!isPlannerTask(task)) return task;
+                return { ...task, completed: nextCompleted, status: nextStatus };
+            });
+            persistCache(next);
+            return next;
+        });
 
         if (!menteeId) return;
 
@@ -276,13 +463,17 @@ export default function PlannerPage() {
 
     const updateTaskTimeRange = async (taskId: number | string, startTime: string, endTime: string) => {
         const taskIdStr = String(taskId);
-        setTasks(prev => prev.map(task => {
-            if (String(task.id) === taskIdStr) {
-                if (task.isMentorTask) return task;
-                return { ...task, startTime, endTime };
-            }
-            return task;
-        }));
+        setTasks(prev => {
+            const next = prev.map(task => {
+                if (String(task.id) === taskIdStr) {
+                    if (task.isMentorTask) return task;
+                    return { ...task, startTime, endTime };
+                }
+                return task;
+            });
+            persistCache(next);
+            return next;
+        });
 
         if (!menteeId) return;
 
@@ -302,7 +493,11 @@ export default function PlannerPage() {
     };
 
     const executeDelete = async (taskIdStr: string) => {
-        setTasks(prev => prev.filter(task => String(task.id) !== taskIdStr));
+        setTasks(prev => {
+            const next = prev.filter(task => String(task.id) !== taskIdStr);
+            persistCache(next);
+            return next;
+        });
 
         if (!menteeId) return;
 
@@ -330,7 +525,11 @@ export default function PlannerPage() {
         setDeleteTarget(null);
 
         // Optimistic update: remove all tasks with this group ID from current view
-        setTasks(prev => prev.filter(task => task.recurringGroupId !== groupId));
+        setTasks(prev => {
+            const next = prev.filter(task => task.recurringGroupId !== groupId);
+            persistCache(next);
+            return next;
+        });
 
         if (!menteeId) return;
 

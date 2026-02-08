@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";
 import HomeTasks from "@/components/mentee/home/HomeTasks";
@@ -15,6 +15,10 @@ import {
   type ScheduleEventLike,
   type UiProfile,
 } from "@/lib/menteeAdapters";
+import {
+  readMenteeHomeCache,
+  writeMenteeHomeCache,
+} from "@/lib/menteeHomeCache";
 import { COLUMN_SERIES } from "@/constants/mentee/columns";
 import Link from "next/link";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
@@ -23,6 +27,7 @@ export default function Home() {
   // Default to Feb 2 2026 for demo context
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [animatedProgress, setAnimatedProgress] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
   const [mentorTasks, setMentorTasks] = useState<MentorTaskLike[]>([]);
   const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
   const [planEvents, setPlanEvents] = useState<ScheduleEventLike[]>([]);
@@ -30,6 +35,9 @@ export default function Home() {
   const [columns, setColumns] = useState<any[]>([]); // Use flexible type for now or define proper interface
   const [isLoading, setIsLoading] = useState(true);
   const hasLoadedRef = useRef(false);
+  const forceRefreshRef = useRef(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const scheduleEvents = useMemo<ScheduleEventLike[]>(() => {
     const events: ScheduleEventLike[] = [];
@@ -105,29 +113,188 @@ export default function Home() {
     return () => cancelAnimationFrame(animationFrame);
   }, [targetProgress]);
 
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = setTimeout(() => {
+      forceRefreshRef.current = true;
+      setRefreshTick((prev) => prev + 1);
+    }, 250);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
-    const load = async () => {
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      if (!isMounted) return;
+      if (!user) {
+        if (!hasLoadedRef.current) {
+          setIsLoading(false);
+          hasLoadedRef.current = true;
+        }
+        return;
+      }
+      setUserId(user.id);
+    };
+
+    loadUser();
+
+    return () => {
+      isMounted = false;
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`mentee-home:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "mentor_tasks",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "mentor_tasks",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "mentor_tasks",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "planner_tasks",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "planner_tasks",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "planner_tasks",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "weekly_schedule_events",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "weekly_schedule_events",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "weekly_schedule_events",
+          filter: `mentee_id=eq.${userId}`,
+        },
+        scheduleRefresh,
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, scheduleRefresh]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!userId) return;
+
+    const { from, to } = getMonthRange(selectedDate);
+    const cacheKey = `${userId}:${from}:${to}`;
+    const cached = readMenteeHomeCache(cacheKey);
+    const forceRefresh = forceRefreshRef.current;
+    if (forceRefreshRef.current) {
+      forceRefreshRef.current = false;
+    }
+
+    if (cached) {
+      setMentorTasks(cached.data.mentorTasks);
+      setPlannerTasks(cached.data.plannerTasks);
+      setPlanEvents(cached.data.planEvents);
+      setProfile(cached.data.profile);
       if (!hasLoadedRef.current) {
+        setIsLoading(false);
+        hasLoadedRef.current = true;
+      }
+    }
+
+    if (cached && !cached.stale && !forceRefresh) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const load = async () => {
+      if (!hasLoadedRef.current && !cached) {
         setIsLoading(true);
       }
       try {
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user;
-        if (!user) return;
-
-        const { from, to } = getMonthRange(selectedDate);
-
         const [tasksRes, profileRes, plannerRes, overviewRes] =
           await Promise.all([
-            fetch(`/api/mentee/tasks?menteeId=${user.id}`),
-            fetch(`/api/mentee/profile?profileId=${user.id}`),
+            fetch(`/api/mentee/tasks?menteeId=${userId}`),
+            fetch(`/api/mentee/profile?profileId=${userId}`),
             fetch(
-              `/api/mentee/planner/tasks?menteeId=${user.id}&from=${from}&to=${to}`,
+              `/api/mentee/planner/tasks?menteeId=${userId}&from=${from}&to=${to}`,
             ),
             fetch(
-              `/api/mentee/planner/overview?menteeId=${user.id}&from=${from}&to=${to}`,
+              `/api/mentee/planner/overview?menteeId=${userId}&from=${from}&to=${to}`,
             ),
           ]);
 
@@ -144,44 +311,57 @@ export default function Home() {
 
         if (isMounted) {
           if (columnsData && columnsData.length > 0) {
-            console.log("✅ Fetched columns:", columnsData.length, "columns");
-            console.log("First column:", columnsData[0]);
             setColumns(columnsData);
           } else {
-            console.log("⚠️ No columns fetched");
             setColumns([]);
           }
         }
 
+        const next: {
+          mentorTasks: MentorTaskLike[];
+          plannerTasks: PlannerTaskLike[];
+          planEvents: ScheduleEventLike[];
+          profile: UiProfile | null;
+        } = {
+          mentorTasks: [],
+          plannerTasks: [],
+          planEvents: [],
+          profile: null,
+        };
+
         if (tasksRes.ok) {
           const tasksJson = await tasksRes.json();
-          if (isMounted && Array.isArray(tasksJson.tasks)) {
-            setMentorTasks(adaptMentorTasksToUi(tasksJson.tasks));
+          if (Array.isArray(tasksJson.tasks)) {
+            next.mentorTasks = adaptMentorTasksToUi(tasksJson.tasks);
           }
         }
 
         if (profileRes.ok) {
           const profileJson = await profileRes.json();
-          if (isMounted) {
-            setProfile(adaptProfileToUi(profileJson.profile ?? null));
-          }
+          next.profile = adaptProfileToUi(profileJson.profile ?? null);
         }
 
         if (plannerRes.ok) {
           const plannerJson = await plannerRes.json();
-          if (isMounted && Array.isArray(plannerJson.tasks)) {
-            setPlannerTasks(adaptPlannerTasksToUi(plannerJson.tasks));
+          if (Array.isArray(plannerJson.tasks)) {
+            next.plannerTasks = adaptPlannerTasksToUi(plannerJson.tasks);
           }
         }
 
         if (overviewRes.ok) {
           const overviewJson = await overviewRes.json();
-          if (isMounted) {
-            setPlanEvents(
-              adaptPlanEventsToUi(overviewJson.scheduleEvents ?? []),
-            );
-          }
+          next.planEvents = adaptPlanEventsToUi(
+            overviewJson.scheduleEvents ?? [],
+          );
         }
+
+        if (!isMounted) return;
+
+        setMentorTasks(next.mentorTasks);
+        setPlannerTasks(next.plannerTasks);
+        setPlanEvents(next.planEvents);
+        setProfile(next.profile);
+        writeMenteeHomeCache(cacheKey, next);
       } finally {
         if (isMounted && !hasLoadedRef.current) {
           setIsLoading(false);
@@ -195,7 +375,7 @@ export default function Home() {
     return () => {
       isMounted = false;
     };
-  }, [selectedDate]);
+  }, [selectedDate, userId, refreshTick]);
 
   if (isLoading || !profile) {
     return <div className="min-h-screen bg-white" />;
