@@ -2,14 +2,24 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronRight, CheckCircle2, AlertCircle } from "lucide-react";
-import { MENTOR_TASKS } from "@/constants/mentee";
+import { ChevronRight, CheckCircle2 } from "lucide-react";
+
+type MentorTaskSummary = {
+    categoryId?: string;
+    status?: string;
+    subject?: string;
+    title?: string;
+    description?: string;
+    id?: string | number;
+};
 
 interface DailyFocusSectionProps {
-    userName: string;
+    mentorTasks?: MentorTaskSummary[];
 }
 
-export default function DailyFocusSection({ userName }: DailyFocusSectionProps) {
+export default function DailyFocusSection({
+    mentorTasks = [],
+}: DailyFocusSectionProps) {
     // 3 Major Subjects
     const SUBJECTS = [
         { id: 'korean', name: '국어', color: 'text-emerald-500', bg: 'bg-emerald-500', ring: 'border-emerald-100' },
@@ -17,7 +27,7 @@ export default function DailyFocusSection({ userName }: DailyFocusSectionProps) 
         { id: 'english', name: '영어', color: 'text-purple-500', bg: 'bg-purple-500', ring: 'border-purple-100' },
     ];
 
-    // Calculate real progress from MENTOR_TASKS
+    // Calculate real progress from mentor task data
     const [progressData, setProgressData] = useState<Record<string, number>>({
         korean: 0,
         math: 0,
@@ -25,23 +35,18 @@ export default function DailyFocusSection({ userName }: DailyFocusSectionProps) 
     });
 
     useEffect(() => {
-        // Simple logic: Count completed vs total per subject in MENTOR_TASKS
-        // Group by subject (or categoryId)
         const stats: Record<string, { total: number; completed: number }> = {
             korean: { total: 0, completed: 0 },
             math: { total: 0, completed: 0 },
             english: { total: 0, completed: 0 }
         };
 
-        MENTOR_TASKS.forEach(task => {
-            // Map categoryId to our keys (korean, math, english)
-            // Assuming MENTOR_TASKS has categoryId matching these or mapped
+        mentorTasks.forEach(task => {
             const key = task.categoryId;
-            if (stats[key]) {
-                stats[key].total++;
-                if (task.status !== 'pending') {
-                    stats[key].completed++;
-                }
+            if (!key || !stats[key]) return;
+            stats[key].total++;
+            if (task.status !== 'pending') {
+                stats[key].completed++;
             }
         });
 
@@ -52,11 +57,11 @@ export default function DailyFocusSection({ userName }: DailyFocusSectionProps) 
         };
 
         setProgressData(newProgress);
-    }, []);
+    }, [mentorTasks]);
 
     // Recommendation State
-    const [focusSubject, setFocusSubject] = useState<any>(null);
-    const [recommendTask, setRecommendTask] = useState<any>(null);
+    const [focusSubject, setFocusSubject] = useState<(typeof SUBJECTS)[number] | null>(null);
+    const [recommendTask, setRecommendTask] = useState<MentorTaskSummary | null>(null);
 
     useEffect(() => {
         // Logic: Find subject with lowest progress
@@ -69,21 +74,15 @@ export default function DailyFocusSection({ userName }: DailyFocusSectionProps) 
         const lowestSubject = sortedSubjects[0];
         setFocusSubject(lowestSubject);
 
-        // Find a pending task for this subject
-        // Note: Using MENTOR_TASKS mock. In real app, filter by date=today & subject
-        const task = MENTOR_TASKS.find(t =>
+        const task = mentorTasks.find(t =>
             (t.subject === lowestSubject.name || t.categoryId === lowestSubject.id) &&
             t.status === 'pending'
         );
+        const fallbackTask = mentorTasks.find((t) => t.status === "pending");
 
-        // Fallback if no specific task found
-        setRecommendTask(task || {
-            id: 'mock-rec',
-            title: `${lowestSubject.name} 기초 개념 복습`,
-            description: '부족한 부분을 채워보세요!'
-        });
+        setRecommendTask(task ?? fallbackTask ?? null);
 
-    }, []);
+    }, [progressData, mentorTasks]);
 
     // Helper for Donut Chart (SVG)
     const renderDonut = (percentage: number, colorClass: string) => {
@@ -135,8 +134,17 @@ export default function DailyFocusSection({ userName }: DailyFocusSectionProps) 
                             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Learning Status</p>
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 leading-snug">
-                            <span className={focusSubject?.color}>{focusSubject?.name}</span>가 부족해요!<br />
-                            지금 바로 시작할까요?
+                            {recommendTask ? (
+                                <>
+                                    <span className={focusSubject?.color}>{focusSubject?.name}</span>가 부족해요!<br />
+                                    지금 바로 시작할까요?
+                                </>
+                            ) : (
+                                <>
+                                    오늘의 추천 과제가 없어요.<br />
+                                    다른 플래너를 점검해 보세요.
+                                </>
+                            )}
                         </h3>
                     </div>
                 </div>

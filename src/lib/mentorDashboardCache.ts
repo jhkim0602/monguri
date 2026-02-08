@@ -1,4 +1,4 @@
-import type { MentorMentee, MentorTask } from "@/features/mentor/types";
+import type { MentorMentee, MentorTask } from "@/types/mentor";
 
 export type MentorDashboardCacheData = {
   mentorName: string;

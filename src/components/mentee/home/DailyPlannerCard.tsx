@@ -2,18 +2,36 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Plus } from "lucide-react";
-import { MENTOR_TASKS, USER_TASKS } from "@/constants/mentee";
+import { Plus } from "lucide-react";
 import TaskRowItem from "./TaskRowItem";
 
-export default function DailyPlannerCard() {
+type PlannerCardTask = {
+    id: string | number;
+    status?: string;
+    deadline?: Date | string | null;
+    type?: "mentor" | "user";
+    [key: string]: unknown;
+};
+
+interface DailyPlannerCardProps {
+    tasks?: PlannerCardTask[];
+    baseDate?: Date;
+}
+
+const normalizeDate = (value?: Date | string | null) => {
+    if (!value) return null;
+    return value instanceof Date ? value : new Date(value);
+};
+
+export default function DailyPlannerCard({
+    tasks = [],
+    baseDate = new Date(),
+}: DailyPlannerCardProps) {
     const router = useRouter();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [activeTab, setActiveTab] = useState<'yesterday' | 'today' | 'tomorrow'>('today');
 
-    // Mock Date: using Feb 2, 2026 as "Today" based on mockData context or current Date
-    // In a real app, use new Date(). For consistency with the specific mock data provided (MENTOR_TASKS id 4 is marked today Feb 2), let's assume today is Feb 2, 2026.
-    const today = new Date(2026, 1, 2);
+    const today = new Date(baseDate);
 
     // Calculate dates
     const yesterday = new Date(today);
@@ -22,19 +40,18 @@ export default function DailyPlannerCard() {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
-    const isSameDay = (d1: Date, d2?: Date) => {
+    const isSameDay = (d1: Date, d2?: Date | null) => {
         if (!d2) return false;
         return d1.getFullYear() === d2.getFullYear() &&
                d1.getMonth() === d2.getMonth() &&
                d1.getDate() === d2.getDate();
     };
 
-    // Filter Tasks
-    // Combine both task lists for filtering
-    const allTasks = [
-        ...MENTOR_TASKS.map(t => ({...t, type: 'mentor'})),
-        ...USER_TASKS.map(t => ({...t, type: 'user'}))
-    ];
+    const allTasks = tasks.map((task) => ({
+        ...task,
+        deadline: normalizeDate(task.deadline),
+        type: task.type ?? "user",
+    }));
 
     const yesterdayTasks = allTasks.filter(t => isSameDay(yesterday, t.deadline));
     const todayTasks = allTasks.filter(t => isSameDay(today, t.deadline));

@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
-import { DEFAULT_CATEGORIES } from "@/constants/common";
-import { USER_TASKS } from "@/constants/mentee";
+import { UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
 interface PlannerDetailViewProps {
   date: Date | string | number | null;
@@ -137,6 +135,27 @@ export default function PlannerDetailView({
     })),
   ];
 
+  const categoryMap = new Map<
+    string,
+    { id: string; name: string; colorHex: string; textColorHex: string }
+  >();
+
+  combinedItems.forEach((item: any) => {
+    const id = String(item.categoryId ?? "").trim() || UNKNOWN_SUBJECT_CATEGORY.id;
+    if (categoryMap.has(id)) return;
+
+    categoryMap.set(id, {
+      id,
+      name: String(item.subject ?? item.subjectName ?? id),
+      colorHex:
+        item.badgeColor?.bg ?? item.colorHex ?? UNKNOWN_SUBJECT_CATEGORY.colorHex,
+      textColorHex:
+        item.badgeColor?.text ??
+        item.textColorHex ??
+        UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+    });
+  });
+
   const getSortedItems = (items: any[]) => {
     return [...items].sort((a, b) => {
       const aTime = parseTimeValue(a.startTime);
@@ -148,10 +167,10 @@ export default function PlannerDetailView({
     });
   };
 
-  const sessionGroups = DEFAULT_CATEGORIES.map((category) => ({
+  const sessionGroups = Array.from(categoryMap.values()).map((category) => ({
     category,
     items: getSortedItems(
-      combinedItems.filter((item) => item.categoryId === category.id),
+      combinedItems.filter((item) => String(item.categoryId) === category.id),
     ),
   }));
   const hasActivity = sessionGroups.some((group) => group.items.length > 0);
@@ -250,14 +269,7 @@ export default function PlannerDetailView({
                   </div>
                   <div className="space-y-1">
                     {group.items.map((item) => {
-                      // Ensure we use colorHex for consistency if available, falling back to class-based approach if not
-                      // The adapter provides colorHex in DEFAULT_CATEGORIES so relying on group.category is safe IF DEFAULT_CATEGORIES has it.
-                      // Original Sunbal code used `group.category.color` (Tailwind class).
-                      // HEAD `DEFAULT_CATEGORIES` has `colorHex` and `textColorHex`.
-                      // Sunbal `DEFAULT_CATEGORIES` (via merge) might have both?
-                      // Let's check if we can use inline styles for colors to be safe.
-
-                      const colorHex = group.category.colorHex || "#ccc";
+                      const colorHex = group.category.colorHex || UNKNOWN_SUBJECT_CATEGORY.colorHex;
                       const completed = isTaskCompleted(item);
                       const isMentorTask =
                         item.isMentorTask ?? item.itemType === "mentor";
@@ -394,9 +406,7 @@ export default function PlannerDetailView({
                         const timeKey = `${hourStr}:${minute < 10 ? "0" + minute : minute}`;
                         const blockCategoryId = studyTimeBlocks[timeKey];
                         const category = blockCategoryId
-                          ? DEFAULT_CATEGORIES.find(
-                              (c) => c.id === blockCategoryId,
-                            )
+                          ? categoryMap.get(blockCategoryId)
                           : null;
 
                         return (

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat } from "lucide-react";
-import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
@@ -23,6 +22,11 @@ import {
     type PlannerTaskLike,
     type ScheduleEventLike
 } from "@/lib/menteeAdapters";
+import {
+    mergeSubjectCategories,
+    UNKNOWN_SUBJECT_CATEGORY,
+    type SubjectCategory,
+} from "@/lib/subjectCategory";
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -37,7 +41,7 @@ export default function CalendarPage() {
 
     // Add Task Modal State
     const [eventTitle, setEventTitle] = useState("");
-    const [eventCategoryId, setEventCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
+    const [eventCategoryId, setEventCategoryId] = useState("");
     const [eventDate, setEventDate] = useState("");
     const [recurrenceType, setRecurrenceType] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
     const [repeatDays, setRepeatDays] = useState<number[]>([1]);
@@ -49,6 +53,7 @@ export default function CalendarPage() {
     const [plannerTasks, setPlannerTasks] = useState<PlannerTaskLike[]>([]);
     const [planEvents, setPlanEvents] = useState<ScheduleEventLike[]>([]);
     const [dailyRecords, setDailyRecords] = useState<DailyRecordLike[]>([]);
+    const [categories, setCategories] = useState<SubjectCategory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
     const forceRefreshRef = useRef(false);
@@ -79,7 +84,7 @@ export default function CalendarPage() {
         const baseDate = date || selectedDate || new Date();
         const baseValue = formatDateInput(baseDate);
         setEventTitle("");
-        setEventCategoryId(DEFAULT_CATEGORIES[0].id);
+        setEventCategoryId(displayCategories[0]?.id ?? "");
         setEventDate(baseValue);
         setRepeatStart(baseValue);
         setRepeatEnd(formatDateInput(addDays(baseDate, 28)));
@@ -139,7 +144,7 @@ export default function CalendarPage() {
 
             const tasksPayload = dates.map(date => ({
                 title,
-                subjectId: eventCategoryId === 'others' ? null : eventCategoryId,
+                subjectId: eventCategoryId || null,
                 date: formatDateInput(date),
                 completed: false,
                 timeSpentSec: 0,
@@ -422,10 +427,11 @@ export default function CalendarPage() {
                 setIsLoading(true);
             }
             try {
-                const [mentorRes, plannerRes, overviewRes] = await Promise.all([
+                const [mentorRes, plannerRes, overviewRes, subjectsRes] = await Promise.all([
                     fetch(`/api/mentee/tasks?menteeId=${userId}`),
                     fetch(`/api/mentee/planner/tasks?menteeId=${userId}&from=${from}&to=${to}`),
-                    fetch(`/api/mentee/planner/overview?menteeId=${userId}&from=${from}&to=${to}`)
+                    fetch(`/api/mentee/planner/overview?menteeId=${userId}&from=${from}&to=${to}`),
+                    fetch(`/api/subjects`),
                 ]);
 
                 const next = {
@@ -455,12 +461,27 @@ export default function CalendarPage() {
                     next.dailyRecords = adaptDailyRecordsToUi(overviewJson.dailyRecords ?? []);
                 }
 
+                let nextCategories: SubjectCategory[] = [];
+                if (subjectsRes.ok) {
+                    const subjectsJson = await subjectsRes.json();
+                    if (Array.isArray(subjectsJson.subjects)) {
+                        nextCategories = subjectsJson.subjects.map((subject: any) => ({
+                            id: subject.slug ?? subject.id,
+                            name: subject.name,
+                            colorHex: subject.colorHex ?? UNKNOWN_SUBJECT_CATEGORY.colorHex,
+                            textColorHex:
+                                subject.textColorHex ?? UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+                        }));
+                    }
+                }
+
                 if (!isMounted) return;
 
                 setMentorTasks(next.mentorTasks);
                 setPlannerTasks(next.plannerTasks);
                 setPlanEvents(next.planEvents);
                 setDailyRecords(next.dailyRecords);
+                setCategories(nextCategories);
                 writeMenteeCalendarCache(cacheKey, next);
             } finally {
                 if (isMounted && !hasLoadedRef.current) {
@@ -488,6 +509,9 @@ export default function CalendarPage() {
                 date: task.deadline,
                 categoryId: task.categoryId,
                 taskType: "mentor",
+                colorHex: task.badgeColor?.bg,
+                textColorHex: task.badgeColor?.text,
+                subjectName: task.subject,
             });
         });
 
@@ -499,6 +523,9 @@ export default function CalendarPage() {
                 date: task.deadline,
                 categoryId: task.categoryId,
                 taskType: "user",
+                colorHex: task.badgeColor?.bg,
+                textColorHex: task.badgeColor?.text,
+                subjectName: task.subject,
             });
         });
 
@@ -509,6 +536,40 @@ export default function CalendarPage() {
 
         return events;
     }, [mentorTasks, plannerTasks, planEvents]);
+
+    const displayCategories = useMemo(() => {
+        const mergedFromTasks = [
+            ...mentorTasks.map((task) => ({
+                id: task.categoryId,
+                name: task.subject || task.categoryId,
+                colorHex: task.badgeColor?.bg,
+                textColorHex: task.badgeColor?.text,
+            })),
+            ...plannerTasks.map((task) => ({
+                id: task.categoryId,
+                name: task.subject || task.categoryId,
+                colorHex: task.badgeColor?.bg,
+                textColorHex: task.badgeColor?.text,
+            })),
+            ...scheduleEvents.map((event) => ({
+                id: event.categoryId,
+                name: event.subjectName || event.categoryId,
+                colorHex: event.colorHex,
+                textColorHex: event.textColorHex,
+            })),
+        ];
+
+        return mergeSubjectCategories(categories, mergedFromTasks);
+    }, [categories, mentorTasks, plannerTasks, scheduleEvents]);
+
+    const getCategoryById = useCallback(
+        (id?: string | null): SubjectCategory => {
+            if (!id) return UNKNOWN_SUBJECT_CATEGORY;
+            const found = displayCategories.find((category) => category.id === id);
+            return found ?? { ...UNKNOWN_SUBJECT_CATEGORY, id, name: id };
+        },
+        [displayCategories],
+    );
 
 
     const previousPeriod = () => {
@@ -563,6 +624,21 @@ export default function CalendarPage() {
     const selectedDateEvents = selectedDate
         ? scheduleEvents.filter(e => e.date && isSameDay(e.date, selectedDate))
         : [];
+
+    const selectedEventSections = useMemo(() => {
+        const sectionMap = new Map<string, { category: SubjectCategory; events: ScheduleEventLike[] }>();
+        selectedDateEvents.forEach((event) => {
+            const category = getCategoryById(event.categoryId);
+            const current = sectionMap.get(category.id);
+            if (current) {
+                current.events.push(event);
+                return;
+            }
+            sectionMap.set(category.id, { category, events: [event] });
+        });
+
+        return Array.from(sectionMap.values());
+    }, [selectedDateEvents, getCategoryById]);
 
     // Generate month calendar grid
     const calendarDays = [];
@@ -679,7 +755,7 @@ export default function CalendarPage() {
                                 if (dayEvents.length > 0) {
                                     const mentorEvents = dayEvents.filter(e => e.taskType === 'mentor');
                                     mentorEvents.forEach(e => {
-                                        const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                                        const category = getCategoryById(e.categoryId);
                                         keywords.push({
                                             text: e.title.split(' ')[0] + ' ' + (e.title.split(' ')[1] || ''),
                                             colorHex: category.colorHex,
@@ -690,7 +766,7 @@ export default function CalendarPage() {
                                     if (keywords.length < 3) {
                                         const userEvents = dayEvents.filter(e => e.taskType !== 'mentor');
                                         userEvents.forEach(e => {
-                                            const category = DEFAULT_CATEGORIES.find(c => c.id === e.categoryId) || DEFAULT_CATEGORIES[0];
+                                            const category = getCategoryById(e.categoryId);
                                             keywords.push({
                                                 text: e.title.split(' ')[0],
                                                 colorHex: category.colorHex,
@@ -791,10 +867,7 @@ export default function CalendarPage() {
                                     오늘의 학습 계획
                                 </h4>
                                 <div className="space-y-6">
-                                    {DEFAULT_CATEGORIES.map(category => {
-                                        const eventsInCategory = selectedDateEvents.filter(e => e.categoryId === category.id);
-                                        if (eventsInCategory.length === 0) return null;
-
+                                    {selectedEventSections.map(({ category, events }) => {
                                         return (
                                             <div key={category.id} className="space-y-4">
                                                 <div className="flex items-center gap-2 px-1">
@@ -810,7 +883,7 @@ export default function CalendarPage() {
                                                     </span>
                                                 </div>
                                                 <div className="space-y-3.5">
-                                                    {eventsInCategory.map((event, idx) => {
+                                                    {events.map((event, idx) => {
                                                         // 🔍 Resolve full task details
                                                         let fullTask: any = null;
                                                         if (event.taskType === 'mentor') {
@@ -945,21 +1018,27 @@ export default function CalendarPage() {
 
                             <div>
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">과목 선택</label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {DEFAULT_CATEGORIES.map((category) => (
-                                        <button
-                                            key={category.id}
-                                            onClick={() => setEventCategoryId(category.id)}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${eventCategoryId === category.id
-                                                ? `bg-white border-gray-300 shadow-sm`
-                                                : `bg-gray-50 border-gray-100`
-                                                }`}
-                                            style={{ color: category.textColorHex }}
-                                        >
-                                            {category.name}
-                                        </button>
-                                    ))}
-                                </div>
+                                {displayCategories.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-bold text-gray-400">
+                                        등록된 과목이 없어 과목 없이 저장됩니다.
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2 flex-wrap">
+                                        {displayCategories.map((category) => (
+                                            <button
+                                                key={category.id}
+                                                onClick={() => setEventCategoryId(category.id)}
+                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${eventCategoryId === category.id
+                                                    ? `bg-white border-gray-300 shadow-sm`
+                                                    : `bg-gray-50 border-gray-100`
+                                                    }`}
+                                                style={{ color: category.textColorHex }}
+                                            >
+                                                {category.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             <div>

@@ -1,0 +1,211 @@
+"use client";
+
+import { Input } from "@/components/ui";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
+import { Student, SUBJECT_META } from "./types";
+
+type MentorChatSidebarProps = {
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
+  students: Student[];
+  selectedStudentId: string | null;
+  isLoading: boolean;
+  onSelectStudent: (id: string) => void;
+  headingFontClassName: string;
+};
+
+export default function MentorChatSidebar({
+  isSidebarOpen,
+  setIsSidebarOpen,
+  students,
+  selectedStudentId,
+  isLoading,
+  onSelectStudent,
+  headingFontClassName,
+}: MentorChatSidebarProps) {
+  return (
+    <aside
+      className={`flex flex-col border-r border-slate-200/70 bg-gradient-to-b from-white via-slate-50 to-white transition-all duration-300 ${
+        isSidebarOpen ? "w-[22rem]" : "w-20"
+      }`}
+    >
+      {isSidebarOpen ? (
+        <>
+          <div className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p
+                  className={`${headingFontClassName} text-[11px] uppercase tracking-[0.3em] text-slate-400`}
+                >
+                  Mentor Inbox
+                </p>
+                <h2 className="text-lg font-bold text-[color:var(--chat-ink)]">채팅</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative mt-4">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="학생 이름 검색..."
+                className="h-11 border-slate-200/70 bg-white/80 pl-9 pr-10 text-sm shadow-sm focus-visible:ring-[color:var(--chat-accent)]"
+              />
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50">
+                <SlidersHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="px-5 pb-4">
+            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_12px_40px_-28px_rgba(15,23,42,0.45)]">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>오늘 응답률</span>
+                <span className="font-semibold text-slate-900">92%</span>
+              </div>
+              <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
+                <div className="h-full w-[92%] rounded-full bg-[linear-gradient(90deg,_var(--chat-accent),_var(--chat-accent-2))]" />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                <span>미응답 0건</span>
+                <span>평균 1h 14m</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-2 overflow-y-auto px-3 pb-5">
+            {students.map((student) => {
+              const subject = SUBJECT_META[student.subject];
+              const isActive = selectedStudentId === student.id;
+
+              return (
+                <button
+                  key={student.id}
+                  onClick={() => onSelectStudent(student.id)}
+                  className={`group w-full rounded-2xl border p-4 text-left transition-all ${
+                    isActive
+                      ? "border-[color:var(--chat-accent)] bg-white shadow-[0_18px_40px_-30px_rgba(15,23,42,0.5)]"
+                      : "border-transparent bg-white/60 hover:border-slate-200 hover:bg-white"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <div
+                        className={`h-11 w-11 overflow-hidden rounded-2xl bg-gradient-to-br ${subject.avatar} flex items-center justify-center text-sm font-semibold text-white shadow-sm`}
+                      >
+                        {student.avatarUrl ? (
+                          <img
+                            src={student.avatarUrl}
+                            alt={student.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          student.name[0]
+                        )}
+                      </div>
+                      <div
+                        className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${
+                          student.online ? "bg-emerald-500" : "bg-slate-400"
+                        }`}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-900">
+                          {student.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400">{student.time}</span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-[10px] text-slate-400">{student.level}</span>
+                      </div>
+                      <p className="mt-2 truncate text-xs text-slate-500">{student.lastMsg}</p>
+                    </div>
+
+                    {student.unread > 0 && (
+                      <div className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--chat-warm)] text-[10px] font-bold text-white shadow-sm">
+                        {student.unread}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+
+            {students.length === 0 && !isLoading && (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-4 py-6 text-center text-xs text-slate-400">
+                연결된 멘티가 없습니다.
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-center px-3 pt-4">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm hover:bg-slate-50"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-4 flex-1 space-y-3 overflow-y-auto px-2 pb-4">
+            {students.map((student) => {
+              const subject = SUBJECT_META[student.subject];
+              const isActive = selectedStudentId === student.id;
+
+              return (
+                <button
+                  key={student.id}
+                  onClick={() => onSelectStudent(student.id)}
+                  className={`relative flex w-full items-center justify-center rounded-2xl border p-2 transition-all ${
+                    isActive
+                      ? "border-[color:var(--chat-accent)] bg-white shadow-[0_12px_30px_-22px_rgba(15,23,42,0.55)]"
+                      : "border-transparent bg-white/60 hover:border-slate-200 hover:bg-white"
+                  }`}
+                >
+                  <div
+                    className={`h-11 w-11 overflow-hidden rounded-2xl bg-gradient-to-br ${subject.avatar} flex items-center justify-center text-sm font-semibold text-white shadow-sm`}
+                  >
+                    {student.avatarUrl ? (
+                      <img
+                        src={student.avatarUrl}
+                        alt={student.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      student.name[0]
+                    )}
+                  </div>
+                  <span
+                    className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${
+                      student.online ? "bg-emerald-500" : "bg-slate-400"
+                    }`}
+                  />
+                  {student.unread > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--chat-warm)] text-[10px] font-bold text-white shadow-sm">
+                      {student.unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </aside>
+  );
+}

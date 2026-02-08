@@ -13,15 +13,15 @@ import {
   Calendar as CalendarIcon,
   CheckCircle2,
 } from "lucide-react";
-import { MentorMentee } from "@/features/mentor/types";
+import { MentorMentee } from "@/types/mentor";
 import { useModal } from "@/contexts/ModalContext";
 import { createPortal } from "react-dom";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
-import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import AssignTaskModal from "@/components/mentor/tasks/AssignTaskModal";
+import { UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
 type StudentDetailClientProps = {
   mentorId: string;
@@ -122,6 +122,27 @@ export default function StudentDetailClient({
     );
   });
 
+  const derivedCategories = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; colorHex: string; textColorHex: string }
+    >();
+
+    currentDateTasks.forEach((task) => {
+      const id = String(task.categoryId || task.subject || "").trim() || "unknown";
+      if (map.has(id)) return;
+      map.set(id, {
+        id,
+        name: String(task.subject || id),
+        colorHex: task.badgeColor?.bg || UNKNOWN_SUBJECT_CATEGORY.colorHex,
+        textColorHex:
+          task.badgeColor?.text || UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+      });
+    });
+
+    return Array.from(map.values());
+  }, [currentDateTasks]);
+
   // Apply UI Filters for List View
   const filteredListTasks = currentDateTasks.filter((task) => {
     if (
@@ -138,23 +159,23 @@ export default function StudentDetailClient({
   });
 
   const filterCategoryOptions = useMemo(() => {
-    const optionMap = new Map<string, string>();
+    const optionMap = new Map<string, string>(
+      derivedCategories.map((category) => [category.id, category.name]),
+    );
 
     currentDateTasks.forEach((task) => {
       const value = String(task.categoryId || task.subject || "").trim();
       if (!value || optionMap.has(value)) return;
-
-      const matched = DEFAULT_CATEGORIES.find((c) => c.id === value);
-      optionMap.set(value, matched?.name || task.subject || value);
+      optionMap.set(value, task.subject || value);
     });
 
     return Array.from(optionMap.entries()).map(([value, label]) => ({
       value,
       label,
     }));
-  }, [currentDateTasks]);
+  }, [currentDateTasks, derivedCategories]);
 
-  const listSections = DEFAULT_CATEGORIES.map((category) => ({
+  const listSections = derivedCategories.map((category) => ({
     category,
     tasks: filteredListTasks.filter((t) => t.categoryId === category.id),
   })).filter((section) => section.tasks.length > 0);
@@ -638,7 +659,7 @@ export default function StudentDetailClient({
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-4">과목별 진행률</h3>
             <div className="space-y-4">
-              {DEFAULT_CATEGORIES.map((category) => {
+              {derivedCategories.map((category) => {
                 const catTasks = currentDateTasks.filter(
                   (t) => t.categoryId === category.id,
                 );

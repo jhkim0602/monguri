@@ -1,6 +1,9 @@
 "use client";
 
-import { SCHEDULE_HOURS } from "@/constants/mentee";
+const SCHEDULE_HOURS = Array.from({ length: 19 }, (_, i) => {
+    const hour = i + 6;
+    return hour < 10 ? `0${hour}` : `${hour}`;
+});
 
 interface StudyTimelineProps {
     studyTimeBlocks: { [key: string]: string };

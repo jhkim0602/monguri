@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
     ChevronLeft,
     ChevronRight,
@@ -11,7 +11,6 @@ import {
     Check,
     Loader2
 } from "lucide-react";
-import { DEFAULT_CATEGORIES } from "@/constants/common";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 import Header from "@/components/mentee/layout/Header";
@@ -31,12 +30,17 @@ import {
     readMenteePlannerCache,
     writeMenteePlannerCache
 } from "@/lib/menteePlannerCache";
+import {
+    mergeSubjectCategories,
+    UNKNOWN_SUBJECT_CATEGORY,
+    type SubjectCategory,
+} from "@/lib/subjectCategory";
 
 export default function PlannerPage() {
     // 1. State from Sunbal + Head
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-    const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
+    const [categories, setCategories] = useState<SubjectCategory[]>([]);
+    const [selectedCategoryId, setSelectedCategoryId] = useState("");
 
     // Grid & Tasks State
     const [studyTimeBlocks, setStudyTimeBlocks] = useState<{ [key: string]: string }>({});
@@ -299,7 +303,7 @@ export default function PlannerPage() {
             if (nextCategories.find((cat) => cat.id === nextSelectedId)) {
                 return nextSelectedId;
             }
-            return nextCategories[0]?.id ?? DEFAULT_CATEGORIES[0].id;
+            return nextCategories[0]?.id ?? "";
         };
 
         if (cached) {
@@ -349,14 +353,12 @@ export default function PlannerPage() {
                     const subjectsJson = await subjectsRes.json();
                     if (Array.isArray(subjectsJson.subjects) && subjectsJson.subjects.length > 0) {
                         nextCategories = subjectsJson.subjects.map((subject: any) => {
-                            const fallback =
-                                DEFAULT_CATEGORIES.find((cat) => cat.id === subject.slug) ??
-                                DEFAULT_CATEGORIES[0];
                             return {
                                 id: subject.slug ?? subject.id,
                                 name: subject.name,
-                                colorHex: subject.colorHex ?? fallback.colorHex,
-                                textColorHex: subject.textColorHex ?? fallback.textColorHex,
+                                colorHex: subject.colorHex ?? UNKNOWN_SUBJECT_CATEGORY.colorHex,
+                                textColorHex:
+                                    subject.textColorHex ?? UNKNOWN_SUBJECT_CATEGORY.textColorHex,
                             };
                         });
                         nextSelectedCategoryId = ensureSelectedCategory(
@@ -429,6 +431,18 @@ export default function PlannerPage() {
     useEffect(() => {
         setStudyTimeBlocks(generateTimeBlocksFromTasks(tasks));
     }, [tasks]);
+
+    const displayCategories = useMemo(() => {
+        const taskCategories = tasks.map((task: any) => ({
+            id: task.categoryId,
+            name: task.subject || task.categoryId || UNKNOWN_SUBJECT_CATEGORY.name,
+            colorHex: task.badgeColor?.bg ?? UNKNOWN_SUBJECT_CATEGORY.colorHex,
+            textColorHex:
+                task.badgeColor?.text ?? UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+        }));
+
+        return mergeSubjectCategories(categories, taskCategories);
+    }, [categories, tasks]);
 
     // Load daily comment when date or menteeId changes
     useEffect(() => {
@@ -711,7 +725,7 @@ export default function PlannerPage() {
 
                 <PlannerTasks
                     tasks={tasks}
-                    categories={categories}
+                    categories={displayCategories}
                     onToggleCompletion={toggleTaskCompletion}
                     onUpdateTaskTimeRange={updateTaskTimeRange}
                     onDelete={handleDeleteRequest}
@@ -725,7 +739,7 @@ export default function PlannerPage() {
 
                 <StudyTimeline
                     studyTimeBlocks={studyTimeBlocks}
-                    categories={categories}
+                    categories={displayCategories}
                 />
             </div>
 

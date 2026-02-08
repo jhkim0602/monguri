@@ -1,5 +1,7 @@
 "use client";
 
+// 요놈은 layout.tsx에서 모달 띄울려면 어쩔 수 없다고 합니다 그래서 존재하는거니까 뭐 쩔수인거임
+
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import CommonModal, { ModalType } from "@/components/ui/CommonModal";
 

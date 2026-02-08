@@ -10,7 +10,7 @@ import {
   AlertCircle,
   User,
 } from "lucide-react";
-import { MentorMentee } from "@/features/mentor/types";
+import { MentorMentee } from "@/types/mentor";
 
 export default function StudentsClient({
   mentees,

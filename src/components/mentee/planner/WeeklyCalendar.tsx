@@ -1,7 +1,7 @@
 "use client";
 
-import { DEFAULT_CATEGORIES } from "@/constants/common";
 import type { ScheduleEventLike } from "@/lib/menteeAdapters";
+import { UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
 interface WeeklyCalendarProps {
     currentDate: Date;
@@ -14,14 +14,7 @@ export default function WeeklyCalendar({
     onDateSelect,
     scheduleEvents
 }: WeeklyCalendarProps) {
-    // Get current week dates
     const getWeekDates = () => {
-        const today = new Date(currentDate); // Base week on the selected date to allow navigation?
-        // Actually, for "Weekly Schedule", we usually want the CURRENT calendar week, not shifting with every click.
-        // But for simplicity/demo coherence, let's keep it anchored on the provided date or fixed to a specific week.
-        // Let's anchor it to the fixed mock data week (Jan 26 - Feb 5 range) closest to currentDate.
-
-        // For this specific demo, let's just stick to the week containing the selected date.
         const base = new Date(currentDate);
         const dayOfWeek = base.getDay(); // 0 (Sunday) to 6 (Saturday)
         const diff = base.getDate() - dayOfWeek; // Get Sunday
@@ -51,29 +44,29 @@ export default function WeeklyCalendar({
             (event) => event.date && isSameDay(event.date, date)
         );
 
-        // 2. Extract keywords from mentor tasks first, then plan tasks
-        // We'll prioritize Mentor Tasks titles
         let keywords: { text: string; color: { bg: string; text: string } }[] = [];
 
         if (eventsForDate.length > 0) {
             const mentorEvents = eventsForDate.filter((event) => event.taskType === 'mentor');
             mentorEvents.forEach((event) => {
-                // Find full task to get category color if needed, or use default
-                const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
                 keywords.push({
                     text: event.title.split(' ')[0] + ' ' + (event.title.split(' ')[1] || ''), // Grab first 2 words
-                    color: { bg: category.colorHex, text: category.textColorHex }
+                    color: {
+                        bg: event.colorHex ?? UNKNOWN_SUBJECT_CATEGORY.colorHex,
+                        text: event.textColorHex ?? UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+                    }
                 });
             });
 
-            // If we have space, add user tasks
             if (keywords.length < 3) {
                 const userEvents = eventsForDate.filter((event) => event.taskType !== 'mentor');
                 userEvents.forEach((event) => {
-                    const category = DEFAULT_CATEGORIES.find(c => c.id === event.categoryId) || DEFAULT_CATEGORIES[0];
                     keywords.push({
                         text: event.title.split(' ')[0], // Grab first word only for user tasks
-                        color: { bg: category.colorHex, text: category.textColorHex } // Use unified category colors
+                        color: {
+                            bg: event.colorHex ?? UNKNOWN_SUBJECT_CATEGORY.colorHex,
+                            text: event.textColorHex ?? UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+                        }
                     });
                 });
             }

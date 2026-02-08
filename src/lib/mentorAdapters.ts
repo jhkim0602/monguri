@@ -2,7 +2,7 @@ import {
   MentorMentee,
   MentorTask,
   MentorTaskStatus,
-} from "@/features/mentor/types";
+} from "@/types/mentor";
 import { MentorMenteeRow } from "@/repositories/mentorMenteeRepository";
 import { MentorTaskRow } from "@/repositories/mentorTasksRepository";
 

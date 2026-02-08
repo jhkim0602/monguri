@@ -14,22 +14,16 @@ import {
   BookOpen,
   Download,
 } from "lucide-react";
-import { STUDENTS_MOCK } from "@/constants/mentor"; // For avatars
 import { useModal } from "@/contexts/ModalContext";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
 import { FeedbackItem } from "@/services/mentorFeedbackService";
-import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { supabase } from "@/lib/supabaseClient";
 
 // --- Helpers ---
 const getStudentAvatar = (name: string, url?: string) => {
   if (url) return url;
-  const student = STUDENTS_MOCK.find((s) => s.name === name);
-  return (
-    student?.avatar ||
-    `https://ui-avatars.com/api/?name=${name}&background=random`
-  );
+  return `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(name)}`;
 };
 
 const formatDate = (date: Date) => {
@@ -59,17 +53,9 @@ const toDateKey = (value: Date | string | number) => {
 };
 
 const resolveCategoryId = (row: any) => {
-  const directSlug = row?.subjects?.slug ?? row?.subject_slug ?? null;
-  if (directSlug && DEFAULT_CATEGORIES.some((c) => c.id === directSlug)) {
-    return directSlug;
-  }
-
-  const subjectName = String(row?.subjects?.name ?? row?.subject ?? "");
-  if (subjectName.includes("국어")) return "korean";
-  if (subjectName.includes("영어")) return "english";
-  if (subjectName.includes("수학")) return "math";
-
-  return "math";
+  const direct = row?.subjects?.slug ?? row?.subject_slug ?? row?.subject_id ?? null;
+  if (direct) return String(direct);
+  return "unknown";
 };
 
 const hasUploadedSelfStudyFile = (materials: any): boolean => {
@@ -577,7 +563,7 @@ export default function FeedbackClient({
       return;
     }
 
-    // For other types (mock implementation)
+    // For other types
     openModal({
       title: "리포트 전송",
       content: "작성하신 총평을 전송하고 플래너에 반영하시겠습니까?",

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatTime } from "@/utils/timeUtils";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { mergeSubjectCategories, UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
 const calculateDuration = (start: string, end: string) => {
     if (!start || !end) return "시간 설정";
@@ -329,7 +330,15 @@ export default function PlannerTasks({
         setIsAddingCategory(false);
     };
 
-    const getCategoryById = (id: string) => categories.find(c => c.id === id) || categories[0];
+    const displayCategories = mergeSubjectCategories(
+        categories,
+        tasks.map((task: any) => ({
+            id: task.categoryId,
+            name: task.subject || task.categoryId || UNKNOWN_SUBJECT_CATEGORY.name,
+            colorHex: task.badgeColor?.bg,
+            textColorHex: task.badgeColor?.text,
+        })),
+    );
 
     return (
         <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm">
@@ -348,7 +357,7 @@ export default function PlannerTasks({
             {/* Add Task Input Section - Left Aligned */}
             <div className="mb-10 bg-gray-50/50 p-5 rounded-[24px] border border-gray-100 animate-slide-up">
                 <div className="flex flex-wrap justify-start gap-2 mb-4">
-                    {categories.map(cat => {
+                    {displayCategories.map(cat => {
                         const isSelected = selectedCategoryId === cat.id;
                         return (
                             <button
@@ -421,7 +430,7 @@ export default function PlannerTasks({
             </div>
 
             <div className="space-y-6">
-                {categories.map(category => {
+                {displayCategories.map(category => {
                     const tasksInCategory = tasks.filter(t => t.categoryId === category.id);
                     if (tasksInCategory.length === 0) return null;
 

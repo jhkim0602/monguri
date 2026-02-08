@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_CATEGORIES } from "@/constants/common";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -85,9 +84,6 @@ export default function TaskDetailView({
     status: task.status,
     studyRecord: !!task.studyRecord,
   });
-  const category =
-    DEFAULT_CATEGORIES.find((c) => c.id === task.categoryId) ||
-    DEFAULT_CATEGORIES[0];
   const isMentorTask = task.isMentorTask ?? true;
   const hasSubmissionFiles = (task.submissions?.length ?? 0) > 0;
   const isSubmitted =

@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import type { MentorTask, MentorTaskStatus } from "@/features/mentor/types";
-import { MENTOR_TASKS } from "@/constants/mentee";
+import { useEffect, useState } from "react";
+import type { MentorTask, MentorTaskStatus } from "@/types/mentor";
 
 const STATUS_LABEL: Record<MentorTaskStatus, string> = {
   pending: "대기",
@@ -11,16 +10,15 @@ const STATUS_LABEL: Record<MentorTaskStatus, string> = {
   feedback_completed: "피드백 완료",
 };
 
-const findSourceTask = (task: MentorTask) => {
-  const rawId = String(task.id);
-  const parts = rawId.split("-");
-  const sourceId = parts.length > 1 ? parts[parts.length - 1] : rawId;
-  return MENTOR_TASKS.find((item) => String(item.id) === sourceId);
+type TaskDetailSource = {
+  submissions?: Array<{ name: string }>;
+  studyRecord?: { note?: string | null } | null;
 };
 
 type TaskDetailPanelProps = {
   task: MentorTask | null;
   menteeName?: string;
+  sourceTask?: TaskDetailSource | null;
   onUpdateStatus: (status: MentorTaskStatus) => void;
   onSaveComment: (comment: string) => void;
 };
@@ -28,12 +26,11 @@ type TaskDetailPanelProps = {
 export default function TaskDetailPanel({
   task,
   menteeName,
+  sourceTask,
   onUpdateStatus,
   onSaveComment,
 }: TaskDetailPanelProps) {
   const [commentDraft, setCommentDraft] = useState("");
-
-  const sourceTask = useMemo(() => (task ? findSourceTask(task) : null), [task]);
 
   useEffect(() => {
     if (!task) return;

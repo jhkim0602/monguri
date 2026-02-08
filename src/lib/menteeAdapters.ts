@@ -1,4 +1,4 @@
-import { DEFAULT_CATEGORIES } from "@/constants/common";
+import { toSubjectCategory } from "@/lib/subjectCategory";
 
 type ApiSubject = {
   id: string;
@@ -96,15 +96,21 @@ export const parseDateString = (value: string | null) => {
 export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
   return tasks.map((task) => {
     const subject = task.subject;
-    const fallbackCategory = subject?.slug
-      ? DEFAULT_CATEGORIES.find((c) => c.id === subject.slug) ??
-        DEFAULT_CATEGORIES[0]
-      : DEFAULT_CATEGORIES[0];
-    const subjectName = subject?.name ?? fallbackCategory?.name ?? "과목";
-    const subjectColor =
-      subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
+    const subjectCategory = toSubjectCategory(
+      subject
+        ? {
+            id: subject.id,
+            slug: subject.slug,
+            name: subject.name,
+            colorHex: subject.colorHex,
+            textColorHex: subject.textColorHex,
+          }
+        : null,
+    );
+    const subjectName = subject?.name ?? subjectCategory.name;
+    const subjectColor = subject?.colorHex ?? subjectCategory.colorHex;
     const subjectTextColor =
-      subject?.textColorHex ?? fallbackCategory?.textColorHex ?? null;
+      subject?.textColorHex ?? subjectCategory.textColorHex;
     const badgeColor = task.badgeColor || {
       bg: subjectColor ?? DEFAULT_BADGE.bg,
       text: subjectTextColor ?? DEFAULT_BADGE.text,
@@ -118,7 +124,7 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
       status: task.status,
       badgeColor,
       description: task.description ?? "",
-      categoryId: subject?.slug ?? fallbackCategory?.id ?? "unknown",
+      categoryId: subjectCategory.id,
       mentorFeedback,
       mentorComment: mentorFeedback,
       deadline: parseDateString(task.deadline),
@@ -186,15 +192,21 @@ export function adaptPlannerTasksToUi(
 ): PlannerTaskLike[] {
   return tasks.map((task) => {
     const subject = task.subject;
-    const fallbackCategory = subject?.slug
-      ? DEFAULT_CATEGORIES.find((c) => c.id === subject.slug) ??
-        DEFAULT_CATEGORIES[0]
-      : DEFAULT_CATEGORIES[0];
-    const subjectName = subject?.name ?? fallbackCategory?.name ?? "과목";
-    const subjectColor =
-      subject?.colorHex ?? fallbackCategory?.colorHex ?? null;
+    const subjectCategory = toSubjectCategory(
+      subject
+        ? {
+            id: subject.id,
+            slug: subject.slug,
+            name: subject.name,
+            colorHex: subject.colorHex,
+            textColorHex: subject.textColorHex,
+          }
+        : null,
+    );
+    const subjectName = subject?.name ?? subjectCategory.name;
+    const subjectColor = subject?.colorHex ?? subjectCategory.colorHex;
     const subjectTextColor =
-      subject?.textColorHex ?? fallbackCategory?.textColorHex ?? null;
+      subject?.textColorHex ?? subjectCategory.textColorHex;
     const badgeColor = {
       bg: subjectColor ?? DEFAULT_BADGE.bg,
       text: subjectTextColor ?? DEFAULT_BADGE.text,
@@ -203,7 +215,7 @@ export function adaptPlannerTasksToUi(
     return {
       id: task.id,
       title: task.title,
-      categoryId: subject?.slug ?? fallbackCategory?.id ?? "unknown",
+      categoryId: subjectCategory.id,
       subject: subjectName,
       badgeColor,
       description: "직접 세운 학습 계획입니다.",
@@ -240,6 +252,9 @@ export type ScheduleEventLike = {
   date: Date | null;
   categoryId: string;
   taskType: "mentor" | "user" | "plan";
+  colorHex?: string;
+  textColorHex?: string;
+  subjectName?: string;
 };
 
 export function adaptPlanEventsToUi(
@@ -247,17 +262,27 @@ export function adaptPlanEventsToUi(
 ): ScheduleEventLike[] {
   return events.map((event) => {
     const subject = event.subject;
-    const fallbackCategory = subject?.slug
-      ? DEFAULT_CATEGORIES.find((c) => c.id === subject.slug) ??
-        DEFAULT_CATEGORIES[0]
-      : DEFAULT_CATEGORIES[0];
+    const subjectCategory = toSubjectCategory(
+      subject
+        ? {
+            id: subject.id,
+            slug: subject.slug,
+            name: subject.name,
+            colorHex: subject.colorHex,
+            textColorHex: subject.textColorHex,
+          }
+        : null,
+    );
 
     return {
       id: event.id,
       title: event.title,
       date: parseDateString(event.date),
-      categoryId: subject?.slug ?? fallbackCategory?.id ?? "unknown",
+      categoryId: subjectCategory.id,
       taskType: "plan",
+      colorHex: subjectCategory.colorHex,
+      textColorHex: subjectCategory.textColorHex,
+      subjectName: subjectCategory.name,
     };
   });
 }

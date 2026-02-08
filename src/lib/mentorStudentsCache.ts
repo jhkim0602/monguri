@@ -1,4 +1,4 @@
-import type { MentorMentee } from "@/features/mentor/types";
+import type { MentorMentee } from "@/types/mentor";
 
 type MentorStudentsCacheData = {
   mentees: MentorMentee[];

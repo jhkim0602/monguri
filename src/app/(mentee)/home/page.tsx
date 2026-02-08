@@ -50,6 +50,9 @@ export default function Home() {
         date: task.deadline,
         categoryId: task.categoryId,
         taskType: "mentor",
+        colorHex: task.badgeColor?.bg,
+        textColorHex: task.badgeColor?.text,
+        subjectName: task.subject,
       });
     });
 
@@ -61,6 +64,9 @@ export default function Home() {
         date: task.deadline,
         categoryId: task.categoryId,
         taskType: "user",
+        colorHex: task.badgeColor?.bg,
+        textColorHex: task.badgeColor?.text,
+        subjectName: task.subject,
       });
     });
 

@@ -22,7 +22,7 @@ import {
   Video,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { MentorMentee, MentorTask } from "@/features/mentor/types";
+import { MentorMentee, MentorTask } from "@/types/mentor";
 import { supabase } from "@/lib/supabaseClient";
 
 type UpcomingMeeting = {
