@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   X,
   Calendar,
@@ -36,6 +36,15 @@ type DirectUploadItem = {
   id: string;
   file: File;
   type: "pdf" | "image";
+};
+
+type WeaknessSolutionOption = {
+  id: string;
+  title: string;
+  subjectId: string | null;
+  subjectName: string | null;
+  materialId: string | null;
+  materialTitle: string | null;
 };
 
 const MATERIAL_TYPE_META: Record<
@@ -112,16 +121,12 @@ export default function AssignTaskModal({
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(false);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
 
-  /**
-   * [개발 가이드] 추후 백엔드 연동 시 사용할 솔루션 데이터 인터페이스
-   * interface SubjectSolution {
-   *   id: string;
-   *   name: string;
-   *   subjectId: string;
-   *   materials: { id: string; title: string; type: string; url: string; }[];
-   * }
-   */
-  // const [selectedSolutionId, setSelectedSolutionId] = useState("");
+  const [weaknessSolutions, setWeaknessSolutions] = useState<
+    WeaknessSolutionOption[]
+  >([]);
+  const [selectedSolutionId, setSelectedSolutionId] = useState("");
+  const [isSolutionsLoading, setIsSolutionsLoading] = useState(false);
+  const [solutionsError, setSolutionsError] = useState<string | null>(null);
 
   const [directUploads, setDirectUploads] = useState<DirectUploadItem[]>([]);
   const [uploadingDirectFiles, setUploadingDirectFiles] = useState(false);
@@ -135,12 +140,72 @@ export default function AssignTaskModal({
   const [deadlineTime, setDeadlineTime] = useState("23:59");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const loadSolutions = useCallback(async () => {
+    setIsSolutionsLoading(true);
+    setSolutionsError(null);
+
+    try {
+      const response = await fetch(
+        `/api/mentor/weakness-solutions?mentorId=${encodeURIComponent(mentorId)}`,
+      );
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "솔루션을 불러오지 못했습니다.");
+      }
+
+      const items = (result.data?.solutions ?? []) as WeaknessSolutionOption[];
+      setWeaknessSolutions(items);
+    } catch (error) {
+      console.error(error);
+      setSolutionsError("과목별 솔루션을 불러오지 못했습니다.");
+    } finally {
+      setIsSolutionsLoading(false);
+    }
+  }, [mentorId]);
+
+  const resetForm = () => {
+    setSubject("국어");
+    setTitle("");
+    setDescription("");
+    setDeadline("");
+    setDeadlineTime("23:59");
+    setSelectedMaterialIds([]);
+    setLibraryMaterials([]);
+    setIsLibraryOpen(false);
+    setMaterialsError(null);
+    setSelectedSolutionId("");
+    setDirectUploads([]);
+    setDirectUploadError(null);
+    setUploadingDirectFiles(false);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+      loadSolutions();
+    } else {
+      setIsLibraryOpen(false);
+      setIsSubmitting(false);
+    }
+  }, [isOpen, loadSolutions]);
+
+  useEffect(() => {
+    setSelectedSolutionId("");
+  }, [subject]);
+
   const selectedMaterials = useMemo(() => {
     const byId = new Map(libraryMaterials.map((m) => [m.id, m]));
     return selectedMaterialIds
       .map((id) => byId.get(id))
       .filter(Boolean) as MentorMaterialOption[];
   }, [libraryMaterials, selectedMaterialIds]);
+
+  const filteredSolutions = useMemo(() => {
+    return weaknessSolutions.filter(
+      (solution) => solution.subjectName === subject,
+    );
+  }, [weaknessSolutions, subject]);
 
   const handleDirectUploadChange = (files: FileList | null) => {
     if (!files) return;
@@ -216,6 +281,20 @@ export default function AssignTaskModal({
       prev.includes(materialId)
         ? prev.filter((id) => id !== materialId)
         : [...prev, materialId],
+    );
+  };
+
+  const applySolutionMaterial = async (solution: WeaknessSolutionOption) => {
+    if (!solution.materialId) return;
+
+    if (!libraryMaterials.some((item) => item.id === solution.materialId)) {
+      await loadMaterials();
+    }
+
+    setSelectedMaterialIds((prev) =>
+      prev.includes(solution.materialId!)
+        ? prev
+        : [solution.materialId!, ...prev],
     );
   };
 
@@ -511,18 +590,43 @@ export default function AssignTaskModal({
             </div>
           </div>
 
-          {/* 솔루션 선택 UI (정적 배치 - 로직 제외) */}
+          {/* 솔루션 선택 UI */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-              과목별 솔루션 (자동 구성 예정)
+              과목별 솔루션
             </label>
             <div className="relative">
               <select
-                disabled // 로직 구현 전까지 비활성화 표시
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl bg-gray-50 text-gray-400 outline-none appearance-none text-sm font-medium cursor-not-allowed"
-                defaultValue=""
+                value={selectedSolutionId}
+                onChange={async (event) => {
+                  const nextId = event.target.value;
+                  setSelectedSolutionId(nextId);
+                  const selected = filteredSolutions.find(
+                    (solution) => solution.id === nextId,
+                  );
+                  if (selected) {
+                    await applySolutionMaterial(selected);
+                  }
+                }}
+                disabled={isSolutionsLoading || filteredSolutions.length === 0}
+                className={`w-full px-4 py-2 border border-gray-200 rounded-xl outline-none appearance-none text-sm font-medium ${
+                  isSolutionsLoading || filteredSolutions.length === 0
+                    ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700"
+                }`}
               >
-                <option value="" disabled>과목을 선택하면 솔루션이 활성화됩니다</option>
+                <option value="">
+                  {isSolutionsLoading
+                    ? "솔루션 불러오는 중..."
+                    : filteredSolutions.length === 0
+                      ? "해당 과목 솔루션 없음"
+                      : "솔루션을 선택하세요"}
+                </option>
+                {filteredSolutions.map((solution) => (
+                  <option key={solution.id} value={solution.id}>
+                    {solution.title}
+                  </option>
+                ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
                 <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -530,6 +634,11 @@ export default function AssignTaskModal({
                 </svg>
               </div>
             </div>
+            {solutionsError && (
+              <p className="text-xs text-red-500 font-semibold mt-2">
+                {solutionsError}
+              </p>
+            )}
           </div>
 
           <div>

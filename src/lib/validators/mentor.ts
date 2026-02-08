@@ -95,3 +95,15 @@ export const mentorMaterialsDeleteQuerySchema = z.object({
   mentorId: uuidSchema,
   id: uuidSchema,
 });
+
+export const mentorWeaknessSolutionsCreateBodySchema = z.object({
+  mentorId: uuidSchema,
+  title: z.string().min(1).max(200),
+  subjectId: uuidSchema.optional().nullable(),
+  materialId: uuidSchema.optional().nullable(),
+});
+
+export const mentorWeaknessSolutionsDeleteQuerySchema = z.object({
+  mentorId: uuidSchema,
+  id: uuidSchema,
+});

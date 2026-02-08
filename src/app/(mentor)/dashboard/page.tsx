@@ -108,6 +108,7 @@ export default function DashboardPage() {
   return (
     <DashboardClient
       mentorName={data.mentorName}
+      mentorId={mentorId}
       mentees={data.mentees}
       recentActivity={data.recentActivity}
       recentChats={data.recentChats}

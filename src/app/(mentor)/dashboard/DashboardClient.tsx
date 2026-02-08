@@ -1,22 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useModal } from "@/contexts/ModalContext";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Calendar as CalendarIcon,
   Users,
-  TrendingUp,
   MessageSquare,
   MessageCircle,
   ChevronRight,
-  Search,
+  FileText,
+  FolderOpen,
+  Tag,
+  Paperclip,
+  Plus,
+  X,
+  Loader2,
+  RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MentorMentee, MentorTask } from "@/features/mentor/types";
+import { supabase } from "@/lib/supabaseClient";
 
 type DashboardDataProps = {
   mentorName: string;
+  mentorId?: string | null;
   mentees: MentorMentee[];
   recentActivity: MentorTask[];
   recentChats: {
@@ -44,15 +53,38 @@ type DashboardDataProps = {
   };
 };
 
+type MaterialOption = {
+  id: string;
+  title: string;
+};
+
+type SubjectOption = {
+  id: string;
+  name: string;
+  colorHex?: string | null;
+  textColorHex?: string | null;
+};
+
+type WeaknessSolution = {
+  id: string;
+  title: string;
+  subjectId: string | null;
+  subjectName: string | null;
+  materialId: string | null;
+  materialTitle: string | null;
+  createdAt: string;
+};
+
 export default function DashboardClient({
   mentorName,
+  mentorId,
   mentees,
   recentActivity,
   recentChats,
   recentFeedback,
   stats,
 }: DashboardDataProps) {
-  const { openModal } = useModal();
+  const isMountedRef = useRef(true);
 
   const formatPreviewTime = (value?: string | null) => {
     if (!value) return "";
@@ -97,6 +129,162 @@ export default function DashboardClient({
       y: 0,
       transition: { duration: 0.5 },
     },
+  };
+
+  const [materialOptions, setMaterialOptions] = useState<MaterialOption[]>([]);
+  const [isMaterialsLoading, setIsMaterialsLoading] = useState(false);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
+  const [weaknessSolutions, setWeaknessSolutions] = useState<
+    WeaknessSolution[]
+  >([]);
+  const [isSolutionsLoading, setIsSolutionsLoading] = useState(false);
+  const [solutionsError, setSolutionsError] = useState<string | null>(null);
+  const [isSolutionSubmitting, setIsSolutionSubmitting] = useState(false);
+
+  const subjectBadgeStyles: Record<string, string> = {
+    국어: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    수학: "bg-blue-50 text-blue-700 border-blue-100",
+    영어: "bg-rose-50 text-rose-700 border-rose-100",
+    기타: "bg-gray-100 text-gray-600 border-gray-200",
+  };
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadMaterials = useCallback(async () => {
+    if (!mentorId) return;
+    setIsMaterialsLoading(true);
+    setMaterialsError(null);
+
+    try {
+      const res = await fetch(
+        `/api/mentor/materials?mentorId=${encodeURIComponent(mentorId)}`,
+      );
+      const json = await res.json();
+      if (!isMountedRef.current) return;
+      if (json.success && Array.isArray(json.data)) {
+        setMaterialOptions(
+          json.data.map((item: { id: string; title: string }) => ({
+            id: item.id,
+            title: item.title,
+          })),
+        );
+      } else {
+        setMaterialsError("자료실 정보를 불러오지 못했습니다.");
+      }
+    } catch (error) {
+      if (!isMountedRef.current) return;
+      console.error("Dashboard materials fetch failed:", error);
+      setMaterialsError("자료실 정보를 불러오지 못했습니다.");
+    } finally {
+      if (isMountedRef.current) setIsMaterialsLoading(false);
+    }
+  }, [mentorId]);
+
+  useEffect(() => {
+    if (!mentorId) return;
+    loadMaterials();
+  }, [mentorId, loadMaterials]);
+
+  const loadWeaknessSolutions = useCallback(async () => {
+    if (!mentorId) return;
+    setIsSolutionsLoading(true);
+    setSolutionsError(null);
+
+    try {
+      const res = await fetch(
+        `/api/mentor/weakness-solutions?mentorId=${encodeURIComponent(mentorId)}`,
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to load solutions.");
+      }
+
+      if (!isMountedRef.current) return;
+      setWeaknessSolutions(
+        Array.isArray(json.data?.solutions) ? json.data.solutions : [],
+      );
+      setSubjectOptions(
+        Array.isArray(json.data?.subjects) ? json.data.subjects : [],
+      );
+    } catch (error) {
+      if (!isMountedRef.current) return;
+      console.error("Dashboard weakness solutions fetch failed:", error);
+      setSolutionsError("약점 맞춤 솔루션을 불러오지 못했습니다.");
+    } finally {
+      if (isMountedRef.current) setIsSolutionsLoading(false);
+    }
+  }, [mentorId]);
+
+  useEffect(() => {
+    if (!mentorId) return;
+    loadWeaknessSolutions();
+  }, [mentorId, loadWeaknessSolutions]);
+
+  useEffect(() => {
+    if (!mentorId) return;
+    const channel = supabase
+      .channel(`mentor-weakness:${mentorId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "mentor_weakness_solutions",
+          filter: `mentor_id=eq.${mentorId}`,
+        },
+        () => {
+          loadWeaknessSolutions();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mentorId, loadWeaknessSolutions]);
+
+  const handleAddWeaknessSolution = async (payload: {
+    title: string;
+    subjectId: string;
+    materialId: string;
+  }) => {
+    const trimmedTitle = payload.title.trim();
+    if (!mentorId || !trimmedTitle) return false;
+
+    setIsSolutionSubmitting(true);
+    try {
+      const response = await fetch("/api/mentor/weakness-solutions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mentorId,
+          title: trimmedTitle,
+          subjectId: payload.subjectId || null,
+          materialId: payload.materialId || null,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to create solution.");
+      }
+
+      await loadWeaknessSolutions();
+      return true;
+    } catch (error) {
+      console.error("Failed to create weakness solution:", error);
+      setSolutionsError("약점 맞춤 솔루션을 추가하지 못했습니다.");
+      return false;
+    } finally {
+      setIsSolutionSubmitting(false);
+    }
   };
 
   return (
@@ -344,43 +532,408 @@ export default function DashboardClient({
           </div>
         </div>
 
-        {/* 5. Quick Analytics / Tip (Square) - Light Theme */}
-        <div className="col-span-1 row-span-1 bg-indigo-50 rounded-3xl border border-indigo-100 p-6 flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
-          <div>
-            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center mb-3 text-indigo-600 shadow-sm border border-indigo-100">
-              <TrendingUp size={18} />
+        {/* 5. Weakness Solution (Square) */}
+        <div className="col-span-1 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                <FileText size={18} />
+              </div>
+              <h3 className="font-bold text-gray-900">약점 맞춤 솔루션</h3>
             </div>
-            <h3 className="font-bold text-lg leading-tight mb-1 text-indigo-900">
-              주간 리포트
-              <br />
-              발송일입니다!
-            </h3>
-            <p className="text-indigo-600/80 text-xs font-medium">
-              이번 주 학습 데이터를 확인하세요.
-            </p>
-            <button
-              onClick={() =>
-                openModal({
-                  title: "리포트 생성",
-                  content:
-                    "주간 학습 리포트 생성을 시작하시겠습니까?\n생성에는 약 1-2분이 소요될 수 있습니다.",
-                  type: "confirm",
-                  confirmText: "생성 시작",
-                  onConfirm: () =>
-                    openModal({
-                      title: "생성 완료",
-                      content:
-                        "✅ 주간 리포트가 성공적으로 생성되었습니다. 다운로드를 시작합니다.",
-                      type: "success",
-                    }),
-                })
-              }
-              className="w-full py-2.5 bg-white text-indigo-600 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-colors shadow-sm border border-indigo-100 z-10 flex items-center justify-center gap-2"
+            <Link
+              href="/materials"
+              className="text-xs font-bold text-gray-400 hover:text-gray-900 flex items-center gap-1"
             >
-              리포트 생성 <ArrowUpRight size={14} />
+              자료실 <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          <p className="text-[11px] text-gray-400 mb-3">
+            보완점에 맞는 자료를 바로 연결합니다.
+          </p>
+
+          <div className="grid grid-cols-[minmax(0,1fr)_max-content_minmax(0,1fr)] gap-3 text-[11px] text-gray-400 font-bold pb-2 border-b border-gray-100">
+            <div className="flex items-center gap-1">
+              <FileText size={12} />
+              보완점
+            </div>
+            <div className="flex items-center gap-1">
+              <Tag size={12} />
+              과목
+            </div>
+            <div className="flex items-center gap-1">
+              <Paperclip size={12} />
+              참고자료
+            </div>
+          </div>
+          {solutionsError && (
+            <p className="mt-1 text-[10px] text-rose-400">{solutionsError}</p>
+          )}
+
+          <div className="mt-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-1">
+              {isSolutionsLoading && weaknessSolutions.length === 0 && (
+                <div className="py-6 text-center text-xs text-gray-400 font-medium">
+                  약점 맞춤 솔루션 불러오는 중...
+                </div>
+              )}
+              {!isSolutionsLoading && weaknessSolutions.length === 0 && (
+                <div className="py-6 text-center text-xs text-gray-400 font-medium">
+                  등록된 솔루션이 없습니다.
+                </div>
+              )}
+              {weaknessSolutions.map((item) => {
+                const subjectLabel =
+                  item.subjectName ||
+                  subjectOptions.find((option) => option.id === item.subjectId)
+                    ?.name ||
+                  "기타";
+                const subjectStyle =
+                  subjectBadgeStyles[subjectLabel] ||
+                  "bg-gray-50 text-gray-600 border-gray-200";
+                const materialLabel =
+                  item.materialTitle ||
+                  materialOptions.find(
+                    (option) => option.id === item.materialId,
+                  )?.title ||
+                  "";
+
+                return (
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-[minmax(0,1fr)_max-content_minmax(0,1fr)] gap-3 items-center py-2 px-2 -mx-2 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-gray-800 truncate">
+                        {item.title}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${subjectStyle}`}
+                    >
+                      {subjectLabel}
+                    </span>
+                    <div className="flex items-center gap-2 min-w-0 text-xs text-gray-500">
+                      <Paperclip size={12} className="text-gray-400" />
+                      {!materialLabel ? (
+                        <span className="text-[11px] text-gray-300">
+                          자료 없음
+                        </span>
+                      ) : (
+                        <span className="truncate">{materialLabel}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="mt-2 w-full flex items-center gap-2 px-2 py-2 text-xs font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+              >
+                <span className="w-7 h-7 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center">
+                  <Plus size={14} />
+                </span>
+                새 항목 추가
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <AddWeaknessSolutionModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        materialOptions={materialOptions}
+        isMaterialsLoading={isMaterialsLoading}
+        materialsError={materialsError}
+        onReloadMaterials={loadMaterials}
+        subjectOptions={subjectOptions}
+        isSubmitting={isSolutionSubmitting}
+        onSubmit={async (payload) => {
+          const success = await handleAddWeaknessSolution(payload);
+          if (success) setIsAddModalOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+function AddWeaknessSolutionModal({
+  isOpen,
+  onClose,
+  materialOptions,
+  isMaterialsLoading,
+  materialsError,
+  onReloadMaterials,
+  subjectOptions,
+  isSubmitting,
+  onSubmit,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  materialOptions: MaterialOption[];
+  isMaterialsLoading: boolean;
+  materialsError: string | null;
+  onReloadMaterials: () => void;
+  subjectOptions: SubjectOption[];
+  isSubmitting: boolean;
+  onSubmit: (payload: {
+    title: string;
+    subjectId: string;
+    materialId: string;
+  }) => Promise<void> | void;
+}) {
+  const [title, setTitle] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [materialId, setMaterialId] = useState("");
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTitle("");
+      setSubjectId("");
+      setMaterialId("");
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!subjectId && subjectOptions.length > 0) {
+      setSubjectId(subjectOptions[0].id);
+    }
+  }, [isOpen, subjectId, subjectOptions]);
+
+  if (!isOpen) return null;
+
+  if (isLibraryOpen) {
+    return (
+      <div className="fixed inset-0 z-[120] flex items-center justify-center">
+        <div
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={() => setIsLibraryOpen(false)}
+        />
+        <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <FolderOpen size={20} className="text-amber-600" /> 자료 선택
+            </h3>
+            <button
+              onClick={() => setIsLibraryOpen(false)}
+              className="text-gray-400 hover:text-gray-900"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div className="p-4 max-h-[400px] overflow-y-auto">
+            {isMaterialsLoading && (
+              <div className="py-12 flex items-center justify-center text-gray-500 text-sm font-medium gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                자료실 불러오는 중...
+              </div>
+            )}
+
+            {!isMaterialsLoading && materialsError && (
+              <div className="py-8 flex flex-col items-center gap-3 text-center">
+                <p className="text-sm font-medium text-red-500">
+                  {materialsError}
+                </p>
+                <button
+                  onClick={onReloadMaterials}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <RefreshCw size={14} />
+                  다시 시도
+                </button>
+              </div>
+            )}
+
+            {!isMaterialsLoading &&
+              !materialsError &&
+              materialOptions.length === 0 && (
+                <div className="py-12 text-center text-sm text-gray-500 font-medium">
+                  자료실에 등록된 자료가 없습니다.
+                </div>
+              )}
+
+            {!isMaterialsLoading &&
+              !materialsError &&
+              materialOptions.map((material) => {
+                const isSelected = material.id === materialId;
+
+                return (
+                  <div
+                    key={material.id}
+                    onClick={() => setMaterialId(material.id)}
+                    className={`flex items-center justify-between p-3.5 mb-2 rounded-xl border transition-all cursor-pointer ${isSelected
+                      ? "bg-amber-50/80 border-amber-300 ring-1 ring-amber-200 shadow-sm"
+                      : "bg-white border-gray-200 hover:border-amber-200 hover:bg-amber-50/30"
+                      }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+                        <FileText size={17} />
+                      </div>
+
+                      <div
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isSelected
+                          ? "bg-amber-500 border-amber-500 text-white"
+                          : "border-gray-300 bg-white"
+                          }`}
+                      >
+                        {isSelected && <CheckCircle2 size={12} />}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-gray-900 leading-tight truncate">
+                          {material.title}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-1 truncate">
+                          자료실 파일
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+          <div className="px-6 py-4 bg-gray-50 flex justify-end">
+            <button
+              onClick={() => setIsLibraryOpen(false)}
+              className="px-6 py-2 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 shadow-lg"
+            >
+              선택 완료 {materialId ? "(1)" : "(0)"}
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full max-w-lg rounded-[28px] p-7 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 border border-gray-100"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 leading-tight">
+              약점 맞춤 솔루션 추가
+            </h2>
+            <p className="text-gray-500 font-medium text-sm mt-1">
+              보완점과 과목을 입력하고 자료실 자료를 연결하세요.
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
+            <FileText size={22} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit({ title, subjectId, materialId });
+          }}
+          className="space-y-6"
+        >
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 block ml-1">
+              보완점 제목
+            </label>
+            <input
+              required
+              type="text"
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all shadow-sm"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="예: 문법 복습지"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 block ml-1">
+                과목
+              </label>
+              <select
+                value={subjectId}
+                onChange={(event) => setSubjectId(event.target.value)}
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all shadow-sm"
+              >
+                {subjectOptions.length === 0 && (
+                  <option value="" disabled>
+                    과목 없음
+                  </option>
+                )}
+                {subjectOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 block ml-1">
+                참고자료 (자료실)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  onReloadMaterials();
+                  setIsLibraryOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-amber-200 rounded-2xl text-amber-700 font-bold text-sm hover:bg-amber-50/60 transition-all"
+              >
+                <FolderOpen size={16} />
+                자료실에서 파일 가져오기
+              </button>
+            </div>
+          </div>
+
+          {materialId && (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <FileText size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">
+                    {materialOptions.find((item) => item.id === materialId)
+                      ?.title || "선택한 자료"}
+                  </p>
+                  <p className="text-[11px] text-gray-400">자료실 파일</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMaterialId("")}
+                className="text-gray-400 hover:text-red-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={!title.trim() || isSubmitting || subjectOptions.length === 0}
+              className="px-4 py-2 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "추가 중..." : "추가하기"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
