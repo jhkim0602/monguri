@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { ArrowLeft, Save, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Upload } from "lucide-react";
 import Link from "next/link";
-import ColumnEditor from "@/components/common/editor/ColumnEditor";
+import ColumnBlockNoteEditor from "@/components/common/editor/BlockNoteEditor";
 import { COLUMN_SERIES } from "@/constants/mentee/columns";
 
 export default function EditColumnPage({ params }: { params: { id: string } }) {
@@ -196,7 +196,10 @@ export default function EditColumnPage({ params }: { params: { id: string } }) {
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700">내용</label>
-            <ColumnEditor content={content} onChange={setContent} />
+            <ColumnBlockNoteEditor
+              initialContent={content}
+              onChange={setContent}
+            />
           </div>
         </div>
 

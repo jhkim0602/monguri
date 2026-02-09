@@ -5,7 +5,9 @@ import "@blocknote/mantine/style.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { BlockNoteEditor, PartialBlock } from "@blocknote/core";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { isLikelyHtml } from "@/lib/columnContent";
 
 interface BlockNoteEditorProps {
   initialContent?: string;
@@ -18,6 +20,9 @@ export default function BlockNoteEditorClient({
   onChange,
   editable = true,
 }: BlockNoteEditorProps) {
+  const lastEmittedContentRef = useRef<string | null>(null);
+  const lastLoadedExternalContentRef = useRef<string | null>(null);
+
   // Image upload handler for Supabase
   const handleUpload = async (file: File): Promise<string> => {
     try {
@@ -61,38 +66,91 @@ export default function BlockNoteEditorClient({
     }
   };
 
-  // Parse initial content
-  const getInitialContent = (): PartialBlock[] | undefined => {
-    if (!initialContent || initialContent.trim() === "") {
-      return undefined;
-    }
-
-    try {
-      return JSON.parse(initialContent) as PartialBlock[];
-    } catch {
-      // If HTML, strip tags and create paragraph
-      const text = initialContent.replace(/<[^>]*>/g, " ").trim();
-      if (!text) return undefined;
-
-      return [
-        {
-          type: "paragraph",
-          content: text,
-        },
-      ] as PartialBlock[];
-    }
-  };
-
   const editor: BlockNoteEditor = useCreateBlockNote({
-    initialContent: getInitialContent(),
+    initialContent: [
+      {
+        type: "paragraph",
+        content: "",
+      },
+    ],
     uploadFile: handleUpload,
   });
 
+  useEffect(() => {
+    const nextRaw = initialContent ?? "";
+
+    if (lastLoadedExternalContentRef.current === nextRaw) {
+      return;
+    }
+
+    if (lastEmittedContentRef.current === nextRaw) {
+      lastLoadedExternalContentRef.current = nextRaw;
+      return;
+    }
+
+    const trimmed = nextRaw.trim();
+    let parsedBlocks: PartialBlock[] = [
+      {
+        type: "paragraph",
+        content: "",
+      },
+    ];
+
+    if (trimmed) {
+      try {
+        const parsedJson = JSON.parse(trimmed);
+        if (Array.isArray(parsedJson) && parsedJson.length > 0) {
+          parsedBlocks = parsedJson as PartialBlock[];
+        } else {
+          parsedBlocks = [
+            {
+              type: "paragraph",
+              content: trimmed,
+            },
+          ];
+        }
+      } catch {
+        try {
+          const converted = isLikelyHtml(trimmed)
+            ? editor.tryParseHTMLToBlocks(trimmed)
+            : editor.tryParseMarkdownToBlocks(trimmed);
+
+          if (converted.length > 0) {
+            parsedBlocks = converted as PartialBlock[];
+          } else {
+            parsedBlocks = [
+              {
+                type: "paragraph",
+                content: trimmed,
+              },
+            ];
+          }
+        } catch (parseError) {
+          console.error("Failed to parse column content:", parseError);
+          parsedBlocks = [
+            {
+              type: "paragraph",
+              content: trimmed,
+            },
+          ];
+        }
+      }
+    }
+
+    const currentBlockIds = editor.document.map((block) => block.id);
+    if (currentBlockIds.length > 0) {
+      editor.replaceBlocks(currentBlockIds, parsedBlocks);
+    }
+
+    lastLoadedExternalContentRef.current = nextRaw;
+  }, [editor, initialContent]);
+
   // Handle content changes
-  const handleChange = async () => {
+  const handleChange = () => {
     if (onChange) {
-      const html = await editor.blocksToHTMLLossy(editor.document);
-      onChange(html);
+      const markdown = editor.blocksToMarkdownLossy(editor.document);
+      lastEmittedContentRef.current = markdown;
+      onChange(markdown);
     }
   };
 

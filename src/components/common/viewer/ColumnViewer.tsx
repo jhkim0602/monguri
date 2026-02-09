@@ -4,12 +4,15 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { useEffect } from "react";
+import { normalizeColumnContent } from "@/lib/columnContent";
 
 interface ViewerProps {
   content: string;
 }
 
 export default function ColumnViewer({ content }: ViewerProps) {
+  const normalizedContent = normalizeColumnContent(content);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -22,7 +25,7 @@ export default function ColumnViewer({ content }: ViewerProps) {
         },
       }),
     ],
-    content,
+    content: normalizedContent,
     editable: false,
     editorProps: {
       attributes: {
@@ -33,10 +36,10 @@ export default function ColumnViewer({ content }: ViewerProps) {
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    if (editor && normalizedContent !== editor.getHTML()) {
+      editor.commands.setContent(normalizedContent);
     }
-  }, [content, editor]);
+  }, [normalizedContent, editor]);
 
   if (!editor) {
     return null;
