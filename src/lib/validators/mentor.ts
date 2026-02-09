@@ -98,6 +98,21 @@ export const mentorMaterialsDeleteQuerySchema = z.object({
   id: uuidSchema,
 });
 
+export const mentorProfileUpdateBodySchema = z
+  .object({
+    mentorId: uuidSchema,
+    name: z.string().min(1).max(100).optional(),
+    intro: z.string().max(500).optional().nullable(),
+    avatar_url: z.string().url().max(500).optional().nullable(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.intro !== undefined ||
+      data.avatar_url !== undefined,
+    { message: "No fields to update." },
+  );
+
 export const mentorWeaknessSolutionsCreateBodySchema = z.object({
   mentorId: uuidSchema,
   title: z.string().min(1).max(200),
