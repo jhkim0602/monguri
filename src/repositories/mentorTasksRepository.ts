@@ -65,6 +65,8 @@ export type MentorTaskRow = {
         comment: string | null;
         rating: number | null;
         status: "pending" | "reviewed";
+        is_read?: boolean | null;
+        read_at?: string | null;
         created_at: string;
       }[]
     | null;
@@ -151,6 +153,8 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
         comment,
         rating,
         status,
+        is_read,
+        read_at,
         created_at
       )
     `,
@@ -267,6 +271,8 @@ export async function getTasksByMentorId(mentorId: string) {
         comment,
         rating,
         status,
+        is_read,
+        read_at,
         created_at
       ),
       mentee:profiles!mentor_tasks_mentee_id_fkey(
@@ -350,6 +356,8 @@ export async function getTasksWithSubmissionsByMentorId(mentorId: string) {
         comment,
         rating,
         status,
+        is_read,
+        read_at,
         created_at
       ),
       mentee:profiles!mentor_tasks_mentee_id_fkey(

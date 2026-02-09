@@ -49,6 +49,8 @@ type ApiMentorTask = {
     comment: string | null;
     rating: number | null;
     status: "pending" | "reviewed";
+    isRead?: boolean | null;
+    readAt?: string | null;
     createdAt: string;
   } | null;
   hasMentorResponse?: boolean;
@@ -75,6 +77,9 @@ export type MentorTaskLike = {
   completed: boolean;
   studyRecord: any;
   hasMentorResponse: boolean;
+  latestFeedbackId?: string;
+  feedbackIsRead?: boolean;
+  feedbackReadAt?: string | null;
   submissionNote?: string | null;
   submittedAt?: string | null;
   startTime?: string;
@@ -138,6 +143,9 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
         typeof task.hasMentorResponse === "boolean"
           ? task.hasMentorResponse
           : Boolean(task.latestFeedback),
+      latestFeedbackId: task.latestFeedback?.id,
+      feedbackIsRead: task.latestFeedback?.isRead ?? false,
+      feedbackReadAt: task.latestFeedback?.readAt ?? null,
       submissionNote: task.submissionNote ?? task.latestSubmission?.note ?? null,
       submittedAt:
         task.submittedAt ?? task.latestSubmission?.submittedAt ?? null,
@@ -150,11 +158,15 @@ type ApiPlannerTask = {
   menteeId: string;
   subject: ApiSubject | null;
   title: string;
+  description?: string | null;
   date: string;
   completed: boolean;
   timeSpentSec: number | null;
   startTime: string | null;
   endTime: string | null;
+  materials?: any[] | null;
+  mentorComment?: string | null;
+  isMentorTask?: boolean;
   recurringGroupId: string | null;
   createdAt: string;
 };
@@ -187,6 +199,92 @@ export type PlannerTaskLike = {
   recurringGroupId?: string | null;
 };
 
+const resolveMaterialType = (material: Record<string, any>) => {
+  const rawType = String(
+    material.type ??
+      material.fileType ??
+      material.mimeType ??
+      material.mime_type ??
+      "",
+  ).toLowerCase();
+
+  if (rawType === "pdf" || rawType === "application/pdf") return "pdf";
+  if (rawType === "image" || rawType.startsWith("image/")) return "image";
+
+  const rawName = String(
+    material.name ??
+      material.title ??
+      material.originalName ??
+      material.original_name ??
+      material.path ??
+      material.url ??
+      "",
+  ).toLowerCase();
+
+  if (rawName.endsWith(".pdf") || rawName.includes(".pdf?")) return "pdf";
+  if (/\.(png|jpe?g|gif|webp|bmp|heic|heif|svg)(\?|$)/.test(rawName)) {
+    return "image";
+  }
+
+  return null;
+};
+
+const toStudyRecord = (materials: any[] | null | undefined) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  const attachments: any[] = [];
+  let note: string | null = null;
+
+  for (const raw of materials) {
+    if (!raw || typeof raw !== "object") continue;
+
+    if (raw.type === "note" || typeof raw.note === "string") {
+      const nextNote = String(raw.note ?? "").trim();
+      if (nextNote) note = nextNote;
+      continue;
+    }
+
+    const type = resolveMaterialType(raw);
+    if (!type) continue;
+
+    const fileId =
+      typeof raw.fileId === "string"
+        ? raw.fileId
+        : typeof raw.file_id === "string"
+          ? raw.file_id
+          : undefined;
+    const previewUrl =
+      typeof raw.previewUrl === "string"
+        ? raw.previewUrl
+        : typeof raw.preview_url === "string"
+          ? raw.preview_url
+          : null;
+    const url = typeof raw.url === "string" ? raw.url : null;
+
+    attachments.push({
+      id: fileId ?? (typeof raw.id === "string" ? raw.id : undefined),
+      fileId,
+      name: String(raw.name ?? raw.title ?? raw.originalName ?? "학습 기록 자료"),
+      type,
+      previewUrl,
+      url,
+    });
+  }
+
+  if (attachments.length === 0 && !note) return null;
+
+  const photos = attachments
+    .filter((item) => item.type === "image")
+    .map((item) => item.previewUrl ?? item.url)
+    .filter((item): item is string => Boolean(item));
+
+  return {
+    attachments,
+    photos,
+    note,
+  };
+};
+
 export function adaptPlannerTasksToUi(
   tasks: ApiPlannerTask[],
 ): PlannerTaskLike[] {
@@ -211,6 +309,10 @@ export function adaptPlannerTasksToUi(
       bg: subjectColor ?? DEFAULT_BADGE.bg,
       text: subjectTextColor ?? DEFAULT_BADGE.text,
     };
+    const studyRecord = toStudyRecord(task.materials);
+    const hasStudyRecord = Boolean(studyRecord);
+    const hasMentorResponse = Boolean(task.mentorComment?.trim());
+    const isCompleted = task.completed || hasStudyRecord;
 
     return {
       id: task.id,
@@ -218,19 +320,19 @@ export function adaptPlannerTasksToUi(
       categoryId: subjectCategory.id,
       subject: subjectName,
       badgeColor,
-      description: "직접 세운 학습 계획입니다.",
-      status: task.completed ? "submitted" : "pending",
+      description: task.description ?? "직접 세운 학습 계획입니다.",
+      status: isCompleted ? "submitted" : "pending",
       deadline: parseDateString(task.date),
-      completed: task.completed,
+      completed: isCompleted,
       timeSpent: task.timeSpentSec ?? 0,
       isRunning: false,
       isMentorTask: false,
-      studyRecord: null,
+      studyRecord,
       attachments: [],
       submissions: [],
       feedbackFiles: [],
-      mentorComment: "",
-      hasMentorResponse: false,
+      mentorComment: task.mentorComment ?? "",
+      hasMentorResponse,
       startTime: task.startTime ?? undefined,
       endTime: task.endTime ?? undefined,
       recurringGroupId: task.recurringGroupId,

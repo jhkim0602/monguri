@@ -1,16 +1,63 @@
 "use client";
 
 import { ChevronRight, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import type { MentorTaskLike } from "@/lib/menteeAdapters";
 
 interface HomeTasksProps {
     tasks?: MentorTaskLike[];
+    menteeId?: string | null;
+    onFeedbackRead?: (taskId: string, feedbackId?: string) => void;
 }
 
-export default function HomeTasks({ tasks = [] }: HomeTasksProps) {
-    // Filter tasks that have feedback
-    const feedbackTasks = tasks.filter(t => t.status === 'feedback_completed' || t.hasMentorResponse);
+export default function HomeTasks({
+    tasks = [],
+    menteeId,
+    onFeedbackRead,
+}: HomeTasksProps) {
+    const router = useRouter();
+    const [hiddenFeedbackKeys, setHiddenFeedbackKeys] = useState<string[]>([]);
+
+    const feedbackTasks = useMemo(
+        () =>
+            tasks.filter((task) => {
+                const taskId = String(task.id);
+                const feedbackKey = task.latestFeedbackId || taskId;
+                const hasFeedback =
+                    task.status === "feedback_completed" || task.hasMentorResponse;
+                if (!hasFeedback) return false;
+                if (task.feedbackIsRead) return false;
+                if (hiddenFeedbackKeys.includes(feedbackKey)) return false;
+                return true;
+            }),
+        [tasks, hiddenFeedbackKeys],
+    );
+
+    const handleFeedbackClick = async (task: MentorTaskLike) => {
+        const taskId = String(task.id);
+        const feedbackKey = task.latestFeedbackId || taskId;
+
+        setHiddenFeedbackKeys((prev) =>
+            prev.includes(feedbackKey) ? prev : [...prev, feedbackKey],
+        );
+        onFeedbackRead?.(taskId, task.latestFeedbackId);
+
+        if (menteeId) {
+            try {
+                await fetch(`/api/mentee/tasks/${taskId}/feedback`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ menteeId }),
+                });
+            } catch (error) {
+                console.error("Failed to mark feedback as read", error);
+            }
+        }
+
+        router.push(`/planner/${taskId}`);
+    };
 
     return (
         <section className="px-6 mb-10">
@@ -33,10 +80,11 @@ export default function HomeTasks({ tasks = [] }: HomeTasksProps) {
             <div className="space-y-3">
                 {feedbackTasks.length > 0 ? (
                     feedbackTasks.slice(0, 3).map((task) => (
-                        <Link
+                        <button
                             key={task.id}
-                            href={`/planner/${task.id}`}
-                            className="p-4 rounded-2xl bg-white border border-purple-100 shadow-sm flex items-start gap-3 cursor-pointer hover:bg-purple-50 transition-colors"
+                            type="button"
+                            onClick={() => handleFeedbackClick(task)}
+                            className="w-full text-left p-4 rounded-2xl bg-white border border-purple-100 shadow-sm flex items-start gap-3 cursor-pointer hover:bg-purple-50 transition-colors"
                         >
                             <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
                                 <MessageCircle size={16} className="fill-purple-100" />
@@ -62,7 +110,7 @@ export default function HomeTasks({ tasks = [] }: HomeTasksProps) {
                                 </p>
                             </div>
                             <ChevronRight size={16} className="text-gray-300 mt-2" />
-                        </Link>
+                        </button>
                     ))
                 ) : (
                      <div className="py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">

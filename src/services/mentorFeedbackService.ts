@@ -15,6 +15,16 @@ export type FeedbackItem = {
   data: any;
 };
 
+const pickLatestSubmission = (submissions: any[] | null | undefined) => {
+  if (!Array.isArray(submissions) || submissions.length === 0) return null;
+
+  return [...submissions].sort((a, b) => {
+    const aTime = new Date(a?.submitted_at ?? 0).getTime();
+    const bTime = new Date(b?.submitted_at ?? 0).getTime();
+    return bTime - aTime;
+  })[0];
+};
+
 export async function getPendingFeedbackItems(
   mentorId: string,
 ): Promise<FeedbackItem[]> {
@@ -28,46 +38,54 @@ export async function getPendingFeedbackItems(
     (row) => row.status === "submitted" && !(row.task_feedback?.length ?? 0),
   );
 
-  const taskItems: FeedbackItem[] = pendingTaskRows.map((row) => ({
-    id: `task-${row.id}`,
-    type: "task",
-    studentId: row.mentee_id,
-    studentName: row.mentee?.name || "알 수 없음",
-    avatarUrl: row.mentee?.avatar_url || undefined,
-    title: row.title,
-    subtitle: row.subjects?.name || "기타",
-    date: new Date(row.task_submissions?.[0]?.submitted_at || row.created_at),
-    status: row.status === "feedback_completed" ? "reviewed" : row.status,
-    data: {
-      ...row,
-      submissions:
-        row.task_submissions?.flatMap((submission) => {
-          const files = submission.task_submission_files ?? [];
-          if (files.length === 0) {
-            return [
-              {
-                name: `제출 파일 (${new Date(submission.submitted_at).toLocaleDateString()})`,
-                fileId: "",
-                type: "file",
-              },
-            ];
-          }
+  const taskItems: FeedbackItem[] = pendingTaskRows.map((row) => {
+    const latestSubmission = pickLatestSubmission(row.task_submissions);
 
-          return files.map((item) => {
-            const file = item.file;
-            const mimeType = file?.mime_type ?? "";
-            const isPdf =
-              mimeType === "application/pdf" ||
-              (file?.original_name ?? "").toLowerCase().endsWith(".pdf");
-            return {
-              name: file?.original_name ?? "첨부 파일",
-              fileId: item.file_id,
-              type: isPdf ? "pdf" : "image",
-            };
-          });
-        }) ?? [],
-    },
-  }));
+    return {
+      id: `task-${row.id}`,
+      type: "task",
+      studentId: row.mentee_id,
+      studentName: row.mentee?.name || "알 수 없음",
+      avatarUrl: row.mentee?.avatar_url || undefined,
+      title: row.title,
+      subtitle: row.subjects?.name || "기타",
+      date: new Date(latestSubmission?.submitted_at || row.created_at),
+      status: row.status === "feedback_completed" ? "reviewed" : row.status,
+      data: {
+        ...row,
+        submissionNote:
+          typeof latestSubmission?.note === "string"
+            ? latestSubmission.note
+            : null,
+        submissions:
+          row.task_submissions?.flatMap((submission) => {
+            const files = submission.task_submission_files ?? [];
+            if (files.length === 0) {
+              return [
+                {
+                  name: `제출 파일 (${new Date(submission.submitted_at).toLocaleDateString()})`,
+                  fileId: "",
+                  type: "file",
+                },
+              ];
+            }
+
+            return files.map((item) => {
+              const file = item.file;
+              const mimeType = file?.mime_type ?? "";
+              const isPdf =
+                mimeType === "application/pdf" ||
+                (file?.original_name ?? "").toLowerCase().endsWith(".pdf");
+              return {
+                name: file?.original_name ?? "첨부 파일",
+                fileId: item.file_id,
+                type: isPdf ? "pdf" : "image",
+              };
+            });
+          }) ?? [],
+      },
+    };
+  });
 
   const pendingPlanRows = planRows.filter((row) => !row.mentor_comment);
 

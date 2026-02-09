@@ -76,6 +76,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         timeSpentSec: bodyParsed.data.timeSpentSec,
         startTime: bodyParsed.data.startTime,
         endTime: bodyParsed.data.endTime,
+        studyNote: bodyParsed.data.studyNote ?? undefined,
+        attachments: bodyParsed.data.attachments ?? undefined,
+        materials: bodyParsed.data.materials ?? undefined,
       }
     );
 

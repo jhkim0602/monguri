@@ -7,11 +7,13 @@ import {
   Link as LinkIcon,
   FileText,
   Image as ImageIcon,
-  MoreVertical,
   Trash2,
   ExternalLink,
   Search,
   CheckCircle2,
+  Loader2,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -36,11 +38,29 @@ type MentorMaterialItem = {
   } | null;
 };
 
+type SubjectOption = {
+  id: string;
+  name: string;
+  colorHex?: string | null;
+  textColorHex?: string | null;
+};
+
+type MaterialOption = {
+  id: string;
+  title: string;
+  type: "link" | "pdf" | "image";
+};
+
 export default function MaterialsPage() {
   const [mentorId, setMentorId] = useState<string | null>(null);
   const [materials, setMaterials] = useState<MentorMaterialItem[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSolutionModalOpen, setIsSolutionModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubjectsLoading, setIsSubjectsLoading] = useState(false);
+  const [subjectsError, setSubjectsError] = useState<string | null>(null);
+  const [isSolutionSubmitting, setIsSolutionSubmitting] = useState(false);
+  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchData = async (activeMentorId: string) => {
@@ -59,6 +79,31 @@ export default function MaterialsPage() {
     setIsLoading(false);
   };
 
+  const fetchSubjectOptions = async (activeMentorId: string) => {
+    setIsSubjectsLoading(true);
+    setSubjectsError(null);
+    try {
+      const response = await fetch(
+        `/api/mentor/weakness-solutions?mentorId=${encodeURIComponent(activeMentorId)}`,
+      );
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "과목 정보를 불러오지 못했습니다.");
+      }
+
+      const nextSubjects = Array.isArray(json.data?.subjects)
+        ? (json.data.subjects as SubjectOption[])
+        : [];
+      setSubjectOptions(nextSubjects);
+    } catch (error) {
+      console.error("Failed to load subject options:", error);
+      setSubjectsError("과목 정보를 불러오지 못했습니다.");
+    } finally {
+      setIsSubjectsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -72,7 +117,7 @@ export default function MaterialsPage() {
       }
 
       setMentorId(user.id);
-      await fetchData(user.id);
+      await Promise.all([fetchData(user.id), fetchSubjectOptions(user.id)]);
     };
 
     load();
@@ -100,6 +145,55 @@ export default function MaterialsPage() {
   const filteredMaterials = materials.filter((m) =>
     m.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const materialOptions: MaterialOption[] = materials.map((material) => ({
+    id: material.id,
+    title: material.title,
+    type: material.type,
+  }));
+
+  const handleOpenSolutionModal = () => {
+    setIsSolutionModalOpen(true);
+    if (mentorId) {
+      fetchSubjectOptions(mentorId);
+    }
+  };
+
+  const handleAddWeaknessSolution = async (payload: {
+    title: string;
+    subjectId: string;
+    materialId: string;
+  }) => {
+    if (!mentorId || !payload.title.trim()) return false;
+
+    setIsSolutionSubmitting(true);
+    try {
+      const response = await fetch("/api/mentor/weakness-solutions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mentorId,
+          title: payload.title.trim(),
+          subjectId: payload.subjectId || null,
+          materialId: payload.materialId || null,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "약점 맞춤 솔루션 추가에 실패했습니다.",
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Failed to create weakness solution:", error);
+      alert("약점 맞춤 솔루션 추가에 실패했습니다.");
+      return false;
+    } finally {
+      setIsSolutionSubmitting(false);
+    }
+  };
 
   const handleOpenMaterial = async (material: MentorMaterialItem) => {
     if (material.type === "link") {
@@ -149,13 +243,22 @@ export default function MaterialsPage() {
             학생들에게 배포할 학습 자료를 관리하세요.
           </p>
         </div>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-gray-900 hover:bg-black text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
-        >
-          <Plus size={20} />
-          자료 추가
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleOpenSolutionModal}
+            className="bg-gray-900 hover:bg-black text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <Plus size={20} />
+            약점 맞춤 솔루션 추가
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-gray-900 hover:bg-black text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <Plus size={20} />
+            자료 추가
+          </button>
+        </div>
       </div>
 
       {/* Search & Stats */}
@@ -213,8 +316,8 @@ export default function MaterialsPage() {
                 >
                   <span className="truncate">
                     {material.type === "link"
-                      ? material.url ?? "링크 없음"
-                      : material.file?.original_name ?? "첨부 파일"}
+                      ? (material.url ?? "링크 없음")
+                      : (material.file?.original_name ?? "첨부 파일")}
                   </span>
                   <ExternalLink size={10} className="shrink-0" />
                 </button>
@@ -266,6 +369,22 @@ export default function MaterialsPage() {
         mentorId={mentorId}
         onSuccess={() => mentorId && fetchData(mentorId)}
       />
+      <AddWeaknessSolutionModal
+        isOpen={isSolutionModalOpen}
+        onClose={() => setIsSolutionModalOpen(false)}
+        materialOptions={materialOptions}
+        subjectOptions={subjectOptions}
+        isSubjectsLoading={isSubjectsLoading}
+        subjectsError={subjectsError}
+        onReloadSubjects={() => mentorId && fetchSubjectOptions(mentorId)}
+        isSubmitting={isSolutionSubmitting}
+        onSubmit={async (payload) => {
+          const success = await handleAddWeaknessSolution(payload);
+          if (success) {
+            setIsSolutionModalOpen(false);
+          }
+        }}
+      />
     </div>
   );
 }
@@ -294,15 +413,13 @@ function AddMaterialModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    let uploadedFileMeta:
-      | {
-          bucket: string;
-          path: string;
-          originalName: string;
-          mimeType: string;
-          sizeBytes: number;
-        }
-      | null = null;
+    let uploadedFileMeta: {
+      bucket: string;
+      path: string;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+    } | null = null;
 
     try {
       if (!mentorId) {
@@ -575,6 +692,196 @@ function AddMaterialModal({
                 <>
                   <Plus size={18} strokeWidth={3} />
                   자료 등록하기
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AddWeaknessSolutionModal({
+  isOpen,
+  onClose,
+  materialOptions,
+  subjectOptions,
+  isSubjectsLoading,
+  subjectsError,
+  onReloadSubjects,
+  isSubmitting,
+  onSubmit,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  materialOptions: MaterialOption[];
+  subjectOptions: SubjectOption[];
+  isSubjectsLoading: boolean;
+  subjectsError: string | null;
+  onReloadSubjects: () => void;
+  isSubmitting: boolean;
+  onSubmit: (payload: {
+    title: string;
+    subjectId: string;
+    materialId: string;
+  }) => Promise<void> | void;
+}) {
+  const [title, setTitle] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [materialId, setMaterialId] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTitle("");
+    setSubjectId("");
+    setMaterialId("");
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!subjectId && subjectOptions.length > 0) {
+      setSubjectId(subjectOptions[0].id);
+    }
+  }, [isOpen, subjectId, subjectOptions]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!title.trim()) {
+      alert("보완점 제목을 입력해주세요.");
+      return;
+    }
+
+    await onSubmit({
+      title,
+      subjectId,
+      materialId,
+    });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white p-8 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900">
+              약점 맞춤 솔루션 추가
+            </h2>
+            <p className="mt-1 text-sm font-medium text-gray-500">
+              보완점과 연결할 자료를 선택해 빠르게 등록하세요.
+            </p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+            <Sparkles size={22} />
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label className="ml-1 block text-xs font-bold text-gray-500">
+              보완점 제목
+            </label>
+            <input
+              type="text"
+              required
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="예: 수열 귀납 추론 강화"
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 outline-none transition-all placeholder:text-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="ml-1 block text-xs font-bold text-gray-500">
+                과목
+              </label>
+              <select
+                value={subjectId}
+                onChange={(event) => setSubjectId(event.target.value)}
+                disabled={isSubjectsLoading}
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-100 disabled:cursor-not-allowed disabled:bg-gray-100"
+              >
+                <option value="">과목 선택 (선택)</option>
+                {subjectOptions.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="ml-1 block text-xs font-bold text-gray-500">
+                참고 자료
+              </label>
+              <select
+                value={materialId}
+                onChange={(event) => setMaterialId(event.target.value)}
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+              >
+                <option value="">자료 연결 안 함</option>
+                {materialOptions.map((material) => (
+                  <option key={material.id} value={material.id}>
+                    [{material.type.toUpperCase()}] {material.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {isSubjectsLoading && (
+            <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500">
+              <Loader2 size={14} className="animate-spin" />
+              과목 정보 불러오는 중...
+            </div>
+          )}
+
+          {!isSubjectsLoading && subjectsError && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs">
+              <span className="font-medium text-red-500">{subjectsError}</span>
+              <button
+                type="button"
+                onClick={onReloadSubjects}
+                className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 font-bold text-gray-700 transition-colors hover:bg-gray-100"
+              >
+                <RefreshCw size={12} />
+                재시도
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-2xl bg-gray-100 py-3 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-200"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !title.trim()}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3 text-sm font-bold text-white transition-all hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  솔루션 추가
                 </>
               )}
             </button>

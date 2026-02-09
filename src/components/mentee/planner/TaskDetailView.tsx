@@ -56,6 +56,7 @@ interface TaskDetailViewProps {
       photo?: string;
       photos?: string[];
       note?: string;
+      attachments?: Attachment[];
     };
     userQuestion?: string;
     hasMentorResponse?: boolean;
@@ -91,6 +92,8 @@ export default function TaskDetailView({
     task.status === "feedback_completed" ||
     hasSubmissionFiles ||
     !!task.studyRecord;
+  const studyRecordAttachments = task.studyRecord?.attachments ?? [];
+  const hasStudyRecordAttachments = studyRecordAttachments.length > 0;
   const isCompleted = isMentorTask
     ? isSubmitted
     : !!task.completed || !!task.studyRecord;
@@ -146,8 +149,8 @@ export default function TaskDetailView({
       return;
     }
 
-    if (!isMentorTask) {
-      alert("자율 학습 제출은 아직 준비 중입니다.");
+    if (!isMentorTask && selectedFiles.length === 0 && !memo.trim()) {
+      alert("학습 기록 파일 또는 메모를 입력해주세요.");
       return;
     }
 
@@ -196,15 +199,26 @@ export default function TaskDetailView({
       }
 
       const response = await fetch(
-        `/api/mentee/tasks/${task.id}/submissions`,
+        isMentorTask
+          ? `/api/mentee/tasks/${task.id}/submissions`
+          : `/api/mentee/planner/tasks/${task.id}`,
         {
-          method: "POST",
+          method: isMentorTask ? "POST" : "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            menteeId: user.id,
-            note: memo || null,
-            attachments,
-          }),
+          body: JSON.stringify(
+            isMentorTask
+              ? {
+                  menteeId: user.id,
+                  note: memo || null,
+                  attachments,
+                }
+              : {
+                  menteeId: user.id,
+                  completed: true,
+                  studyNote: memo || null,
+                  attachments,
+                },
+          ),
         },
       );
 
@@ -215,7 +229,7 @@ export default function TaskDetailView({
 
       setSelectedFiles([]);
       setMemo("");
-      alert("과제가 제출되었습니다.");
+      alert(isMentorTask ? "과제가 제출되었습니다." : "학습 기록이 저장되었습니다.");
       window.location.reload();
     } catch (error: any) {
       console.error(error);
@@ -400,46 +414,55 @@ export default function TaskDetailView({
               </div>
             ) : task.studyRecord ? (
               <div className="border border-gray-200 rounded-2xl overflow-hidden bg-gray-50">
-                {/* Photos Preview */}
-                <div className="p-3">
-                  {task.studyRecord.photos &&
-                  task.studyRecord.photos.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {task.studyRecord.photos.map((photo, index) => (
-                        <div
-                          key={index}
-                          className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative group"
-                        >
-                          <img
-                            src={photo}
-                            alt={`study record ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl text-[10px] font-bold text-gray-900 shadow-lg">
-                              상세보기
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : task.studyRecord.photo ? (
-                    <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative group max-w-[50%]">
-                      <img
-                        src={task.studyRecord.photo}
-                        alt="study record"
-                        className="w-full h-full object-cover"
+                {hasStudyRecordAttachments ? (
+                  <div className="p-4 space-y-3">
+                    {studyRecordAttachments.map((file, idx) => (
+                      <FileCard
+                        key={`${file.fileId ?? file.name ?? "study"}-${idx}`}
+                        file={file}
                       />
-                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl text-[10px] font-bold text-gray-900 shadow-lg">
-                          상세보기
-                        </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3">
+                    {task.studyRecord.photos &&
+                    task.studyRecord.photos.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        {task.studyRecord.photos.map((photo, index) => (
+                          <div
+                            key={index}
+                            className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative group"
+                          >
+                            <img
+                              src={photo}
+                              alt={`study record ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl text-[10px] font-bold text-gray-900 shadow-lg">
+                                상세보기
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ) : null}
-                </div>
+                    ) : task.studyRecord.photo ? (
+                      <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative group max-w-[50%]">
+                        <img
+                          src={task.studyRecord.photo}
+                          alt="study record"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl text-[10px] font-bold text-gray-900 shadow-lg">
+                            상세보기
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
 
-                {/* Message/Note Content */}
                 <div className="p-4 bg-white border-t border-gray-100">
                   <p className="text-[10px] text-gray-500 font-bold mb-2 flex items-center gap-1.5">
                     <MessageCircle size={12} className="text-gray-400" />
@@ -664,7 +687,13 @@ function FileCard({ file }: { file: Attachment }) {
   const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
-    if (!file.fileId || file.type !== "image") return;
+    if (file.type !== "image") return;
+    if (!file.fileId) {
+      if (file.previewUrl || file.url) {
+        setPreviewSrc(file.previewUrl ?? file.url ?? null);
+      }
+      return;
+    }
     let isMounted = true;
     let objectUrl: string | null = null;
 
@@ -695,10 +724,16 @@ function FileCard({ file }: { file: Attachment }) {
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [file.fileId, file.type]);
+  }, [file.fileId, file.previewUrl, file.type, file.url]);
 
   const handleDownload = async () => {
-    if (!file.fileId || isDownloading) return;
+    if (isDownloading) return;
+    if (!file.fileId) {
+      if (file.url) {
+        window.open(file.url, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
     setIsDownloading(true);
     try {
       const { data } = await supabase.auth.getSession();
@@ -736,7 +771,16 @@ function FileCard({ file }: { file: Attachment }) {
       return;
     }
 
-    if (!file.fileId) return;
+    if (!file.fileId) {
+      if (file.previewUrl || file.url) {
+        window.open(
+          file.previewUrl ?? file.url ?? "",
+          "_blank",
+          "noopener,noreferrer",
+        );
+      }
+      return;
+    }
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
     if (!token) {
@@ -786,9 +830,9 @@ function FileCard({ file }: { file: Attachment }) {
         <button
           type="button"
           onClick={handleDownload}
-          disabled={!file.fileId || isDownloading}
+          disabled={(!file.fileId && !file.url) || isDownloading}
           className={`p-2 transition-colors ${
-            file.fileId
+            file.fileId || file.url
               ? "text-gray-400 hover:text-gray-900"
               : "text-gray-300 cursor-not-allowed"
           }`}
@@ -821,7 +865,7 @@ function FileCard({ file }: { file: Attachment }) {
           </div>
         )}
         <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          {file.fileId ? (
+          {file.fileId || file.url || file.previewUrl ? (
             <button
               type="button"
               onClick={handlePreview}

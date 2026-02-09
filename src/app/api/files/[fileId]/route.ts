@@ -98,6 +98,40 @@ async function canAccessFile(fileId: string, viewerId: string) {
     }
   }
 
+  const { data: plannerRows, error: plannerError } = await supabaseServer
+    .from("planner_tasks")
+    .select("id, mentee_id")
+    .contains("materials", [{ fileId }])
+    .limit(20);
+
+  if (plannerError) {
+    throw new Error(plannerError.message);
+  }
+
+  if ((plannerRows ?? []).some((row) => row.mentee_id === viewerId)) {
+    return true;
+  }
+
+  const plannerMenteeIds = Array.from(
+    new Set((plannerRows ?? []).map((row) => row.mentee_id).filter(Boolean)),
+  );
+  if (plannerMenteeIds.length > 0) {
+    const { data: mentorMenteeRows, error: mentorMenteeError } =
+      await supabaseServer
+        .from("mentor_mentee")
+        .select("id")
+        .eq("mentor_id", viewerId)
+        .eq("status", "active")
+        .in("mentee_id", plannerMenteeIds)
+        .limit(1);
+
+    if (mentorMenteeError) {
+      throw new Error(mentorMenteeError.message);
+    }
+
+    if (mentorMenteeRows && mentorMenteeRows.length > 0) return true;
+  }
+
   return false;
 }
 

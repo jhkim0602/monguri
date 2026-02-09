@@ -31,6 +31,22 @@ const attachmentMetaSchema = z.object({
   checksum: z.string().max(128).optional().nullable(),
 });
 
+const plannerMaterialSchema = z
+  .object({
+    fileId: uuidSchema.optional(),
+    name: z.string().max(255).optional(),
+    type: z.enum(["pdf", "image", "note"]).optional(),
+    note: z.string().max(2000).optional().nullable(),
+    bucket: z.string().max(200).optional(),
+    path: z.string().max(1000).optional(),
+    mimeType: z.string().max(255).optional(),
+    sizeBytes: z.number().int().nonnegative().optional(),
+    url: z.string().max(1000).optional().nullable(),
+    previewUrl: z.string().max(1000).optional().nullable(),
+    uploadedAt: z.string().max(64).optional().nullable(),
+  })
+  .passthrough();
+
 export const taskSubmissionBodySchema = z.object({
   menteeId: uuidSchema,
   note: z.string().max(2000).optional().nullable(),
@@ -38,6 +54,10 @@ export const taskSubmissionBodySchema = z.object({
 });
 
 export const taskFeedbackQuerySchema = z.object({
+  menteeId: uuidSchema,
+});
+
+export const taskFeedbackMarkReadBodySchema = z.object({
   menteeId: uuidSchema,
 });
 
@@ -69,6 +89,9 @@ export const plannerTaskUpdateBodySchema = z
     timeSpentSec: z.number().int().nonnegative().optional().nullable(),
     startTime: z.string().optional().nullable(),
     endTime: z.string().optional().nullable(),
+    studyNote: z.string().max(2000).optional().nullable(),
+    attachments: z.array(attachmentMetaSchema).optional(),
+    materials: z.array(plannerMaterialSchema).optional().nullable(),
   })
   .refine(
     (data) =>
@@ -78,7 +101,10 @@ export const plannerTaskUpdateBodySchema = z
       data.completed !== undefined ||
       data.timeSpentSec !== undefined ||
       data.startTime !== undefined ||
-      data.endTime !== undefined,
+      data.endTime !== undefined ||
+      data.studyNote !== undefined ||
+      data.attachments !== undefined ||
+      data.materials !== undefined,
     { message: "No fields to update." }
   );
 

@@ -391,6 +391,39 @@ export default function Home() {
     };
   }, [selectedDate, userId, refreshTick]);
 
+  const handleFeedbackRead = useCallback(
+    (taskId: string, feedbackId?: string) => {
+      setMentorTasks((prev) => {
+        const next = prev.map((task) => {
+          if (String(task.id) !== taskId) return task;
+          if (feedbackId && task.latestFeedbackId && task.latestFeedbackId !== feedbackId) {
+            return task;
+          }
+          return {
+            ...task,
+            feedbackIsRead: true,
+            feedbackReadAt: new Date().toISOString(),
+          };
+        });
+
+        if (userId) {
+          const { from, to } = getMonthRange(selectedDate);
+          const cacheKey = `${userId}:${from}:${to}`;
+          const cached = readMenteeHomeCache(cacheKey);
+          if (cached) {
+            writeMenteeHomeCache(cacheKey, {
+              ...cached.data,
+              mentorTasks: next,
+            });
+          }
+        }
+
+        return next;
+      });
+    },
+    [selectedDate, userId],
+  );
+
   if (isLoading || !profile) {
     return <div className="min-h-screen bg-white" />;
   }
@@ -448,7 +481,11 @@ export default function Home() {
         />
       </section>
 
-      <HomeTasks tasks={mentorTasks} />
+      <HomeTasks
+        tasks={mentorTasks}
+        menteeId={userId}
+        onFeedbackRead={handleFeedbackRead}
+      />
 
       {/* SeolStudy Columns */}
       <section className="px-6 pb-16">

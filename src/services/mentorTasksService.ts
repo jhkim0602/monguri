@@ -188,6 +188,8 @@ export async function getMenteeMentorTasks(menteeId: string) {
               comment: latestFeedback.comment,
               rating: latestFeedback.rating,
               status: latestFeedback.status,
+              isRead: Boolean(latestFeedback.is_read),
+              readAt: latestFeedback.read_at ?? null,
               createdAt: latestFeedback.created_at,
             }
           : null,

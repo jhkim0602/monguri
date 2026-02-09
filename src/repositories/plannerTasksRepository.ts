@@ -246,6 +246,7 @@ type UpdatePlannerTaskInput = {
   startTime?: string | null;
   endTime?: string | null;
   mentorComment?: string | null;
+  materials?: any[] | null;
 };
 
 export async function updatePlannerTask(
@@ -262,6 +263,7 @@ export async function updatePlannerTask(
     start_time?: string | null;
     end_time?: string | null;
     mentor_comment?: string | null;
+    materials?: any;
   } = {};
 
   if (updates.title !== undefined) {
@@ -290,6 +292,9 @@ export async function updatePlannerTask(
   }
   if (updates.mentorComment !== undefined) {
     payload.mentor_comment = updates.mentorComment;
+  }
+  if (updates.materials !== undefined) {
+    payload.materials = updates.materials;
   }
 
   const { data, error } = await supabaseServer

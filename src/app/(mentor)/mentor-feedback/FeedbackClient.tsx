@@ -53,7 +53,8 @@ const toDateKey = (value: Date | string | number) => {
 };
 
 const resolveCategoryId = (row: any) => {
-  const direct = row?.subjects?.slug ?? row?.subject_slug ?? row?.subject_id ?? null;
+  const direct =
+    row?.subjects?.slug ?? row?.subject_slug ?? row?.subject_id ?? null;
   if (direct) return String(direct);
   return "unknown";
 };
@@ -84,6 +85,78 @@ const hasUploadedSelfStudyFile = (materials: any): boolean => {
   });
 };
 
+const getMaterialFileType = (material: any): "pdf" | "image" | null => {
+  if (!material || typeof material !== "object") return null;
+
+  const rawType = String(
+    material.type ??
+      material.fileType ??
+      material.mime_type ??
+      material.mimeType ??
+      "",
+  ).toLowerCase();
+  if (rawType === "pdf" || rawType === "application/pdf") return "pdf";
+  if (rawType === "image" || rawType.startsWith("image/")) return "image";
+
+  const rawPath = String(
+    material.url ??
+      material.previewUrl ??
+      material.path ??
+      material.name ??
+      material.title ??
+      "",
+  ).toLowerCase();
+  if (/\.pdf(\?|$)/.test(rawPath)) return "pdf";
+  if (/\.(png|jpe?g|gif|webp|bmp|heic|heif|svg)(\?|$)/.test(rawPath)) {
+    return "image";
+  }
+
+  return null;
+};
+
+const extractSelfStudySubmission = (materials: any) => {
+  if (!Array.isArray(materials) || materials.length === 0) {
+    return { note: null as string | null, attachments: [] as any[] };
+  }
+
+  const attachments: {
+    name: string;
+    type: "pdf" | "image";
+    fileId: string | null;
+    url: string | null;
+  }[] = [];
+  let note: string | null = null;
+
+  materials.forEach((material) => {
+    if (!material || typeof material !== "object") return;
+
+    if (material.type === "note" || typeof material.note === "string") {
+      const nextNote = String(material.note ?? "").trim();
+      if (nextNote && !note) note = nextNote;
+      return;
+    }
+
+    const fileType = getMaterialFileType(material);
+    if (!fileType) return;
+
+    attachments.push({
+      name: String(
+        material.name ?? material.title ?? material.originalName ?? "제출 파일",
+      ),
+      type: fileType,
+      fileId:
+        typeof material.fileId === "string"
+          ? material.fileId
+          : typeof material.file_id === "string"
+            ? material.file_id
+            : null,
+      url: typeof material.url === "string" ? material.url : null,
+    });
+  });
+
+  return { note, attachments };
+};
+
 export default function FeedbackClient({
   mentorId,
   initialItems,
@@ -99,9 +172,9 @@ export default function FeedbackClient({
     null,
   );
   const hasAppliedInitialSelection = useRef(false);
-  const [filterType, setFilterType] = useState<"all" | "task" | "plan" | "self">(
-    "all",
-  );
+  const [filterType, setFilterType] = useState<
+    "all" | "task" | "plan" | "self"
+  >("all");
   const [feedbackStatus, setFeedbackStatus] = useState<"pending" | "all">(
     "pending",
   );
@@ -115,7 +188,9 @@ export default function FeedbackClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Daily comment state for plan type
-  const [dailyMenteeComment, setDailyMenteeComment] = useState<string | null>(null);
+  const [dailyMenteeComment, setDailyMenteeComment] = useState<string | null>(
+    null,
+  );
   const [dailyMentorReply, setDailyMentorReply] = useState<string | null>(null);
   const [isDailyCommentLoading, setIsDailyCommentLoading] = useState(false);
 
@@ -161,45 +236,45 @@ export default function FeedbackClient({
   }, [initialItems]);
 
   const { rawPlanItems, allItems } = useMemo(() => {
-      const taskItems = items.filter((i) => i.type === "task");
+    const taskItems = items.filter((i) => i.type === "task");
 
-      const rawPlanItems = items.filter((i) => i.type === "plan");
-      const groupedPlans = new Map<string, FeedbackItem[]>();
-      rawPlanItems.forEach((item) => {
-        const key = `${item.studentId}-${toDateKey(item.date)}`;
-        const list = groupedPlans.get(key) ?? [];
-        list.push(item);
-        groupedPlans.set(key, list);
-      });
+    const rawPlanItems = items.filter((i) => i.type === "plan");
+    const groupedPlans = new Map<string, FeedbackItem[]>();
+    rawPlanItems.forEach((item) => {
+      const key = `${item.studentId}-${toDateKey(item.date)}`;
+      const list = groupedPlans.get(key) ?? [];
+      list.push(item);
+      groupedPlans.set(key, list);
+    });
 
-      const planItems: FeedbackItem[] = Array.from(groupedPlans.entries()).map(
-        ([groupKey, groupedItems]) => {
-          const first = groupedItems[0];
-          const planDate = toDate(first.date);
-          const plannerTasks = groupedItems.map((i) => i.data);
-          const totalStudySeconds = plannerTasks.reduce(
-            (sum, row) => sum + (Number(row?.time_spent_sec) || 0),
-            0,
-          );
+    const planItems: FeedbackItem[] = Array.from(groupedPlans.entries()).map(
+      ([groupKey, groupedItems]) => {
+        const first = groupedItems[0];
+        const planDate = toDate(first.date);
+        const plannerTasks = groupedItems.map((i) => i.data);
+        const totalStudySeconds = plannerTasks.reduce(
+          (sum, row) => sum + (Number(row?.time_spent_sec) || 0),
+          0,
+        );
 
-          return {
-            id: `plan-${groupKey}`,
-            type: "plan",
-            studentId: first.studentId,
-            studentName: first.studentName,
-            avatarUrl: first.avatarUrl,
-            title: `${planDate.getMonth() + 1}월 ${planDate.getDate()}일 플래너`,
-            subtitle: `완료한 할 일 ${plannerTasks.length}개`,
-            date: planDate,
-            status: "submitted",
-            data: {
-              plannerTasks,
-              totalStudySeconds,
-              dailyGoal: first.data?.dailyGoal ?? first.data?.daily_goal ?? "",
-            },
-          };
-        },
-      );
+        return {
+          id: `plan-${groupKey}`,
+          type: "plan",
+          studentId: first.studentId,
+          studentName: first.studentName,
+          avatarUrl: first.avatarUrl,
+          title: `${planDate.getMonth() + 1}월 ${planDate.getDate()}일 플래너`,
+          subtitle: `완료한 할 일 ${plannerTasks.length}개`,
+          date: planDate,
+          status: "submitted",
+          data: {
+            plannerTasks,
+            totalStudySeconds,
+            dailyGoal: first.data?.dailyGoal ?? first.data?.daily_goal ?? "",
+          },
+        };
+      },
+    );
 
       const selfItems: FeedbackItem[] = rawPlanItems
         .filter(
@@ -218,20 +293,23 @@ export default function FeedbackClient({
             title: item.data?.title || item.title || "자습 할 일",
             subtitle: item.data?.subjects?.name || item.subtitle || "자습",
             date: selfDate,
-            status: "submitted",
+            status:
+              item.data?.mentor_comment || item.data?.mentorComment
+                ? "reviewed"
+                : item.status,
             data: {
               ...item.data,
               plannerTaskId: item.data?.id,
             },
           };
-        });
+      });
 
-      const allItems = [...taskItems, ...planItems, ...selfItems].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      );
+    const allItems = [...taskItems, ...planItems, ...selfItems].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
 
-      return { rawPlanItems, allItems };
-    }, [items]);
+    return { rawPlanItems, allItems };
+  }, [items]);
 
   const resolvedInitialSelectedItemId = useMemo(() => {
     if (!initialSelectedItemId) return null;
@@ -276,7 +354,8 @@ export default function FeedbackClient({
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
       if (filterType !== "all" && item.type !== filterType) return false;
-      if (feedbackStatus === "pending" && item.status === "reviewed") return false;
+      if (feedbackStatus === "pending" && item.status === "reviewed")
+        return false;
       return true;
     });
   }, [allItems, filterType, feedbackStatus]);
@@ -288,19 +367,49 @@ export default function FeedbackClient({
   const selectedTaskFeedback = useMemo(
     () =>
       selectedItem?.type === "task"
-        ? selectedItem.data?.task_feedback?.[0]?.comment ?? ""
+        ? (selectedItem.data?.task_feedback?.[0]?.comment ?? "")
         : "",
     [selectedItem],
   );
+  const selectedTaskSubmissionNote = useMemo(() => {
+    if (selectedItem?.type !== "task") return null;
+
+    const directNote = selectedItem.data?.submissionNote;
+    if (typeof directNote === "string" && directNote.trim()) {
+      return directNote.trim();
+    }
+
+    const submissions = Array.isArray(selectedItem.data?.task_submissions)
+      ? selectedItem.data.task_submissions
+      : [];
+    if (submissions.length === 0) return null;
+
+    const latestSubmission = [...submissions].sort((a: any, b: any) => {
+      const aTime = new Date(a?.submitted_at ?? 0).getTime();
+      const bTime = new Date(b?.submitted_at ?? 0).getTime();
+      return bTime - aTime;
+    })[0];
+
+    const fallbackNote = latestSubmission?.note;
+    return typeof fallbackNote === "string" && fallbackNote.trim()
+      ? fallbackNote.trim()
+      : null;
+  }, [selectedItem]);
   const selectedSelfFeedback = useMemo(
     () =>
       selectedItem?.type === "self"
-        ? selectedItem.data?.mentor_comment ??
+        ? (selectedItem.data?.mentor_comment ??
           selectedItem.data?.mentorComment ??
-          ""
+          "")
         : "",
     [selectedItem],
   );
+  const selectedSelfSubmission = useMemo(() => {
+    if (selectedItem?.type !== "self") {
+      return { note: null as string | null, attachments: [] as any[] };
+    }
+    return extractSelfStudySubmission(selectedItem.data?.materials);
+  }, [selectedItem]);
   const isTaskReviewed = useMemo(
     () => selectedItem?.type === "task" && selectedItem.status === "reviewed",
     [selectedItem],
@@ -320,7 +429,7 @@ export default function FeedbackClient({
         const planDate = toDate(selectedItem.date);
         const dateStr = toDateKey(planDate);
         const res = await fetch(
-          `/api/mentee/planner/daily-comment?menteeId=${selectedItem.studentId}&date=${dateStr}`
+          `/api/mentee/planner/daily-comment?menteeId=${selectedItem.studentId}&date=${dateStr}`,
         );
         if (res.ok) {
           const json = await res.json();
@@ -487,9 +596,15 @@ export default function FeedbackClient({
           });
           setItems((prev) =>
             prev.map((item) => {
-              if (item.id !== selectedItem.id) return item;
+              if (
+                item.type !== "plan" ||
+                String(item.id) !== String(plannerTaskId)
+              ) {
+                return item;
+              }
               return {
                 ...item,
+                status: "reviewed",
                 data: {
                   ...item.data,
                   mentor_comment: feedbackText,
@@ -497,6 +612,7 @@ export default function FeedbackClient({
               };
             }),
           );
+          setSelectedItemId(null);
         } else {
           openModal({
             title: "전송 실패",
@@ -639,7 +755,9 @@ export default function FeedbackClient({
   const expandedPlanItem = allItems.find(
     (item) => item.id === expandedPlanItemId && item.type === "plan",
   );
-  const expandedPlanData = expandedPlanItem ? getPlanData(expandedPlanItem) : null;
+  const expandedPlanData = expandedPlanItem
+    ? getPlanData(expandedPlanItem)
+    : null;
   const selectedPlanData =
     selectedItem?.type === "plan" ? getPlanData(selectedItem) : null;
 
@@ -992,6 +1110,22 @@ export default function FeedbackClient({
                         {selectedItem.data.description}
                       </p>
 
+                      <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                        <h4 className="mb-2 text-xs font-bold text-gray-500">
+                          멘티 제출 메모
+                        </h4>
+                        <p
+                          className={`text-sm ${
+                            selectedTaskSubmissionNote
+                              ? "text-gray-700"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {selectedTaskSubmissionNote ??
+                            "멘티가 제출 메모를 남기지 않았습니다."}
+                        </p>
+                      </div>
+
                       <h4 className="text-xs font-bold text-gray-500 mb-3 block">
                         제출된 파일
                       </h4>
@@ -1010,14 +1144,19 @@ export default function FeedbackClient({
                                   {sub.name}
                                 </p>
                                 <p className="text-[10px] text-gray-400">
-                                  {sub.type === "image" ? "Image" : "PDF Document"}
+                                  {sub.type === "image"
+                                    ? "Image"
+                                    : "PDF Document"}
                                 </p>
                               </div>
                               {sub.fileId ? (
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    handleDownloadAttachment(sub.fileId, sub.name)
+                                    handleDownloadAttachment(
+                                      sub.fileId,
+                                      sub.name,
+                                    )
                                   }
                                   className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
                                 >
@@ -1077,47 +1216,86 @@ export default function FeedbackClient({
                       </div>
 
                       <p className="text-sm text-gray-600 mb-6 border-b border-gray-50 pb-4">
-                        {selectedItem.data?.description ||
-                          "학생이 직접 만든 자습 할 일입니다."}
+                        {selectedItem.data?.description || ""}
                       </p>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-600">
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                          <p className="font-bold text-gray-500 mb-1">학습일</p>
-                          <p className="font-semibold text-gray-900">
-                            {formatDate(selectedItem.date)}
-                          </p>
-                        </div>
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                          <p className="font-bold text-gray-500 mb-1">
-                            완료 상태
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {selectedItem.data?.completed ? "완료" : "미완료"}
-                          </p>
-                        </div>
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                          <p className="font-bold text-gray-500 mb-1">
-                            학습 시간
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {Math.floor(
-                              Number(selectedItem.data?.time_spent_sec || 0) / 60,
-                            )}
-                            분
-                          </p>
-                        </div>
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                          <p className="font-bold text-gray-500 mb-1">
-                            학습 시간대
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {selectedItem.data?.start_time && selectedItem.data?.end_time
-                              ? `${selectedItem.data.start_time} - ${selectedItem.data.end_time}`
-                              : "미설정"}
-                          </p>
-                        </div>
+                      <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                        <h4 className="mb-2 text-xs font-bold text-gray-500">
+                          멘티 제출 메모
+                        </h4>
+                        <p
+                          className={`text-sm ${
+                            selectedSelfSubmission.note
+                              ? "text-gray-700"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {selectedSelfSubmission.note ??
+                            "멘티가 제출 메모를 남기지 않았습니다."}
+                        </p>
                       </div>
+
+                      <h4 className="text-xs font-bold text-gray-500 mb-3 block">
+                        제출된 파일
+                      </h4>
+                      {selectedSelfSubmission.attachments.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          {selectedSelfSubmission.attachments.map((sub, i) => (
+                            <div
+                              key={`${sub.fileId ?? sub.name}-${i}`}
+                              className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
+                            >
+                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                                <FileText size={20} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-gray-900 truncate">
+                                  {sub.name}
+                                </p>
+                                <p className="text-[10px] text-gray-400">
+                                  {sub.type === "image"
+                                    ? "Image"
+                                    : "PDF Document"}
+                                </p>
+                              </div>
+                              {sub.fileId ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDownloadAttachment(
+                                      sub.fileId,
+                                      sub.name,
+                                    )
+                                  }
+                                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                                >
+                                  <Download size={16} />
+                                </button>
+                              ) : sub.url ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    window.open(
+                                      sub.url,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    )
+                                  }
+                                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                                >
+                                  <Download size={16} />
+                                </button>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                          <p className="text-xs text-gray-400 font-medium">
+                            제출된 파일이 없습니다.
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm ring-4 ring-blue-50/50">
