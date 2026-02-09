@@ -168,11 +168,41 @@ export default function FeedbackArchive({
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
+  const BASE_SUBJECT_IDS = ["korean", "math", "english"] as const;
+  const OTHER_SUBJECT_ID = "other";
+  const FEEDBACK_PLACEHOLDER_PHRASES = [
+    "작성 중",
+    "대기 중",
+    "아직 피드백이 등록되지 않았습니다",
+  ];
+
+  const normalizeSubjectId = (subjectId?: string | null) => {
+    const value = String(subjectId ?? "")
+      .trim()
+      .toLowerCase();
+    if (!value) return OTHER_SUBJECT_ID;
+    return BASE_SUBJECT_IDS.includes(value as (typeof BASE_SUBJECT_IDS)[number])
+      ? value
+      : OTHER_SUBJECT_ID;
+  };
+
+  const sanitizeFeedbackText = (text?: string | null) =>
+    String(text ?? "").trim();
+
+  const isVisibleFeedbackText = (text?: string | null) => {
+    const value = sanitizeFeedbackText(text);
+    if (!value) return false;
+
+    return !FEEDBACK_PLACEHOLDER_PHRASES.some((phrase) =>
+      value.includes(phrase),
+    );
+  };
 
   const SUBJECTS = [
     { id: "korean", name: "국어", color: "emerald", icon: Library },
     { id: "math", name: "수학", color: "blue", icon: Calculator },
     { id: "english", name: "영어", color: "purple", icon: Languages },
+    { id: OTHER_SUBJECT_ID, name: "기타", color: "gray", icon: Search },
   ];
 
   // ==========================================
@@ -182,42 +212,32 @@ export default function FeedbackArchive({
     // 1. Filter Mentor Tasks that have feedback
     const mentorFeedbacks = mentorTasks
       .filter(
-        (task) =>
-          task.mentorFeedback &&
-          task.mentorFeedback.length > 5 &&
-          !task.mentorFeedback.includes("작성 중") &&
-          !task.mentorFeedback.includes("대기 중") &&
-          !task.mentorFeedback.includes("아직 피드백이 등록되지 않았습니다"),
+        (task) => isVisibleFeedbackText(task.mentorFeedback),
       )
       .map((task) => ({
         id: `m-${task.id}`,
-        title: generateSimpleSummary(task.mentorFeedback || ""),
+        title: generateSimpleSummary(sanitizeFeedbackText(task.mentorFeedback)),
         taskTitle: task.title,
         subject: task.subject,
-        subjectId: task.categoryId,
-        subjectColor: mapSubjectColor(task.categoryId),
+        subjectId: normalizeSubjectId(task.categoryId),
+        subjectColor: mapSubjectColor(normalizeSubjectId(task.categoryId)),
         date: task.deadline || new Date(),
-        content: task.mentorFeedback,
+        content: sanitizeFeedbackText(task.mentorFeedback),
         originalTask: task, // Store full task for modal
       }));
 
     // 2. Filter User Tasks that have mentor comments
     const userFeedbacks = userTasks
-      .filter(
-        (task) =>
-          task.mentorComment &&
-          task.mentorComment.length > 5 &&
-          !task.mentorComment.includes("아직 피드백이 등록되지 않았습니다"),
-      )
+      .filter((task) => isVisibleFeedbackText(task.mentorComment))
       .map((task) => ({
         id: `u-${task.id}`,
-        title: generateSimpleSummary(task.mentorComment || ""),
+        title: generateSimpleSummary(sanitizeFeedbackText(task.mentorComment)),
         taskTitle: task.title,
-        subject: getSubjectName(task.categoryId),
-        subjectId: task.categoryId,
-        subjectColor: mapSubjectColor(task.categoryId),
+        subject: getSubjectName(normalizeSubjectId(task.categoryId)),
+        subjectId: normalizeSubjectId(task.categoryId),
+        subjectColor: mapSubjectColor(normalizeSubjectId(task.categoryId)),
         date: task.deadline || new Date(),
-        content: task.mentorComment ?? "",
+        content: sanitizeFeedbackText(task.mentorComment),
         originalTask: task, // Store full task for modal
       }));
 

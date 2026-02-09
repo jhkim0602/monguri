@@ -39,6 +39,9 @@ export default function DailyPlannerCard({
     mentorReview ||
     dailyEvents.find((e: any) => e.taskType === "daily_review")?.comment ||
     dailyEvents.find((e: any) => e.kind === "daily_review")?.comment;
+  const safeStudyTime = Math.max(0, Math.floor(studyTime || 0));
+  const studyHours = Math.floor(safeStudyTime / 3600);
+  const studyMinutes = Math.floor((safeStudyTime % 3600) / 60);
 
   return (
     <div
@@ -73,7 +76,8 @@ export default function DailyPlannerCard({
               {date.getMonth() + 1}월 {date.getDate()}일
             </span>
             <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
-              {((studyTime || 0) / 3600).toFixed(0).padStart(2, '0')}:{(((studyTime || 0) % 3600) / 60).toFixed(0).padStart(2, '0')}
+              {studyHours.toString().padStart(2, "0")}:
+              {studyMinutes.toString().padStart(2, "0")}
             </span>
           </div>
 

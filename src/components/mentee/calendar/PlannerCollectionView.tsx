@@ -5,7 +5,7 @@ import type {
     PlannerTaskLike,
     ScheduleEventLike
 } from "@/lib/menteeAdapters";
-import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
+import { computeDailyStudySeconds, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
 
 interface PlannerCollectionViewProps {
     currentDate: Date;
@@ -70,13 +70,17 @@ export default function PlannerCollectionView({
                     // Generate time blocks from actual tasks for today
                     const allTasksForDay = [...mentorDeadlines, ...userTasksForDate, ...dailyEvents.filter(e => e.taskType === 'plan')];
                     const studyTimeBlocks = generateTimeBlocksFromTasks(allTasksForDay) || {};
+                    const studyTimeSeconds = computeDailyStudySeconds(
+                        allTasksForDay,
+                        record?.studyTime,
+                    );
 
                     const card = (
                         <DailyPlannerCard
                             key={day}
                             date={date}
                             isToday={isTodayDate}
-                            studyTime={record?.studyTime}
+                            studyTime={studyTimeSeconds}
                             memo={record?.memo}
                             mentorDeadlines={mentorDeadlines}
                             userTasks={userTasksForDate}

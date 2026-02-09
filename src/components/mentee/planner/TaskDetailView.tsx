@@ -18,6 +18,7 @@ import {
   Edit3,
   HelpCircle,
   Folder,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -229,7 +230,9 @@ export default function TaskDetailView({
 
       setSelectedFiles([]);
       setMemo("");
-      alert(isMentorTask ? "과제가 제출되었습니다." : "학습 기록이 저장되었습니다.");
+      alert(
+        isMentorTask ? "과제가 제출되었습니다." : "학습 기록이 저장되었습니다.",
+      );
       window.location.reload();
     } catch (error: any) {
       console.error(error);
@@ -373,16 +376,16 @@ export default function TaskDetailView({
             !task.studyRecord &&
             !isSubmitted &&
             !isReadOnly && (
-            <div className="bg-orange-50/70 border border-orange-100 rounded-2xl p-4">
-              <p className="text-[11px] font-black text-orange-600 mb-1">
-                멘토 과제 완료 규칙
-              </p>
-              <p className="text-[12px] text-orange-700/90 font-medium">
-                멘토가 만든 과제는 제출을 완료해야 체크됩니다. 제출 후 완료로
-                처리돼요.
-              </p>
-            </div>
-          )}
+              <div className="bg-orange-50/70 border border-orange-100 rounded-2xl p-4">
+                <p className="text-[11px] font-black text-orange-600 mb-1">
+                  멘토 과제 완료 규칙
+                </p>
+                <p className="text-[12px] text-orange-700/90 font-medium">
+                  멘토가 만든 과제는 제출을 완료해야 체크됩니다. 제출 후 완료로
+                  처리돼요.
+                </p>
+              </div>
+            )}
 
           <div className="space-y-4">
             {isMentorTask && hasSubmissionFiles ? (
@@ -395,7 +398,10 @@ export default function TaskDetailView({
                   </div>
                   <div className="p-4 space-y-3">
                     {task.submissions?.map((file, idx) => (
-                      <FileCard key={`${file.fileId ?? file.name}-${idx}`} file={file} />
+                      <FileCard
+                        key={`${file.fileId ?? file.name}-${idx}`}
+                        file={file}
+                      />
                     ))}
                   </div>
                 </div>
@@ -537,13 +543,15 @@ export default function TaskDetailView({
                         key={`${file.name}-${index}`}
                         className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600"
                       >
-                        <span className="truncate font-semibold">{file.name}</span>
+                        <span className="truncate font-semibold">
+                          {file.name}
+                        </span>
                         <button
                           type="button"
                           onClick={() => removeSelectedFile(index)}
                           className="text-gray-400 hover:text-red-500"
                         >
-                          <ChevronDown size={14} />
+                          <X size={14} />
                         </button>
                       </div>
                     ))}
@@ -588,26 +596,28 @@ export default function TaskDetailView({
 
           {/* Action buttons (only when not completed) */}
           {!isReadOnly &&
-            !(isMentorTask ? hasSubmissionFiles || isSubmitted : task.studyRecord) && (
-            <div className="space-y-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSubmitRecord}
-                disabled={isSubmittingRecord}
-                className={`w-full py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2 active:scale-95 transition-all ${
-                  isMentorTask
-                    ? "bg-primary text-white shadow-xl shadow-blue-200 hover:bg-blue-600"
-                    : "bg-gray-900 text-white shadow-xl shadow-gray-200 hover:bg-black"
-                } ${isSubmittingRecord ? "opacity-70 cursor-not-allowed" : ""}`}
-              >
-                {isSubmittingRecord
-                  ? "제출 중..."
-                  : isMentorTask
-                    ? "과제 제출 완료하기"
-                    : "학습 기록 저장하기"}
-              </button>
-            </div>
-          )}
+            !(isMentorTask
+              ? hasSubmissionFiles || isSubmitted
+              : task.studyRecord) && (
+              <div className="space-y-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSubmitRecord}
+                  disabled={isSubmittingRecord}
+                  className={`w-full py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2 active:scale-95 transition-all ${
+                    isMentorTask
+                      ? "bg-primary text-white shadow-xl shadow-blue-200 hover:bg-blue-600"
+                      : "bg-gray-900 text-white shadow-xl shadow-gray-200 hover:bg-black"
+                  } ${isSubmittingRecord ? "opacity-70 cursor-not-allowed" : ""}`}
+                >
+                  {isSubmittingRecord
+                    ? "제출 중..."
+                    : isMentorTask
+                      ? "과제 제출 완료하기"
+                      : "학습 기록 저장하기"}
+                </button>
+              </div>
+            )}
         </section>
 
         {/* Section 3: Mentor Feedback (Always visible if a record exists or is mentor task OR feedback enabled) */}

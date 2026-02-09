@@ -1,7 +1,11 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatTime, generateTimeBlocksFromTasks } from "@/utils/timeUtils";
+import {
+  computeDailyStudySeconds,
+  formatTime,
+  generateTimeBlocksFromTasks,
+} from "@/utils/timeUtils";
 import { UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
 interface PlannerDetailViewProps {
@@ -98,24 +102,7 @@ export default function PlannerDetailView({
     if (Number.isNaN(h) || Number.isNaN(m)) return null;
     return h * 60 + m;
   };
-  const computeStudySeconds = () => {
-    let totalMinutes = 0;
-    let hasTimeRange = false;
-
-    allTasks.forEach((task) => {
-      const start = parseTimeValue(task.startTime);
-      const end = parseTimeValue(task.endTime);
-      if (start === null || end === null) return;
-      if (end <= start) return;
-      hasTimeRange = true;
-      totalMinutes += end - start;
-    });
-
-    if (hasTimeRange) return totalMinutes * 60;
-    if (dailyRecord?.studyTime) return dailyRecord.studyTime; // Assume seconds from adapter
-    return 0;
-  };
-  const studyTimeSeconds = computeStudySeconds();
+  const studyTimeSeconds = computeDailyStudySeconds(allTasks, dailyRecord?.studyTime);
 
   const combinedItems = [
     ...mentorTasksResolved.map((task, idx) => ({

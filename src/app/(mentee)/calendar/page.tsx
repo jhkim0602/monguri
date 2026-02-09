@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat } from "lucide-react";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
-import { formatTime } from "@/utils/timeUtils";
+import { computeDailyStudySeconds, formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import Header from "@/components/mentee/layout/Header";
@@ -704,14 +704,50 @@ export default function CalendarPage() {
                             {viewMode === 'week' && (
                                 <span className="text-sm font-normal text-gray-400 ml-2">
                                     총 공부시간 : {(() => {
-                                        const totalSeconds = dailyRecords
-                                            .filter(record => {
-                                                if (!record.date) return false;
-                                                const recordDate = new Date(record.date);
-                                                return recordDate.getMonth() === currentDate.getMonth() &&
-                                                       recordDate.getFullYear() === currentDate.getFullYear();
-                                            })
-                                            .reduce((acc, curr) => acc + (curr.studyTime || 0), 0);
+                                        const totalSeconds = Array.from(
+                                            { length: daysInMonth },
+                                            (_, index) => index + 1,
+                                        ).reduce((acc, day) => {
+                                            const targetDate = new Date(
+                                                currentDate.getFullYear(),
+                                                currentDate.getMonth(),
+                                                day,
+                                            );
+
+                                            const mentorTasksForDate = mentorTasks.filter(
+                                                (task) =>
+                                                    task.deadline &&
+                                                    isSameDay(task.deadline, targetDate),
+                                            );
+                                            const plannerTasksForDate = plannerTasks.filter(
+                                                (task) =>
+                                                    task.deadline &&
+                                                    isSameDay(task.deadline, targetDate),
+                                            );
+                                            const planEventsForDate = scheduleEvents.filter(
+                                                (event) =>
+                                                    event.taskType === "plan" &&
+                                                    event.date &&
+                                                    isSameDay(event.date, targetDate),
+                                            );
+                                            const recordForDate = dailyRecords.find(
+                                                (record) =>
+                                                    record.date &&
+                                                    isSameDay(record.date, targetDate),
+                                            );
+
+                                            return (
+                                                acc +
+                                                computeDailyStudySeconds(
+                                                    [
+                                                        ...mentorTasksForDate,
+                                                        ...plannerTasksForDate,
+                                                        ...planEventsForDate,
+                                                    ],
+                                                    recordForDate?.studyTime,
+                                                )
+                                            );
+                                        }, 0);
 
                                         const hours = Math.floor(totalSeconds / 3600);
                                         const minutes = Math.floor((totalSeconds % 3600) / 60);
