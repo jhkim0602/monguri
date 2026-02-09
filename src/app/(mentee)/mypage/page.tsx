@@ -164,11 +164,6 @@ export default function MyPage() {
             <Header
                 title="마이페이지"
                 variant="clean"
-                rightElement={
-                    <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
-                        <Settings size={22} />
-                    </button>
-                }
             />
 
             {/* Profile Section */}

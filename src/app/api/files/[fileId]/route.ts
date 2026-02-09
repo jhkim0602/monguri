@@ -53,6 +53,51 @@ async function canAccessFile(fileId: string, viewerId: string) {
     if (taskRows && taskRows.length > 0) return true;
   }
 
+  const { data: submissionLinks, error: submissionLinkError } =
+    await supabaseServer
+      .from("task_submission_files")
+      .select("submission_id")
+      .eq("file_id", fileId)
+      .limit(20);
+
+  if (submissionLinkError) {
+    throw new Error(submissionLinkError.message);
+  }
+
+  const submissionIds = (submissionLinks ?? []).map((row) => row.submission_id);
+  if (submissionIds.length > 0) {
+    const { data: submissionRows, error: submissionError } = await supabaseServer
+      .from("task_submissions")
+      .select("id, task_id, mentee_id")
+      .in("id", submissionIds)
+      .limit(20);
+
+    if (submissionError) {
+      throw new Error(submissionError.message);
+    }
+
+    if ((submissionRows ?? []).some((row) => row.mentee_id === viewerId)) {
+      return true;
+    }
+
+    const submissionTaskIds = (submissionRows ?? []).map((row) => row.task_id);
+    if (submissionTaskIds.length > 0) {
+      const { data: submissionTaskRows, error: submissionTaskError } =
+        await supabaseServer
+          .from("mentor_tasks")
+          .select("id")
+          .in("id", submissionTaskIds)
+          .or(`mentor_id.eq.${viewerId},mentee_id.eq.${viewerId}`)
+          .limit(1);
+
+      if (submissionTaskError) {
+        throw new Error(submissionTaskError.message);
+      }
+
+      if (submissionTaskRows && submissionTaskRows.length > 0) return true;
+    }
+  }
+
   return false;
 }
 

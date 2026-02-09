@@ -10,6 +10,7 @@ export type MenteeHomeCacheData = {
   plannerTasks: PlannerTaskLike[];
   planEvents: ScheduleEventLike[];
   profile: UiProfile | null;
+  columns: any[];
 };
 
 type CacheEntry = {

@@ -205,7 +205,15 @@ export default function PlannerDetailView({
   return (
     <div className={containerClass}>
       {showHeader ? (
-        <div className={`w-full border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0 ${size === "thumbnail" ? "h-auto py-3 px-4" : "h-16 px-6"}`}>
+        <div
+          className={`w-full border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0 ${
+            size === "thumbnail"
+              ? "h-auto py-3 px-4"
+              : size === "collection"
+                ? "h-16 pl-6 pr-[4.75rem]"
+                : "h-16 px-6"
+          }`}
+        >
           <span
             className={`font-bold ${isToday ? "text-primary" : "text-gray-900"} ${size === "thumbnail" ? "text-lg" : "text-2xl"}`}
           >

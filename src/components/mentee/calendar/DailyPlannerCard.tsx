@@ -43,7 +43,7 @@ export default function DailyPlannerCard({
   return (
     <div
       onClick={onClick}
-      className={`relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm rounded-2xl flex flex-col ${sizeClass} ${className}`}
+      className={`relative group bg-white border border-gray-100 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors shadow-sm flex flex-col ${sizeClass} ${className}`}
     >
       {fill ? (
         <div

@@ -621,7 +621,7 @@ export default function DashboardClient({
         </div>
 
         {/* 5. Weakness Solution (Square) */}
-        <div className="col-span-1 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow">
+        <div className="col-span-1 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow overflow-x-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
@@ -659,7 +659,7 @@ export default function DashboardClient({
             <p className="mt-1 text-[10px] text-rose-400">{solutionsError}</p>
           )}
 
-          <div className="mt-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+          <div className="mt-2 flex-1 overflow-y-auto overflow-x-hidden pr-1 custom-scrollbar">
             <div className="space-y-1">
               {isSolutionsLoading && weaknessSolutions.length === 0 && (
                 <div className="py-6 text-center text-xs text-gray-400 font-medium">
@@ -693,7 +693,7 @@ export default function DashboardClient({
                     className="grid grid-cols-[minmax(0,1fr)_max-content_minmax(0,1fr)] gap-3 items-center py-2 px-2 -mx-2 rounded-xl hover:bg-gray-50 transition-colors"
                   >
                     <div className="min-w-0">
-                      <span className="text-sm font-semibold text-gray-800 truncate">
+                      <span className="block text-sm font-semibold text-gray-800 truncate">
                         {item.title}
                       </span>
                     </div>
@@ -709,7 +709,7 @@ export default function DashboardClient({
                           자료 없음
                         </span>
                       ) : (
-                        <span className="truncate">{materialLabel}</span>
+                        <span className="block truncate">{materialLabel}</span>
                       )}
                     </div>
                   </div>

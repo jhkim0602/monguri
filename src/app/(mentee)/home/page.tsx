@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { MessageCircle } from "lucide-react";
 import WeeklyCalendar from "@/components/mentee/planner/WeeklyCalendar";
 import Header from "@/components/mentee/layout/Header";
 import HomeTasks from "@/components/mentee/home/HomeTasks";
@@ -22,6 +23,7 @@ import {
 import { COLUMN_SERIES } from "@/constants/mentee/columns";
 import Link from "next/link";
 import HomeProgress from "@/components/mentee/home/HomeProgress";
+import { NotificationBadge } from "@/components/ui";
 
 export default function Home() {
   // Default to Feb 2 2026 for demo context
@@ -275,6 +277,7 @@ export default function Home() {
       setPlannerTasks(cached.data.plannerTasks);
       setPlanEvents(cached.data.planEvents);
       setProfile(cached.data.profile);
+      setColumns(cached.data.columns ?? []);
       if (!hasLoadedRef.current) {
         setIsLoading(false);
         hasLoadedRef.current = true;
@@ -328,11 +331,13 @@ export default function Home() {
           plannerTasks: PlannerTaskLike[];
           planEvents: ScheduleEventLike[];
           profile: UiProfile | null;
+          columns: any[];
         } = {
           mentorTasks: [],
           plannerTasks: [],
           planEvents: [],
           profile: null,
+          columns: [],
         };
 
         if (tasksRes.ok) {
@@ -363,10 +368,13 @@ export default function Home() {
 
         if (!isMounted) return;
 
+        next.columns = columnsData ?? [];
+
         setMentorTasks(next.mentorTasks);
         setPlannerTasks(next.plannerTasks);
         setPlanEvents(next.planEvents);
         setProfile(next.profile);
+        setColumns(next.columns);
         writeMenteeHomeCache(cacheKey, next);
       } finally {
         if (isMounted && !hasLoadedRef.current) {
@@ -389,7 +397,17 @@ export default function Home() {
 
   return (
     <div className="bg-white">
-      <Header title="설스터디" />
+      <Header
+        title="설스터디"
+        rightElement={
+          <div className="flex gap-4 text-gray-400 items-center">
+            <Link href="/chat" className="hover:text-primary transition-colors">
+              <MessageCircle size={24} />
+            </Link>
+            <NotificationBadge iconSize={24} />
+          </div>
+        }
+      />
 
       {/* Welcome Section */}
       <section className="px-6 flex justify-between items-start mb-6">
