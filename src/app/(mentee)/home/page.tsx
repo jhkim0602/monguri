@@ -428,6 +428,8 @@ export default function Home() {
     return <div className="min-h-screen bg-white" />;
   }
 
+  const examLabel = profile.targetExam?.trim() || "목표 시험";
+
   return (
     <div className="bg-white">
       <Header
@@ -446,7 +448,7 @@ export default function Home() {
       <section className="px-6 flex justify-between items-start mb-6">
         <div>
           <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-semibold mb-2">
-            {profile.role}
+            {examLabel}
             {typeof profile.dDay === "number" ? (
               <span className="ml-1 text-primary">D-{profile.dDay}</span>
             ) : null}
