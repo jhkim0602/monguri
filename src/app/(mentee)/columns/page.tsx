@@ -258,9 +258,11 @@ export default function ColumnsPage() {
                         className="w-full h-full object-cover"
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300">
-                            <span className="text-xs font-bold">이미지 없음</span>
-                        </div>
+                        <img
+                          src="/images/noImage.png"
+                          alt="No Image"
+                          className="w-full h-full object-cover"
+                        />
                     )}
                     <button
                       type="button"
@@ -318,9 +320,11 @@ export default function ColumnsPage() {
                         className="w-full h-full object-cover"
                         />
                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300">
-                             <span className="text-[10px] font-bold">No Img</span>
-                        </div>
+                        <img
+                          src="/images/noImage.png"
+                          alt="No Image"
+                          className="w-full h-full object-cover"
+                        />
                      )}
                   </div>
                   <div className="flex-1 min-w-0 space-y-1">

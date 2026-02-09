@@ -552,9 +552,13 @@ export default function Home() {
                               }`}
                             />
                           ) : (
-                            <div className="h-full w-full bg-gray-100 flex items-center justify-center text-gray-300 font-bold text-xs">
-                              No Image
-                            </div>
+                            <img
+                              src="/images/noImage.png"
+                              alt="No Image"
+                              className={`h-full w-full object-cover ${
+                                isComingSoon ? "grayscale" : ""
+                              }`}
+                            />
                           )}
                         </div>
                         <div className="p-4 space-y-2">
