@@ -34,6 +34,26 @@ export default function SchedulePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const formatMeetingDateTime = (value?: string | null) => {
+    if (!value) return "시간 미정";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "시간 미정";
+
+    return date.toLocaleString("ko-KR", {
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  const normalizeDateTimeToIso = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString();
+  };
+
   // Fetch Data
   const fetchData = async () => {
     setIsLoading(true);
@@ -175,12 +195,7 @@ export default function SchedulePage() {
                   className="text-blue-600 focus:ring-blue-500"
                 />
                 <span className="font-bold text-gray-700">
-                  {new Date(t).toLocaleString("ko-KR", {
-                    month: "long",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {formatMeetingDateTime(t)}
                 </span>
               </label>
             ))}
@@ -193,11 +208,17 @@ export default function SchedulePage() {
       type: "confirm",
       confirmText: "이 시간으로 확정하기",
       onConfirm: async () => {
+        const normalizedSelectedTime = normalizeDateTimeToIso(selectedTime);
+        if (!normalizedSelectedTime) {
+          alert("선택한 시간 형식이 올바르지 않습니다.");
+          return;
+        }
+
         const { error } = await supabase
           .from("meeting_requests")
           .update({
             status: "CONFIRMED",
-            confirmed_time: selectedTime,
+            confirmed_time: normalizedSelectedTime,
             // Optional: Zoom link can be added later
             zoom_link: null,
           })
@@ -561,100 +582,103 @@ export default function SchedulePage() {
                 <span className="text-xs text-gray-400">Loading...</span>
               </div>
             ) : (
-              requests.map((req) => (
-                <div
-                  key={req.id}
-                  className="bg-gray-50 rounded-xl p-3 border border-gray-100 hover:bg-gray-100 transition-colors cursor-pointer group"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-gray-900 truncate">
-                        {req.studentName} 학생
-                      </span>
-                      <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-full font-bold">
-                        확정됨
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mb-2 truncate">
-                      {req.topic}
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Clock size={12} />
-                        <span className="font-bold text-gray-700">
-                          {new Date(req.confirmed_time!).toLocaleString(
-                            "ko-KR",
-                            {
-                              month: "long",
-                              day: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit",
-                            },
-                          )}
+              requests.map((req) => {
+                const firstPreferredTime = req.preferred_times?.[0] ?? null;
+                const extraPreferredTimes = Math.max(
+                  (req.preferred_times?.length ?? 0) - 1,
+                  0,
+                );
+
+                return (
+                  <div
+                    key={req.id}
+                    className="bg-gray-50 rounded-xl p-3 border border-gray-100 hover:bg-gray-100 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-gray-900 truncate">
+                          {req.studentName} 학생
+                        </span>
+                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">
+                          요청됨
                         </span>
                       </div>
-                    </div>
-
-                    {/* Zoom Link Section */}
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-gray-500">
-                          화상 회의 링크
-                        </span>
-                        {!req.zoom_link && (
-                          <span className="text-[10px] text-red-500 font-bold animate-pulse">
-                            등록 필요
+                      <div className="text-sm text-gray-600 mb-2 truncate">
+                        {req.topic}
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Clock size={12} />
+                          <span className="font-bold text-gray-700">
+                            {formatMeetingDateTime(firstPreferredTime)}
+                            {extraPreferredTimes > 0
+                              ? ` 외 ${extraPreferredTimes}개`
+                              : ""}
                           </span>
-                        )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Zoom 또는 구글밋 링크 입력"
-                          className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-emerald-500 transition-colors"
-                          defaultValue={req.zoom_link || ""}
-                          onBlur={async (e) => {
-                            const newLink = e.target.value;
-                            if (newLink === req.zoom_link) return;
 
-                            const { error } = await supabase
-                              .from("meeting_requests")
-                              .update({ zoom_link: newLink })
-                              .eq("id", req.id);
+                      {/* Zoom Link Section */}
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-bold text-gray-500">
+                            화상 회의 링크
+                          </span>
+                          {!req.zoom_link && (
+                            <span className="text-[10px] text-red-500 font-bold animate-pulse">
+                              등록 필요
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Zoom 또는 구글밋 링크 입력"
+                            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-emerald-500 transition-colors"
+                            defaultValue={req.zoom_link || ""}
+                            onBlur={async (e) => {
+                              const newLink = e.target.value;
+                              if (newLink === req.zoom_link) return;
 
-                            if (error) {
-                              alert("링크 저장에 실패했습니다.");
-                            } else {
-                              // Optionally send a notification message if it's a new link
-                              if (!req.zoom_link && newLink) {
-                                await supabase.from("chat_messages").insert({
-                                  mentor_mentee_id: req.mentor_mentee_id,
-                                  sender_id: (await supabase.auth.getUser())
-                                    .data.user?.id,
-                                  body: `화상 회의 링크가 등록되었습니다!`,
-                                  message_type: "system",
-                                });
+                              const { error } = await supabase
+                                .from("meeting_requests")
+                                .update({ zoom_link: newLink })
+                                .eq("id", req.id);
 
-                                // Refresh data
-                                fetchData();
+                              if (error) {
+                                alert("링크 저장에 실패했습니다.");
+                              } else {
+                                // Optionally send a notification message if it's a new link
+                                if (!req.zoom_link && newLink) {
+                                  await supabase.from("chat_messages").insert({
+                                    mentor_mentee_id: req.mentor_mentee_id,
+                                    sender_id: (await supabase.auth.getUser())
+                                      .data.user?.id,
+                                    body: `화상 회의 링크가 등록되었습니다!`,
+                                    message_type: "system",
+                                  });
+
+                                  // Refresh data
+                                  fetchData();
+                                }
                               }
-                            }
-                          }}
-                        />
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex mt-3 pt-3 border-t border-gray-200">
-                    <button
-                      onClick={() => handleApprove(req)}
-                      className="flex-1 py-1.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-colors"
-                    >
-                      일정 확정/조정
-                    </button>
+                    <div className="flex mt-3 pt-3 border-t border-gray-200">
+                      <button
+                        onClick={() => handleApprove(req)}
+                        className="flex-1 py-1.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-colors"
+                      >
+                        일정 확정/조정
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
             {!isLoading && requests.length === 0 && (
               <div className="h-full flex items-center justify-center text-gray-400 text-xs">

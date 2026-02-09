@@ -27,6 +27,12 @@ export default function MeetingRequestForm({
   const [times, setTimes] = useState<string[]>([""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const normalizeDateTimeToIso = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString();
+  };
+
   if (!isOpen) return null;
 
   const handleAddTime = () => {
@@ -50,6 +56,14 @@ export default function MeetingRequestForm({
     setIsSubmitting(true);
 
     try {
+      const normalizedTimes = times.map((time) =>
+        normalizeDateTimeToIso(time),
+      );
+
+      if (normalizedTimes.some((time) => !time)) {
+        throw new Error("유효하지 않은 시간 형식입니다.");
+      }
+
       // 1. Create meeting request
       const { data: request, error: reqError } = await supabase
         .from("meeting_requests")
@@ -57,7 +71,7 @@ export default function MeetingRequestForm({
           mentor_mentee_id: mentorMenteeId,
           requestor_id: senderId,
           topic: topic.trim(),
-          preferred_times: times,
+          preferred_times: normalizedTimes as string[],
           status: "PENDING",
         })
         .select()
