@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabaseServer";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type MentorRecentChatRow = {
   id: string;
@@ -18,8 +19,14 @@ export type MentorRecentChatRow = {
     | null;
 };
 
-export async function getRecentChatsByMentorId(mentorId: string, limit = 5) {
-  const { data: pairs, error } = await supabaseServer
+export type ChatQueryClient = Pick<SupabaseClient<any, any, any>, "from">;
+
+export async function getRecentChatsByMentorId(
+  mentorId: string,
+  limit = 5,
+  queryClient: ChatQueryClient = supabaseServer,
+) {
+  const { data: pairs, error } = await queryClient
     .from("mentor_mentee")
     .select(
       `
@@ -44,7 +51,7 @@ export async function getRecentChatsByMentorId(mentorId: string, limit = 5) {
   if (rows.length === 0) return [];
 
   const pairIds = rows.map((row) => row.id);
-  const { data: messages, error: msgError } = await supabaseServer
+  const { data: messages, error: msgError } = await queryClient
     .from("chat_messages")
     .select("id, body, created_at, sender_id, message_type, mentor_mentee_id")
     .in("mentor_mentee_id", pairIds)

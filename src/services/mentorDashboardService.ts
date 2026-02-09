@@ -3,18 +3,27 @@ import { getRecentChatsByMentorId } from "@/repositories/chatRepository";
 import { getMenteesByMentorId } from "@/repositories/mentorMenteeRepository";
 import { ensureMentorProfile } from "@/services/mentorAccessService";
 import { getPendingFeedbackItems } from "@/services/mentorFeedbackService";
-import { getUpcomingMeetingsByMentorId } from "@/repositories/meetingRepository";
+import { getMentorMeetingsForScheduleUnchecked } from "@/services/mentorMeetingsService";
+import type { MeetingQueryClient } from "@/repositories/meetingRepository";
+import type { ChatQueryClient } from "@/repositories/chatRepository";
 
-export async function getMentorDashboardData(mentorId: string) {
+export async function getMentorDashboardData(
+  mentorId: string,
+  options?: {
+    meetingsClient?: MeetingQueryClient;
+    chatsClient?: ChatQueryClient;
+  },
+) {
   const mentorProfile = await ensureMentorProfile(mentorId);
 
   const menteesData = await getMenteesByMentorId(mentorId);
 
-  const [recentChatsResult, pendingFeedbackResult, upcomingMeetingsResult] = await Promise.allSettled([
-    getRecentChatsByMentorId(mentorId, 5),
-    getPendingFeedbackItems(mentorId),
-    getUpcomingMeetingsByMentorId(mentorId, 5),
-  ]);
+  const [recentChatsResult, pendingFeedbackResult, meetingsResult] =
+    await Promise.allSettled([
+      getRecentChatsByMentorId(mentorId, 5, options?.chatsClient),
+      getPendingFeedbackItems(mentorId),
+      getMentorMeetingsForScheduleUnchecked(mentorId, options?.meetingsClient),
+    ]);
 
   if (recentChatsResult.status === "rejected") {
     console.error("Dashboard recentChats query failed:", recentChatsResult.reason);
@@ -25,10 +34,10 @@ export async function getMentorDashboardData(mentorId: string) {
       pendingFeedbackResult.reason,
     );
   }
-  if (upcomingMeetingsResult.status === "rejected") {
+  if (meetingsResult.status === "rejected") {
     console.error(
       "Dashboard upcomingMeetings query failed:",
-      upcomingMeetingsResult.reason,
+      meetingsResult.reason,
     );
   }
 
@@ -39,8 +48,8 @@ export async function getMentorDashboardData(mentorId: string) {
       ? pendingFeedbackResult.value
       : [];
   const upcomingMeetingsRaw =
-    upcomingMeetingsResult.status === "fulfilled"
-      ? upcomingMeetingsResult.value
+    meetingsResult.status === "fulfilled"
+      ? meetingsResult.value.upcomingMeetings
       : [];
 
   const mentees = menteesData.map(adaptMenteeToUi);

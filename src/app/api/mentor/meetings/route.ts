@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import { handleRouteError } from "@/lib/apiUtils";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { getMentorDashboardData } from "@/services/mentorDashboardService";
+import { getMentorMeetingsForScheduleUnchecked } from "@/services/mentorMeetingsService";
 
 export async function GET(request: Request) {
   try {
@@ -50,12 +50,29 @@ export async function GET(request: Request) {
       },
     });
 
-    const dashboardData = await getMentorDashboardData(userId, {
-      meetingsClient: viewerClient,
-      chatsClient: viewerClient,
-    });
+    const { data: profile, error: profileError } = await viewerClient
+      .from("profiles")
+      .select("id, role")
+      .eq("id", userId)
+      .maybeSingle();
 
-    return NextResponse.json({ success: true, data: dashboardData });
+    if (profileError) {
+      throw new Error(profileError.message);
+    }
+
+    if (!profile || (profile.role !== "mentor" && profile.role !== "admin")) {
+      return NextResponse.json(
+        { success: false, error: "Profile is not a mentor." },
+        { status: 403 },
+      );
+    }
+
+    const data = await getMentorMeetingsForScheduleUnchecked(
+      userId,
+      viewerClient,
+    );
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     return handleRouteError(error);
   }

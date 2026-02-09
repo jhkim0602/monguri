@@ -37,80 +37,68 @@ export default function SchedulePage() {
   // Fetch Data
   const fetchData = async () => {
     setIsLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) return;
+      if (!user) {
+        setRequests([]);
+        setConfirmedRequests([]);
+        setEvents([]);
+        return;
+      }
 
-    // 1. Fetch Requests + MentorMentee info
-    const { data: requestData, error: reqError } = await supabase
-      .from("meeting_requests")
-      .select(
-        `
-            *,
-            mentor_mentee:mentor_mentee!inner(mentor_id)
-        `,
-      )
-      .eq("mentor_mentee.mentor_id", user.id);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        throw new Error("Unauthorized.");
+      }
 
-    if (!reqError && requestData) {
-      // 2. Fetch Profiles for requestors
-      const requestorIds = Array.from(
-        new Set(requestData.map((r: any) => r.requestor_id)),
-      );
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, name")
-        .in("id", requestorIds);
+      const response = await fetch(`/api/mentor/meetings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json().catch(() => null);
 
-      const profileMap = new Map(
-        profiles?.map((p: any) => [p.id, p.name]) || [],
-      );
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "Failed to load meetings.");
+      }
 
-      const allRequests = requestData;
+      const pending = Array.isArray(result.data?.pendingRequests)
+        ? (result.data.pendingRequests as Request[])
+        : [];
+      const confirmed = Array.isArray(result.data?.confirmedRequests)
+        ? (result.data.confirmedRequests as Request[])
+        : [];
+      const confirmedEvents = confirmed
+        .map((request) => {
+          const date = new Date(request.confirmed_time ?? "");
+          if (Number.isNaN(date.getTime())) return null;
 
-      const pending: Request[] = [];
-      const confirmedList: Request[] = []; // Store full objects
-      const confirmedEvents: Event[] = [];
-
-      allRequests.forEach((r: any) => {
-        const reqObj: Request = {
-          id: r.id,
-          mentor_mentee_id: r.mentor_mentee_id,
-          requestor_id: r.requestor_id,
-          studentName: profileMap.get(r.requestor_id) || "알 수 없음",
-          topic: r.topic,
-          preferred_times: r.preferred_times,
-          status: r.status,
-          confirmed_time: r.confirmed_time,
-          zoom_link: r.zoom_link,
-        };
-
-        if (r.status === "PENDING") {
-          pending.push(reqObj);
-        } else if (r.status === "CONFIRMED" && r.confirmed_time) {
-          confirmedList.push(reqObj); // Add to list
-
-          const d = new Date(r.confirmed_time);
-          confirmedEvents.push({
-            id: r.id,
-            title: `멘토링 (${reqObj.studentName})`,
-            date: d,
-            time: d.toLocaleTimeString("ko-KR", {
+          return {
+            id: request.id,
+            title: `멘토링 (${request.studentName})`,
+            date,
+            time: date.toLocaleTimeString("ko-KR", {
               hour: "2-digit",
               minute: "2-digit",
             }),
-            type: "mentoring",
-          });
-        }
-      });
-      setRequests(pending);
-      setConfirmedRequests(confirmedList);
-      setEvents(confirmedEvents);
-    }
+            type: "mentoring" as const,
+          };
+        })
+        .filter(Boolean) as Event[];
 
-    setIsLoading(false);
+      setRequests(pending);
+      setConfirmedRequests(confirmed);
+      setEvents(confirmedEvents);
+    } catch (error) {
+      console.error("Failed to fetch schedule data:", error);
+      setRequests([]);
+      setConfirmedRequests([]);
+      setEvents([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {

@@ -57,9 +57,15 @@ export default function DashboardPage() {
 
     const fetchDashboardData = async () => {
       try {
-        const dashboardResponse = await fetch(
-          `/api/mentor/dashboard?mentorId=${encodeURIComponent(mentorId)}`,
-        );
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) {
+          throw new Error("Unauthorized.");
+        }
+
+        const dashboardResponse = await fetch(`/api/mentor/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const result = await dashboardResponse.json();
 
         if (result.success) {
