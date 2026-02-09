@@ -198,6 +198,15 @@ export default function FeedbackArchive({
     );
   };
 
+  const normalizeDate = (value?: Date | string | null) => {
+    if (!value) return null;
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   const SUBJECTS = [
     { id: "korean", name: "국어", color: "emerald", icon: Library },
     { id: "math", name: "수학", color: "blue", icon: Calculator },
@@ -214,32 +223,54 @@ export default function FeedbackArchive({
       .filter(
         (task) => isVisibleFeedbackText(task.mentorFeedback),
       )
-      .map((task) => ({
-        id: `m-${task.id}`,
-        title: generateSimpleSummary(sanitizeFeedbackText(task.mentorFeedback)),
-        taskTitle: task.title,
-        subject: task.subject,
-        subjectId: normalizeSubjectId(task.categoryId),
-        subjectColor: mapSubjectColor(normalizeSubjectId(task.categoryId)),
-        date: task.deadline || new Date(),
-        content: sanitizeFeedbackText(task.mentorFeedback),
-        originalTask: task, // Store full task for modal
-      }));
+      .map((task) => {
+        const feedbackDate =
+          normalizeDate(task.latestFeedbackCreatedAt) ??
+          normalizeDate(task.createdAt);
+        const deadlineDate = normalizeDate(task.deadline);
+        const sortTimestamp = (
+          feedbackDate ??
+          deadlineDate ??
+          normalizeDate(task.createdAt) ??
+          new Date(0)
+        ).getTime();
+
+        return {
+          id: `m-${task.id}`,
+          title: generateSimpleSummary(sanitizeFeedbackText(task.mentorFeedback)),
+          taskTitle: task.title,
+          subject: task.subject,
+          subjectId: normalizeSubjectId(task.categoryId),
+          subjectColor: mapSubjectColor(normalizeSubjectId(task.categoryId)),
+          date: feedbackDate ?? deadlineDate ?? new Date(),
+          sortTimestamp,
+          content: sanitizeFeedbackText(task.mentorFeedback),
+          originalTask: task, // Store full task for modal
+        };
+      });
 
     // 2. Filter User Tasks that have mentor comments
     const userFeedbacks = userTasks
       .filter((task) => isVisibleFeedbackText(task.mentorComment))
-      .map((task) => ({
-        id: `u-${task.id}`,
-        title: generateSimpleSummary(sanitizeFeedbackText(task.mentorComment)),
-        taskTitle: task.title,
-        subject: getSubjectName(normalizeSubjectId(task.categoryId)),
-        subjectId: normalizeSubjectId(task.categoryId),
-        subjectColor: mapSubjectColor(normalizeSubjectId(task.categoryId)),
-        date: task.deadline || new Date(),
-        content: sanitizeFeedbackText(task.mentorComment),
-        originalTask: task, // Store full task for modal
-      }));
+      .map((task) => {
+        const deadlineDate = normalizeDate(task.deadline);
+        const createdDate = normalizeDate(task.createdAt);
+        const sortTimestamp = (deadlineDate ?? createdDate ?? new Date(0))
+          .getTime();
+
+        return {
+          id: `u-${task.id}`,
+          title: generateSimpleSummary(sanitizeFeedbackText(task.mentorComment)),
+          taskTitle: task.title,
+          subject: getSubjectName(normalizeSubjectId(task.categoryId)),
+          subjectId: normalizeSubjectId(task.categoryId),
+          subjectColor: mapSubjectColor(normalizeSubjectId(task.categoryId)),
+          date: deadlineDate ?? createdDate ?? new Date(),
+          sortTimestamp,
+          content: sanitizeFeedbackText(task.mentorComment),
+          originalTask: task, // Store full task for modal
+        };
+      });
 
     return [...mentorFeedbacks, ...userFeedbacks];
   }, [mentorTasks, userTasks]);
@@ -264,14 +295,23 @@ export default function FeedbackArchive({
     const cutoffDate = new Date();
     if (periodFilter === "1month") cutoffDate.setMonth(now.getMonth() - 1);
     if (periodFilter === "3months") cutoffDate.setMonth(now.getMonth() - 3);
-    processedFeedbacks = processedFeedbacks.filter((f) => f.date >= cutoffDate);
+    const cutoffTimestamp = cutoffDate.getTime();
+    processedFeedbacks = processedFeedbacks.filter(
+      (f) => f.sortTimestamp >= cutoffTimestamp,
+    );
   }
 
   // 3. Sort by Date
   processedFeedbacks.sort((a, b) => {
+    if (a.sortTimestamp === b.sortTimestamp) {
+      return sortOrder === "newest"
+        ? String(b.id).localeCompare(String(a.id))
+        : String(a.id).localeCompare(String(b.id));
+    }
+
     return sortOrder === "newest"
-      ? b.date.getTime() - a.date.getTime()
-      : a.date.getTime() - b.date.getTime();
+      ? b.sortTimestamp - a.sortTimestamp
+      : a.sortTimestamp - b.sortTimestamp;
   });
 
   // Calculate Pagination
@@ -332,6 +372,12 @@ export default function FeedbackArchive({
 
   const handleTabChange = (subjectId: string) => {
     setActiveSubject(subjectId);
+    setCurrentPage(1);
+    setOpenFeedbackId(null);
+  };
+
+  const handleSortChange = (nextOrder: "newest" | "oldest") => {
+    setSortOrder(nextOrder);
     setCurrentPage(1);
     setOpenFeedbackId(null);
   };
@@ -418,14 +464,14 @@ export default function FeedbackArchive({
           {/* Sort Order */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setSortOrder("newest")}
+              onClick={() => handleSortChange("newest")}
               className={`text-xs ${sortOrder === "newest" ? "font-black text-gray-900" : "font-medium text-gray-400"}`}
             >
               최신순
             </button>
             <div className="w-px h-2.5 bg-gray-200"></div>
             <button
-              onClick={() => setSortOrder("oldest")}
+              onClick={() => handleSortChange("oldest")}
               className={`text-xs ${sortOrder === "oldest" ? "font-black text-gray-900" : "font-medium text-gray-400"}`}
             >
               오래된순

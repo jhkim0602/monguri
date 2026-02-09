@@ -17,6 +17,7 @@ type ApiMentorTask = {
   description: string | null;
   status: "pending" | "submitted" | "feedback_completed";
   deadline: string | null;
+  createdAt?: string;
   badgeColor?: {
     bg: string;
     text: string;
@@ -70,6 +71,7 @@ export type MentorTaskLike = {
   mentorFeedback: string;
   mentorComment: string;
   deadline: Date | null;
+  createdAt?: Date | null;
   attachments: any[];
   submissions: any[];
   feedbackFiles: any[];
@@ -78,6 +80,7 @@ export type MentorTaskLike = {
   studyRecord: any;
   hasMentorResponse: boolean;
   latestFeedbackId?: string;
+  latestFeedbackCreatedAt?: Date | null;
   feedbackIsRead?: boolean;
   feedbackReadAt?: string | null;
   submissionNote?: string | null;
@@ -133,6 +136,7 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
       mentorFeedback,
       mentorComment: mentorFeedback,
       deadline: parseDateString(task.deadline),
+      createdAt: parseDateString(task.createdAt ?? null),
       attachments: task.attachments ?? [],
       submissions: task.submissions ?? [],
       feedbackFiles: [],
@@ -144,6 +148,9 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
           ? task.hasMentorResponse
           : Boolean(task.latestFeedback),
       latestFeedbackId: task.latestFeedback?.id,
+      latestFeedbackCreatedAt: parseDateString(
+        task.latestFeedback?.createdAt ?? null,
+      ),
       feedbackIsRead: task.latestFeedback?.isRead ?? false,
       feedbackReadAt: task.latestFeedback?.readAt ?? null,
       submissionNote: task.submissionNote ?? task.latestSubmission?.note ?? null,
@@ -183,6 +190,7 @@ export type PlannerTaskLike = {
   description?: string;
   status?: "pending" | "submitted";
   deadline: Date | null;
+  createdAt?: Date | null;
   completed: boolean;
   timeSpent: number;
   isRunning: boolean;
@@ -323,6 +331,7 @@ export function adaptPlannerTasksToUi(
       description: task.description ?? "직접 세운 학습 계획입니다.",
       status: isCompleted ? "submitted" : "pending",
       deadline: parseDateString(task.date),
+      createdAt: parseDateString(task.createdAt ?? null),
       completed: isCompleted,
       timeSpent: task.timeSpentSec ?? 0,
       isRunning: false,
