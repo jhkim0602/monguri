@@ -33,6 +33,7 @@ export type Student = {
   time: string;
   unread: number;
   subject: SubjectKey;
+  grade: string | null;
   level: string;
   online: boolean;
   avatarUrl: string | null;

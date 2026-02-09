@@ -32,16 +32,29 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="relative z-20 px-8 py-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-black text-gray-900 tracking-tight">SeolStudy</span>
+          <div className="flex items-center gap-2">
+            <img
+              src="/seoul_logo.svg"
+              alt="SeolStudy 로고"
+              className="h-8 w-8 object-contain"
+            />
+            <span className="text-xl font-black text-[#1E3A8A] tracking-tight">
+              SeolStudy
+            </span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-500">
-            <a href="#about" className="hover:text-gray-900 transition-colors">소개</a>
-            <a href="#video" className="hover:text-gray-900 transition-colors">사용법</a>
-            <a href="#contact" className="hover:text-gray-900 transition-colors">문의</a>
+            <a href="#about" className="hover:text-gray-900 transition-colors">
+              소개
+            </a>
+            <a href="#video" className="hover:text-gray-900 transition-colors">
+              사용법
+            </a>
+            <a
+              href="#contact"
+              className="hover:text-gray-900 transition-colors"
+            >
+              문의
+            </a>
           </div>
         </div>
       </nav>
@@ -62,7 +75,7 @@ export default function LandingPage() {
 
               {/* Mascot Image */}
               <div className="absolute top-1/2 left-[45%] -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] md:w-[600px] md:h-[600px] opacity-80 pointer-events-none -z-10">
-                 <Image
+                <Image
                   src="/images/mascot.png"
                   alt="SeolStudy Mascot"
                   fill
@@ -81,8 +94,7 @@ export default function LandingPage() {
                   </span>
                 </h1>
                 <p className="text-lg md:text-xl text-gray-500 font-medium leading-relaxed max-w-lg">
-                 설명입니다. 잘부탁드립니다.
-
+                  설명입니다. 잘부탁드립니다.
                 </p>
               </div>
 
@@ -93,8 +105,12 @@ export default function LandingPage() {
                     <Users className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase">멘토링</p>
-                    <p className="text-sm font-bold text-gray-700">1:1 맞춤 지도</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase">
+                      멘토링
+                    </p>
+                    <p className="text-sm font-bold text-gray-700">
+                      1:1 맞춤 지도
+                    </p>
                   </div>
                 </div>
 
@@ -103,18 +119,23 @@ export default function LandingPage() {
                     <BookOpen className="w-5 h-5 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase">학습관리</p>
-                    <p className="text-sm font-bold text-gray-700">체계적 플래너</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase">
+                      학습관리
+                    </p>
+                    <p className="text-sm font-bold text-gray-700">
+                      체계적 플래너
+                    </p>
                   </div>
                 </div>
-
-
               </div>
 
               {/* Team Info */}
-              <div className="pt-6 border-t border-gray-100">
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-gray-800">몽구리당당팀</p>
+              <div className="pt-6">
+                <div className="mb-4 h-px w-44 bg-gray-200 sm:w-52" />
+                <div className="max-w-xs space-y-1">
+                  <p className="text-sm font-bold text-gray-800">
+                    몽구리당당팀
+                  </p>
                   <p className="text-xs text-gray-500 leading-snug">
                     김정환, 이선우, 서준혁, 이연지, 조한결
                   </p>
@@ -156,7 +177,9 @@ export default function LandingPage() {
               {/* Speech Bubble */}
               <div className="relative bg-white p-6 rounded-2xl shadow-xl border border-violet-100 mb-6 w-full text-center z-30 -translate-y-8">
                 <p className="text-xl font-bold text-gray-800 leading-snug">
-                  설스터디 웹앱<br/>어떻게 사용하나요?
+                  설스터디 웹앱
+                  <br />
+                  어떻게 사용하나요?
                 </p>
                 {/* Tail */}
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-b border-r border-violet-100 rotate-45" />
@@ -199,8 +222,12 @@ export default function LandingPage() {
                           <Play className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-700">SeolStudy 완벽 가이드</p>
-                          <p className="text-xs text-gray-400">멘토 & 멘티 필수 시청</p>
+                          <p className="text-sm font-bold text-gray-700">
+                            SeolStudy 완벽 가이드
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            멘토 & 멘티 필수 시청
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -217,12 +244,8 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-
-
         </div>
       </section>
-
-
     </div>
   );
 }

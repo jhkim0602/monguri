@@ -44,7 +44,9 @@ export default function MentorChatSidebar({
                 >
                   Mentor Inbox
                 </p>
-                <h2 className="text-lg font-bold text-[color:var(--chat-ink)]">채팅</h2>
+                <h2 className="text-lg font-bold text-[color:var(--chat-ink)]">
+                  채팅
+                </h2>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -65,22 +67,6 @@ export default function MentorChatSidebar({
               <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50">
                 <SlidersHorizontal className="h-4 w-4" />
               </button>
-            </div>
-          </div>
-
-          <div className="px-5 pb-4">
-            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_12px_40px_-28px_rgba(15,23,42,0.45)]">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>오늘 응답률</span>
-                <span className="font-semibold text-slate-900">92%</span>
-              </div>
-              <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
-                <div className="h-full w-[92%] rounded-full bg-[linear-gradient(90deg,_var(--chat-accent),_var(--chat-accent-2))]" />
-              </div>
-              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
-                <span>미응답 0건</span>
-                <span>평균 1h 14m</span>
-              </div>
             </div>
           </div>
 
@@ -126,12 +112,18 @@ export default function MentorChatSidebar({
                         <span className="text-sm font-semibold text-slate-900">
                           {student.name}
                         </span>
-                        <span className="text-[10px] text-slate-400">{student.time}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {student.time}
+                        </span>
                       </div>
                       <div className="mt-1 flex items-center gap-2">
-                        <span className="text-[10px] text-slate-400">{student.level}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {student.grade?.trim() || ""}
+                        </span>
                       </div>
-                      <p className="mt-2 truncate text-xs text-slate-500">{student.lastMsg}</p>
+                      <p className="mt-2 truncate text-xs text-slate-500">
+                        {student.lastMsg}
+                      </p>
                     </div>
 
                     {student.unread > 0 && (

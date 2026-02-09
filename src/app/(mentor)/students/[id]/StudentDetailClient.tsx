@@ -42,7 +42,6 @@ export default function StudentDetailClient({
   const [mounted, setMounted] = useState(false);
   const [isPlannerDetailOpen, setIsPlannerDetailOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"planner" | "report">("planner");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -284,24 +283,7 @@ export default function StudentDetailClient({
       {/* Main Content */}
       <div className="grid grid-cols-12 gap-8">
         <div className="col-span-8 space-y-6">
-          {/* Tabs */}
-          <div className="flex items-center gap-2 p-1 bg-white rounded-xl border border-gray-100 w-fit">
-            <button
-              onClick={() => setActiveTab("planner")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "planner" ? "bg-gray-900 text-white shadow-md" : "text-gray-400 hover:text-gray-900"}`}
-            >
-              학습 플래너
-            </button>
-            <button
-              onClick={() => setActiveTab("report")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "report" ? "bg-gray-900 text-white shadow-md" : "text-gray-400 hover:text-gray-900"}`}
-            >
-              주간 리포트
-            </button>
-          </div>
-
-          {activeTab === "planner" && (
-            <div className="space-y-4">
+          <div className="space-y-4">
               {/* Date & View Controls */}
               <div className="flex flex-col gap-3 mb-2">
                 <div className="flex items-center justify-between">
@@ -365,7 +347,7 @@ export default function StudentDetailClient({
 
               {/* View Mode: Card (Planner View) */}
               {viewMode === "card" && (
-                <div className="w-full overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
+                <div className="w-full overflow-x-auto pb-4 pt-2 -mx-4 px-4 scrollbar-hide">
                   <div className="flex gap-4 min-w-max">
                     {weekDates.map((date, i) => {
                       const isSelected =
@@ -631,8 +613,7 @@ export default function StudentDetailClient({
                 enableFeedbackInput={true}
                 onFeedbackSubmit={handleFeedbackSubmit}
               />
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Right Sidebar (Stats) */}

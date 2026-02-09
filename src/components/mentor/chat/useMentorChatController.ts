@@ -46,6 +46,49 @@ export function useMentorChatController() {
     prevScrollTop: number;
   } | null>(null);
   const shouldScrollToBottomRef = useRef(true);
+  const isPinnedToBottomRef = useRef(true);
+  const forceBottomRafRef = useRef<number | null>(null);
+  const forceBottomUntilRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
+
+  const stopForceBottom = useCallback(() => {
+    if (forceBottomRafRef.current !== null) {
+      cancelAnimationFrame(forceBottomRafRef.current);
+      forceBottomRafRef.current = null;
+    }
+    forceBottomUntilRef.current = 0;
+  }, []);
+
+  const forceScrollToBottom = useCallback(
+    (durationMs = 1800) => {
+      const deadline = Date.now() + durationMs;
+      forceBottomUntilRef.current = Math.max(forceBottomUntilRef.current, deadline);
+
+      const step = () => {
+        const container = chatScrollRef.current;
+        if (!container) {
+          forceBottomRafRef.current = null;
+          return;
+        }
+
+        container.scrollTop = container.scrollHeight;
+        isPinnedToBottomRef.current = true;
+        setShowScrollToBottom(false);
+
+        if (Date.now() < forceBottomUntilRef.current) {
+          forceBottomRafRef.current = requestAnimationFrame(step);
+          return;
+        }
+
+        forceBottomRafRef.current = null;
+      };
+
+      if (forceBottomRafRef.current === null) {
+        forceBottomRafRef.current = requestAnimationFrame(step);
+      }
+    },
+    [],
+  );
 
   const persistCache = useCallback(
     (nextMessages: ChatMessage[]) => {
@@ -88,20 +131,70 @@ export function useMentorChatController() {
 
       if (isMounted) setMentorId(uid);
 
-      const { data: pairs, error } = await supabase
+      const selectWithGrade =
+        "id, mentee:profiles!mentor_mentee_mentee_id_fkey(id, name, avatar_url, grade), chat_messages(id, body, created_at, sender_id, message_type)";
+      const selectFallback =
+        "id, mentee:profiles!mentor_mentee_mentee_id_fkey(id, name, avatar_url), chat_messages(id, body, created_at, sender_id, message_type)";
+
+      let pairs: any[] | null = null;
+      let pairsError: { message: string } | null = null;
+
+      const withGradeResult = await supabase
         .from("mentor_mentee")
-        .select(
-          "id, mentee:profiles!mentor_mentee_mentee_id_fkey(id, name, avatar_url), chat_messages(id, body, created_at, sender_id, message_type)",
-        )
+        .select(selectWithGrade)
         .eq("mentor_id", uid)
         .eq("status", "active")
         .order("started_at", { ascending: false })
         .order("created_at", { foreignTable: "chat_messages", ascending: false })
         .limit(1, { foreignTable: "chat_messages" });
 
-      if (error) {
+      pairs = withGradeResult.data;
+      pairsError = withGradeResult.error;
+
+      if (
+        pairsError &&
+        typeof pairsError.message === "string" &&
+        pairsError.message.includes("grade")
+      ) {
+        const fallbackResult = await supabase
+          .from("mentor_mentee")
+          .select(selectFallback)
+          .eq("mentor_id", uid)
+          .eq("status", "active")
+          .order("started_at", { ascending: false })
+          .order("created_at", { foreignTable: "chat_messages", ascending: false })
+          .limit(1, { foreignTable: "chat_messages" });
+
+        pairs = fallbackResult.data;
+        pairsError = fallbackResult.error;
+      }
+
+      if (pairsError) {
         if (isMounted) setIsLoading(false);
         return;
+      }
+
+      const gradeByMenteeId = new Map<string, string>();
+      const menteeIds = (pairs ?? [])
+        .map((pair: any) => {
+          const menteeProfile = Array.isArray(pair.mentee) ? pair.mentee[0] : pair.mentee;
+          return menteeProfile?.id as string | undefined;
+        })
+        .filter((id): id is string => Boolean(id));
+
+      if (menteeIds.length > 0) {
+        const { data: gradeRows } = await supabase
+          .from("profiles")
+          .select("id, grade")
+          .in("id", menteeIds);
+
+        (gradeRows ?? []).forEach((row: any) => {
+          if (typeof row?.id !== "string") return;
+          if (typeof row?.grade !== "string") return;
+          const trimmed = row.grade.trim();
+          if (!trimmed) return;
+          gradeByMenteeId.set(row.id, trimmed);
+        });
       }
 
       const nextStudents: Student[] = (pairs ?? []).map((pair) => {
@@ -126,6 +219,11 @@ export function useMentorChatController() {
                   : "파일을 전송했습니다.")
           : "대화 없음";
 
+        const joinedGrade =
+          typeof menteeProfile?.grade === "string" ? menteeProfile.grade.trim() : "";
+        const fetchedGrade = gradeByMenteeId.get(menteeProfile?.id ?? "") ?? "";
+        const resolvedGrade = joinedGrade || fetchedGrade || null;
+
         return {
           id: pair.id,
           menteeId: menteeProfile?.id ?? "",
@@ -134,7 +232,8 @@ export function useMentorChatController() {
           time: formatPreviewTime(lastMessage?.created_at),
           unread: 0,
           subject: "math",
-          level: "멘티",
+          grade: resolvedGrade,
+          level: resolvedGrade ?? "미설정",
           online: false,
           avatarUrl: menteeProfile?.avatar_url ?? null,
         };
@@ -241,6 +340,8 @@ export function useMentorChatController() {
       selectedStudentId,
     );
     if (cached?.data?.messages?.length) {
+      shouldScrollToBottomRef.current = true;
+      forceScrollToBottom();
       messagesPairIdRef.current = pairId;
       setMessages(cached.data.messages);
       setHasMore(cached.data.messages.length >= PAGE_SIZE);
@@ -265,8 +366,9 @@ export function useMentorChatController() {
     setHasMore(page.rawCount >= PAGE_SIZE);
     persistCache(page.items);
     shouldScrollToBottomRef.current = true;
+    forceScrollToBottom();
     loadingPairsRef.current.delete(pairId);
-  }, [selectedStudentId, fetchMessagesPage, persistCache]);
+  }, [selectedStudentId, fetchMessagesPage, persistCache, forceScrollToBottom]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!selectedStudentId || !hasMore || isLoadingMore) return;
@@ -302,9 +404,13 @@ export function useMentorChatController() {
   useEffect(() => {
     if (!selectedStudentId) return;
 
+    setShowScrollToBottom(false);
+    setIsLoadingMore(false);
     setMessages([]);
     setHasMore(true);
     shouldScrollToBottomRef.current = true;
+    isPinnedToBottomRef.current = true;
+    forceScrollToBottom(2200);
     loadMessages();
 
     const channel = supabase
@@ -386,6 +492,7 @@ export function useMentorChatController() {
       .subscribe();
 
     return () => {
+      stopForceBottom();
       supabase.removeChannel(channel);
     };
   }, [
@@ -394,6 +501,8 @@ export function useMentorChatController() {
     loadMessages,
     fetchSignedUrl,
     markChatNotificationsRead,
+    forceScrollToBottom,
+    stopForceBottom,
   ]);
 
   useEffect(() => {
@@ -408,32 +517,121 @@ export function useMentorChatController() {
       return;
     }
 
+    if (messages.length === 0) return;
+
     if (shouldScrollToBottomRef.current) {
-      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      container.scrollTop = container.scrollHeight;
       shouldScrollToBottomRef.current = false;
+      isPinnedToBottomRef.current = true;
+      setShowScrollToBottom(false);
     }
   }, [messages, selectedStudentId]);
-
-  const updateScrollState = useCallback(() => {
-    const container = chatScrollRef.current;
-    if (!container) return;
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    setShowScrollToBottom(distanceFromBottom > 800);
-
-    if (container.scrollTop <= 40 && hasMore && !isLoadingMore) {
-      loadOlderMessages();
-    }
-  }, [hasMore, isLoadingMore, loadOlderMessages]);
 
   useEffect(() => {
     const container = chatScrollRef.current;
     if (!container) return;
+
+    const scrollToBottomIfPinned = () => {
+      if (pendingScrollAdjustRef.current || isLoadingMore) return;
+      if (!isPinnedToBottomRef.current && !shouldScrollToBottomRef.current) return;
+
+      container.scrollTop = container.scrollHeight;
+      shouldScrollToBottomRef.current = false;
+      isPinnedToBottomRef.current = true;
+      setShowScrollToBottom(false);
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(scrollToBottomIfPinned);
+    });
+    const mutationObserver = new MutationObserver(() => {
+      requestAnimationFrame(scrollToBottomIfPinned);
+    });
+
+    let observed = container.firstElementChild as HTMLElement | null;
+    if (observed) {
+      resizeObserver.observe(observed);
+    }
+    mutationObserver.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [selectedStudentId, isLoadingMore]);
+
+  const updateScrollState = useCallback(() => {
+    const container = chatScrollRef.current;
+    if (!container) return;
+
+    const currentScrollTop = container.scrollTop;
+    const forceActive = Date.now() < forceBottomUntilRef.current;
+    if (forceActive && currentScrollTop + 2 < lastScrollTopRef.current) {
+      stopForceBottom();
+      shouldScrollToBottomRef.current = false;
+      isPinnedToBottomRef.current = false;
+    }
+    lastScrollTopRef.current = currentScrollTop;
+
+    if (shouldScrollToBottomRef.current) {
+      isPinnedToBottomRef.current = true;
+      setShowScrollToBottom(false);
+      return;
+    }
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isNearBottom = distanceFromBottom <= 140;
+    isPinnedToBottomRef.current = isNearBottom;
+    setShowScrollToBottom(distanceFromBottom > 800);
+
+    if (!isNearBottom && Date.now() >= forceBottomUntilRef.current) {
+      stopForceBottom();
+    }
+
+    if (
+      messages.length > 0 &&
+      container.scrollTop <= 40 &&
+      hasMore &&
+      !isLoadingMore
+    ) {
+      loadOlderMessages();
+    }
+  }, [hasMore, isLoadingMore, loadOlderMessages, messages.length, stopForceBottom]);
+
+  useEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container) return;
+
+    const stopForceOnUserIntent = () => {
+      if (Date.now() < forceBottomUntilRef.current) {
+        stopForceBottom();
+        shouldScrollToBottomRef.current = false;
+      }
+    };
+
     const handleScroll = () => updateScrollState();
     container.addEventListener("scroll", handleScroll);
+    container.addEventListener("wheel", stopForceOnUserIntent, { passive: true });
+    container.addEventListener("touchstart", stopForceOnUserIntent, {
+      passive: true,
+    });
+    container.addEventListener("pointerdown", stopForceOnUserIntent);
     updateScrollState();
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [updateScrollState]);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("wheel", stopForceOnUserIntent);
+      container.removeEventListener("touchstart", stopForceOnUserIntent);
+      container.removeEventListener("pointerdown", stopForceOnUserIntent);
+    };
+  }, [updateScrollState, stopForceBottom]);
+
+  useEffect(
+    () => () => {
+      stopForceBottom();
+    },
+    [stopForceBottom],
+  );
 
   const { handleSend, handleSendFiles } = useMentorChatComposer({
     mentorId,

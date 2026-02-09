@@ -1,18 +1,10 @@
 "use client";
 
-import {
-  ArrowDown,
-  CheckCheck,
-  MoreVertical,
-  Paperclip,
-  Phone,
-  Send,
-  Smile,
-  Video,
-} from "lucide-react";
+import { ArrowDown, CheckCheck, Paperclip, Send, Smile } from "lucide-react";
 import MentorMeetingRequestCard from "@/components/mentor/chat/MentorMeetingRequestCard";
 import MeetingConfirmedMessage from "@/components/common/chat/MeetingConfirmedMessage";
 import MentorChatSidebar from "@/components/mentor/chat/MentorChatSidebar";
+import { useMentorProfile } from "@/contexts/MentorProfileContext";
 import {
   bodyFont,
   headingFont,
@@ -21,6 +13,7 @@ import {
 import { useMentorChatController } from "@/components/mentor/chat/useMentorChatController";
 
 export default function MentorChatPage() {
+  const { profile: mentorProfile } = useMentorProfile();
   const {
     mentorId,
     students,
@@ -43,10 +36,11 @@ export default function MentorChatPage() {
     handleSendFiles,
     handleSelectStudent,
   } = useMentorChatController();
+  const mentorAvatarUrl = mentorProfile?.avatar_url ?? null;
 
   return (
     <div
-      className={`${bodyFont.className} relative h-[calc(100vh-12rem)] overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-[0_30px_80px_-55px_rgba(15,23,42,0.65)] animate-[softIn_0.6s_ease-out]`}
+      className={`${bodyFont.className} relative h-[calc(100vh-7rem)] overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-[0_30px_80px_-55px_rgba(15,23,42,0.65)] animate-[softIn_0.6s_ease-out]`}
       style={themeStyle}
     >
       <style>{`
@@ -114,7 +108,9 @@ export default function MentorChatPage() {
                       </div>
                       <span
                         className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                          selectedStudent.online ? "bg-emerald-500" : "bg-slate-400"
+                          selectedStudent.online
+                            ? "bg-emerald-500"
+                            : "bg-slate-400"
                         }`}
                       />
                     </div>
@@ -127,20 +123,12 @@ export default function MentorChatPage() {
                         </h3>
                       </div>
                       <p className="text-xs text-slate-500">
-                        {selectedStudent.level} · 최근 활동: 방금 전
+                        멘티{" "}
+                        {selectedStudent.grade?.trim()
+                          ? ": " + selectedStudent.grade?.trim()
+                          : ""}
                       </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <button className="rounded-full border border-slate-200 bg-white p-2 hover:bg-slate-50">
-                      <Phone className="h-4 w-4" />
-                    </button>
-                    <button className="rounded-full border border-slate-200 bg-white p-2 hover:bg-slate-50">
-                      <Video className="h-4 w-4" />
-                    </button>
-                    <button className="rounded-full border border-slate-200 bg-white p-2 hover:bg-slate-50">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -175,15 +163,22 @@ export default function MentorChatPage() {
                           new Date(prevMsg.created_at).getTime() <
                           60000;
 
-                      const senderLabel = isMe ? "멘토 (나)" : selectedStudent.name;
-                      const timeLabel = new Date(msg.created_at).toLocaleTimeString("ko-KR", {
+                      const senderLabel = isMe
+                        ? "멘토 (나)"
+                        : selectedStudent.name;
+                      const timeLabel = new Date(
+                        msg.created_at,
+                      ).toLocaleTimeString("ko-KR", {
                         hour: "2-digit",
                         minute: "2-digit",
                       });
 
                       if (msg.message_type === "system") {
                         return (
-                          <div key={msg.id} className="my-4 flex w-full justify-center">
+                          <div
+                            key={msg.id}
+                            className="my-4 flex w-full justify-start pl-12"
+                          >
                             {msg.body?.startsWith("MEETING_CONFIRMED:") ? (
                               <MeetingConfirmedMessage
                                 requestId={msg.body.split(":")[1]}
@@ -202,38 +197,50 @@ export default function MentorChatPage() {
                         <div
                           key={msg.id}
                           className={`group relative flex gap-3 ${
-                            isMe ? "flex-row-reverse" : ""
-                          } ${isSequence ? "mt-[2px]" : "mt-5"}`}
+                            isSequence ? "mt-[2px]" : "mt-5"
+                          }`}
                         >
                           <div className="flex w-10 flex-shrink-0 flex-col items-center">
-                            {!isSequence && !isMe ? (
-                              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white bg-slate-200 shadow-sm">
-                                {selectedStudent?.avatarUrl ? (
+                            {!isSequence ? (
+                              <div
+                                className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white shadow-sm ${
+                                  isMe
+                                    ? "flex items-center justify-center bg-[linear-gradient(135deg,_var(--chat-accent),_var(--chat-accent-2))] text-sm font-bold text-white"
+                                    : "bg-slate-200"
+                                }`}
+                              >
+                                {isMe ? (
+                                  mentorAvatarUrl ? (
+                                    <img
+                                      src={mentorAvatarUrl}
+                                      alt="mentor profile"
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    "멘"
+                                  )
+                                ) : selectedStudent?.avatarUrl ? (
                                   <img
                                     src={selectedStudent.avatarUrl}
                                     alt="profile"
                                     className="h-full w-full object-cover"
                                   />
-                                ) : null}
+                                ) : (
+                                  (selectedStudent?.name?.[0] ?? "멘")
+                                )}
                               </div>
                             ) : null}
                           </div>
 
-                          <div
-                            className={`flex max-w-[75%] flex-col ${
-                              isMe ? "items-end" : "items-start"
-                            }`}
-                          >
+                          <div className="flex max-w-[75%] flex-col items-start">
                             {!isSequence && (
-                              <div
-                                className={`mb-1 flex items-end gap-2 ${
-                                  isMe ? "flex-row-reverse" : "flex-row"
-                                }`}
-                              >
+                              <div className="mb-1 flex flex-wrap items-end gap-2">
                                 <span className="text-[14px] font-semibold text-slate-900">
                                   {senderLabel}
                                 </span>
-                                <span className="text-[12px] text-slate-400">{timeLabel}</span>
+                                <span className="text-[12px] text-slate-400">
+                                  {timeLabel}
+                                </span>
                                 {isMe && (
                                   <span className="flex items-center gap-1 text-[12px] text-slate-400">
                                     <CheckCheck className="h-3 w-3" />
@@ -243,17 +250,10 @@ export default function MentorChatPage() {
                               </div>
                             )}
 
-                            <div
-                              className={`flex w-full flex-col gap-1 ${
-                                isMe ? "items-end" : "items-start"
-                              }`}
-                            >
-                              {msg.body && msg.message_type !== "meeting_request" ? (
-                                <div
-                                  className={`break-words whitespace-pre-wrap text-[15px] leading-relaxed text-slate-800 ${
-                                    isMe ? "text-right" : "text-left"
-                                  }`}
-                                >
+                            <div className="flex w-full flex-col items-start gap-1">
+                              {msg.body &&
+                              msg.message_type !== "meeting_request" ? (
+                                <div className="break-words whitespace-pre-wrap text-left text-[15px] leading-relaxed text-slate-800">
                                   {msg.body}
                                 </div>
                               ) : null}
@@ -268,11 +268,7 @@ export default function MentorChatPage() {
                               ) : null}
 
                               {msg.chat_attachments?.length ? (
-                                <div
-                                  className={`mt-1 flex flex-col gap-2 ${
-                                    isMe ? "items-end" : "items-start"
-                                  }`}
-                                >
+                                <div className="mt-1 flex flex-col items-start gap-2">
                                   {msg.chat_attachments.map((attachment) => {
                                     if (
                                       attachment.signed_url &&
@@ -296,7 +292,10 @@ export default function MentorChatPage() {
                                         rel="noreferrer"
                                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
                                       >
-                                        <Paperclip size={14} className="text-slate-400" />
+                                        <Paperclip
+                                          size={14}
+                                          className="text-slate-400"
+                                        />
                                         파일 다운로드
                                       </a>
                                     );
@@ -361,7 +360,9 @@ export default function MentorChatPage() {
                         type="file"
                         className="hidden"
                         multiple
-                        onChange={(event) => handleSendFiles(event.target.files)}
+                        onChange={(event) =>
+                          handleSendFiles(event.target.files)
+                        }
                       />
                       <button
                         onClick={() => fileInputRef.current?.click()}
@@ -379,7 +380,9 @@ export default function MentorChatPage() {
                     </div>
                     <button
                       onClick={handleSend}
-                      disabled={!inputText.trim() || !selectedStudentId || isSending}
+                      disabled={
+                        !inputText.trim() || !selectedStudentId || isSending
+                      }
                       className="flex items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,_var(--chat-accent),_var(--chat-accent-2))] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-500/20 hover:opacity-90 disabled:opacity-50"
                     >
                       <Send className="h-4 w-4" />
@@ -391,7 +394,9 @@ export default function MentorChatPage() {
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center text-slate-400">
-              {isLoading ? "채팅을 불러오는 중..." : "대화 상대를 선택해주세요."}
+              {isLoading
+                ? "채팅을 불러오는 중..."
+                : "대화 상대를 선택해주세요."}
             </div>
           )}
         </section>
