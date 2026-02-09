@@ -8,15 +8,14 @@ import {
   Calendar,
   MessageSquare,
   MessageCircle,
-  Settings,
-  LogOut,
-  Bell,
   FolderOpen,
   FileText,
 } from "lucide-react";
+import { useMentorProfile } from "@/contexts/MentorProfileContext";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { profile } = useMentorProfile();
 
   const menuItems = [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
@@ -29,6 +28,11 @@ export default function Sidebar() {
   ];
 
   const isActive = (path: string) => pathname.startsWith(path);
+  const mentorName = profile?.name || "멘토";
+  const mentorIntro = profile?.intro || "프로필을 설정해보세요.";
+  const mentorAvatar =
+    profile?.avatar_url ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(mentorName)}&background=EFF6FF&color=1D4ED8`;
 
   return (
     <aside className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-40 flex flex-col justify-between">
@@ -65,17 +69,17 @@ export default function Sidebar() {
         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
           <div className="w-10 h-10 rounded-full bg-blue-100 overflow-hidden">
             <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80"
+              src={mentorAvatar}
               alt="Mentor Avatar"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-bold text-gray-900 truncate">
-              김서울 멘토
+              {mentorName}
             </h4>
             <p className="text-[11px] text-gray-400 font-medium">
-              서울대학교 국어교육과
+              {mentorIntro}
             </p>
           </div>
         </div>
