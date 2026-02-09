@@ -5,28 +5,24 @@ import Image from "next/image";
 import { Play, Sparkles, Users, BookOpen, Target } from "lucide-react";
 
 export default function LandingPage() {
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToSection = (id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const targetTop = target.getBoundingClientRect().top + window.scrollY - 16;
+    window.scrollTo({ top: Math.max(targetTop, 0), behavior: "smooth" });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 relative overflow-hidden">
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Subtle Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-blue-100/40 to-indigo-100/30 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-gradient-to-br from-violet-100/30 to-pink-100/20 rounded-full blur-3xl" />
         <div className="absolute top-1/2 left-0 w-[300px] h-[300px] bg-gradient-to-br from-cyan-100/20 to-blue-100/20 rounded-full blur-3xl" />
-      </div>
-
-      {/* Floating Particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-20 animate-pulse"
-            style={{
-              top: `${20 + i * 15}%`,
-              left: `${10 + i * 15}%`,
-              animationDelay: `${i * 0.5}s`,
-            }}
-          />
-        ))}
       </div>
 
       {/* Navigation */}
@@ -43,24 +39,35 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-500">
-            <a href="#about" className="hover:text-gray-900 transition-colors">
-              소개
-            </a>
-            <a href="#video" className="hover:text-gray-900 transition-colors">
-              사용법
-            </a>
-            <a
-              href="#contact"
+            <button
+              type="button"
+              onClick={scrollToTop}
               className="hover:text-gray-900 transition-colors"
             >
-              문의
+              소개
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("video")}
+              className="hover:text-gray-900 transition-colors"
+            >
+              사용법
+            </button>
+            <a
+              href="https://forms.gle/FchKdDcm23JdGHpK9"
+              className="hover:text-gray-900 transition-colors"
+            >
+              상담
             </a>
           </div>
         </div>
       </nav>
 
       {/* Hero Section - 1열 */}
-      <section className="relative z-10 px-8 py-12 md:py-20">
+      <section
+        id="about"
+        className="relative z-10 px-8 py-12 md:py-20 scroll-mt-24"
+      >
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Left - Team & Product Intro */}
@@ -152,7 +159,10 @@ export default function LandingPage() {
       </section>
 
       {/* Video Section - 2열 */}
-      <section id="video" className="relative z-10 px-8 py-16 md:py-24">
+      <section
+        id="video"
+        className="relative z-10 overflow-y-hidden px-8 py-16 md:py-24 scroll-mt-24"
+      >
         <div className="max-w-6xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-12">
@@ -186,7 +196,7 @@ export default function LandingPage() {
               </div>
 
               {/* Mascot - Sitting on Footer */}
-              <div className="absolute -bottom-31 -left-13 w-[500px] h-[500px] lg:w-[700px] lg:h-[700px] z-20 pointer-events-none">
+              <div className="absolute -bottom-[37rem] -left-[13rem] w-[500px] h-[500px] lg:w-[700px] lg:h-[700px] z-20 pointer-events-none">
                 <Image
                   src="/images/mascot2.png"
                   alt="Question Mascot"

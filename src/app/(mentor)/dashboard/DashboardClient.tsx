@@ -366,9 +366,6 @@ export default function DashboardClient({
               </Link>
             ))}
           </div>
-          <button className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs rounded-xl transition-colors">
-            + 학생 추가하기
-          </button>
         </div>
         {/* 2. Feedback Inbox (Wide Horizontal) */}
         <div className="col-span-2 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow">

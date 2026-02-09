@@ -4,11 +4,7 @@ import Link from "next/link";
 import {
   Search,
   Filter,
-  MoreHorizontal,
   ChevronRight,
-  TrendingUp,
-  AlertCircle,
-  User,
 } from "lucide-react";
 import { MentorMentee } from "@/types/mentor";
 
@@ -26,9 +22,6 @@ export default function StudentsClient({
             담당 학생들의 학습 현황을 한눈에 확인하세요.
           </p>
         </div>
-        <button className="px-4 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200">
-          + 학생 추가
-        </button>
       </div>
 
       {/* Filter Bar */}
@@ -57,9 +50,6 @@ export default function StudentsClient({
             <tr>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
                 학생 정보
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
-                진행률
               </th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
                 최근 학습
@@ -103,24 +93,6 @@ export default function StudentsClient({
                         {/* {student.school} • D-{student.dDay} */}
                         {student.goal}
                       </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="w-full max-w-[140px]">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-gray-700">
-                        {student.stats.attendanceRate}
-                      </span>
-                      {parseInt(student.stats.attendanceRate) > 0 && (
-                        <TrendingUp size={14} className="text-emerald-500" />
-                      )}
-                    </div>
-                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${parseInt(student.stats.attendanceRate) > 0 ? "bg-emerald-500" : "bg-gray-300"}`}
-                        style={{ width: student.stats.attendanceRate }}
-                      />
                     </div>
                   </div>
                 </td>
