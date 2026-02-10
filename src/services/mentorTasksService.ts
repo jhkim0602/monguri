@@ -117,7 +117,11 @@ function buildSubmissionAttachments(
     submittedAt: latest.submitted_at ?? null,
   };
 }
-import { listMentorTasksByMenteeId } from "@/repositories/mentorTasksRepository";
+import {
+  getMentorTaskById,
+  listMentorTasksByMenteeId,
+  updateMentorTaskTimeRange,
+} from "@/repositories/mentorTasksRepository";
 import { getProfileById } from "@/repositories/profilesRepository";
 
 type TaskSummary = {
@@ -137,7 +141,7 @@ function pickLatest<T>(items: T[] | null | undefined, dateKey: keyof T) {
   })[0];
 }
 
-export async function getMenteeMentorTasks(menteeId: string) {
+const ensureMenteeProfile = async (menteeId: string) => {
   const profile = await getProfileById(menteeId);
 
   if (!profile) {
@@ -147,6 +151,10 @@ export async function getMenteeMentorTasks(menteeId: string) {
   if (profile.role !== "mentee") {
     throw new HttpError(403, "Profile is not a mentee.");
   }
+};
+
+export async function getMenteeMentorTasks(menteeId: string) {
+  await ensureMenteeProfile(menteeId);
 
   const tasks = await listMentorTasksByMenteeId(menteeId);
 
@@ -175,6 +183,8 @@ export async function getMenteeMentorTasks(menteeId: string) {
         status: task.status,
         deadline: task.deadline,
         createdAt: task.created_at,
+        startTime: task.start_time,
+        endTime: task.end_time,
         latestSubmission: latestSubmission
           ? {
               id: latestSubmission.id,
@@ -217,5 +227,35 @@ export async function getMenteeMentorTasks(menteeId: string) {
     menteeId,
     summary,
     tasks: mappedTasks,
+  };
+}
+
+export async function updateMenteeMentorTaskTimeRange(
+  taskId: string,
+  menteeId: string,
+  updates: {
+    startTime?: string | null;
+    endTime?: string | null;
+  },
+) {
+  await ensureMenteeProfile(menteeId);
+
+  const task = await getMentorTaskById(taskId);
+  if (!task) {
+    throw new HttpError(404, "Mentor task not found.");
+  }
+  if (task.mentee_id !== menteeId) {
+    throw new HttpError(403, "Task does not belong to mentee.");
+  }
+
+  const updated = await updateMentorTaskTimeRange(taskId, updates);
+  if (!updated) {
+    throw new HttpError(500, "Failed to update mentor task.");
+  }
+
+  return {
+    id: updated.id,
+    startTime: updated.start_time,
+    endTime: updated.end_time,
   };
 }

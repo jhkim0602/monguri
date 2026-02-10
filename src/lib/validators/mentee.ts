@@ -61,6 +61,17 @@ export const taskFeedbackMarkReadBodySchema = z.object({
   menteeId: uuidSchema,
 });
 
+export const mentorTaskUpdateBodySchema = z
+  .object({
+    menteeId: uuidSchema,
+    startTime: z.string().optional().nullable(),
+    endTime: z.string().optional().nullable(),
+  })
+  .refine(
+    (data) => data.startTime !== undefined || data.endTime !== undefined,
+    { message: "No fields to update." },
+  );
+
 export const plannerTaskListQuerySchema = z.object({
   menteeId: uuidSchema,
   date: dateStringSchema.optional(),
