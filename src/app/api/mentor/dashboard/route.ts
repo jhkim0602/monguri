@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import {
+  getMentorDashboardCacheTag,
+  MENTOR_SERVER_CACHE_TTL_SEC,
+} from "@/lib/mentorServerCache";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getMentorDashboardData } from "@/services/mentorDashboardService";
 
@@ -50,10 +55,20 @@ export async function GET(request: Request) {
       },
     });
 
-    const dashboardData = await getMentorDashboardData(userId, {
-      meetingsClient: viewerClient,
-      chatsClient: viewerClient,
-    });
+    const cachedLoader = unstable_cache(
+      async () =>
+        getMentorDashboardData(userId, {
+          meetingsClient: viewerClient,
+          chatsClient: viewerClient,
+        }),
+      ["mentor-dashboard", userId],
+      {
+        revalidate: MENTOR_SERVER_CACHE_TTL_SEC,
+        tags: [getMentorDashboardCacheTag(userId)],
+      },
+    );
+
+    const dashboardData = await cachedLoader();
 
     return NextResponse.json({ success: true, data: dashboardData });
   } catch (error) {

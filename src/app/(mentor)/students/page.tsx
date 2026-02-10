@@ -4,10 +4,6 @@ import { useEffect, useState } from "react";
 import StudentsClient from "./StudentsClient";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  readMentorStudentsCache,
-  writeMentorStudentsCache,
-} from "@/lib/mentorStudentsCache";
 
 export default function StudentsPage() {
   const [mentees, setMentees] = useState<any[]>([]);
@@ -44,17 +40,6 @@ export default function StudentsPage() {
     let isMounted = true;
     if (!mentorId) return;
 
-    const cached = readMentorStudentsCache(mentorId);
-    if (cached) {
-      setMentees(cached.data.mentees);
-      setIsLoading(false);
-      if (!cached.stale) {
-        return () => {
-          isMounted = false;
-        };
-      }
-    }
-
     const fetchStudents = async () => {
       try {
         const response = await fetch(
@@ -66,7 +51,6 @@ export default function StudentsPage() {
 
         if (result.success) {
           setMentees(result.data);
-          writeMentorStudentsCache(mentorId, { mentees: result.data });
         } else {
           setError(result.error);
         }

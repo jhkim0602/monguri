@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { getCachedMentorFeedbackItems } from "@/lib/mentorServerCache";
 import { mentorIdQuerySchema } from "@/lib/validators/mentor";
-import { getPendingFeedbackItems } from "@/services/mentorFeedbackService";
 
 export async function GET(request: Request) {
   try {
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const data = await getPendingFeedbackItems(parsed.data.mentorId);
+    const data = await getCachedMentorFeedbackItems(parsed.data.mentorId);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     return handleRouteError(error);

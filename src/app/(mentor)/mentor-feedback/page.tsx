@@ -5,10 +5,6 @@ import FeedbackClient from "./FeedbackClient";
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  readMentorFeedbackCache,
-  writeMentorFeedbackCache,
-} from "@/lib/mentorFeedbackCache";
 
 function FeedbackPageContent() {
   const searchParams = useSearchParams();
@@ -53,17 +49,6 @@ function FeedbackPageContent() {
     let isMounted = true;
     if (!mentorId) return;
 
-    const cached = readMentorFeedbackCache(mentorId);
-    if (cached) {
-      setItems(cached.data.items);
-      setIsLoading(false);
-      if (!cached.stale) {
-        return () => {
-          isMounted = false;
-        };
-      }
-    }
-
     const fetchPendingItems = async () => {
       try {
         const response = await fetch(
@@ -75,7 +60,6 @@ function FeedbackPageContent() {
 
         if (result.success) {
           setItems(result.data);
-          writeMentorFeedbackCache(mentorId, { items: result.data });
         } else {
           setError(result.error);
         }

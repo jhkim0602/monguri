@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
+import { revalidateMentorSurfaceCachesByMenteeId } from "@/lib/mentorServerCache";
 import {
   profileIdQuerySchema,
   profileUpdateBodySchema,
@@ -46,6 +48,8 @@ export async function PATCH(request: Request) {
     const { profileId, ...updates } = parsed.data;
 
     const profile = await updateMenteeProfile(profileId, updates);
+    revalidateMenteeHomeCacheByMenteeId(profileId);
+    await revalidateMentorSurfaceCachesByMenteeId(profileId);
     return NextResponse.json({ success: true, profile });
   } catch (error) {
     return handleRouteError(error);

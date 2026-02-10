@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
 import {
   mentorTaskUpdateBodySchema,
   taskIdParamSchema,
@@ -36,6 +37,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         endTime: bodyParsed.data.endTime,
       },
     );
+    revalidateMenteeHomeCacheByMenteeId(bodyParsed.data.menteeId);
 
     return NextResponse.json({ task });
   } catch (error) {

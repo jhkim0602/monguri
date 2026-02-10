@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMentorSurfaceCachesByMentorId } from "@/lib/mentorServerCache";
 import {
   mentorIdQuerySchema,
   mentorProfileUpdateBodySchema,
@@ -47,6 +48,7 @@ export async function PATCH(request: Request) {
 
     const { mentorId, ...updates } = parsed.data;
     const profile = await updateMentorProfile(mentorId, updates);
+    revalidateMentorSurfaceCachesByMentorId(mentorId);
     return NextResponse.json({ success: true, data: profile });
   } catch (error) {
     return handleRouteError(error);

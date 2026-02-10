@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { getCachedMentorStudents } from "@/lib/mentorServerCache";
 import { mentorIdQuerySchema } from "@/lib/validators/mentor";
-import { getMentorStudentsList } from "@/services/mentorStudentService";
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const students = await getMentorStudentsList(parsed.data.mentorId);
+    const students = await getCachedMentorStudents(parsed.data.mentorId);
     return NextResponse.json({ success: true, data: students });
   } catch (error) {
     return handleRouteError(error);
