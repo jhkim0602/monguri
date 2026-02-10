@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
 import {
   taskFeedbackMarkReadBodySchema,
   taskFeedbackQuerySchema,
@@ -64,6 +65,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       paramsParsed.data.taskId,
       bodyParsed.data.menteeId,
     );
+    revalidateMenteeHomeCacheByMenteeId(bodyParsed.data.menteeId);
 
     return NextResponse.json({ success: true, ...result });
   } catch (error) {

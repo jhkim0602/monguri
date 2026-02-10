@@ -298,37 +298,9 @@ export default function Home() {
         setIsLoading(true);
       }
       try {
-        const [tasksRes, profileRes, plannerRes, overviewRes, subjectsRes] =
-          await Promise.all([
-            fetch(`/api/mentee/tasks?menteeId=${userId}`),
-            fetch(`/api/mentee/profile?profileId=${userId}`),
-            fetch(
-              `/api/mentee/planner/tasks?menteeId=${userId}&from=${from}&to=${to}`,
-            ),
-            fetch(
-              `/api/mentee/planner/overview?menteeId=${userId}&from=${from}&to=${to}`,
-            ),
-            fetch(`/api/subjects`),
-          ]);
-
-        // Fetch Columns directly from Supabase - simplified query
-        const { data: columnsData, error: columnsError } = await supabase
-          .from("columns")
-          .select("id, title, subtitle, slug, series_id, cover_image_url, created_at, published_at, author_id")
-          .eq("status", "published")
-          .order("published_at", { ascending: false });
-
-        if (columnsError) {
-          console.error("Error fetching columns:", columnsError);
-        }
-
-        if (isMounted) {
-          if (columnsData && columnsData.length > 0) {
-            setColumns(columnsData);
-          } else {
-            setColumns([]);
-          }
-        }
+        const homeRes = await fetch(
+          `/api/mentee/home?menteeId=${userId}&from=${from}&to=${to}`,
+        );
 
         const next: {
           mentorTasks: MentorTaskLike[];
@@ -346,36 +318,18 @@ export default function Home() {
           subjects: [],
         };
 
-        if (tasksRes.ok) {
-          const tasksJson = await tasksRes.json();
-          if (Array.isArray(tasksJson.tasks)) {
-            next.mentorTasks = adaptMentorTasksToUi(tasksJson.tasks);
+        if (homeRes.ok) {
+          const homeJson = await homeRes.json();
+          if (Array.isArray(homeJson.mentorTasks)) {
+            next.mentorTasks = adaptMentorTasksToUi(homeJson.mentorTasks);
           }
-        }
-
-        if (profileRes.ok) {
-          const profileJson = await profileRes.json();
-          next.profile = adaptProfileToUi(profileJson.profile ?? null);
-        }
-
-        if (plannerRes.ok) {
-          const plannerJson = await plannerRes.json();
-          if (Array.isArray(plannerJson.tasks)) {
-            next.plannerTasks = adaptPlannerTasksToUi(plannerJson.tasks);
+          next.profile = adaptProfileToUi(homeJson.profile ?? null);
+          if (Array.isArray(homeJson.plannerTasks)) {
+            next.plannerTasks = adaptPlannerTasksToUi(homeJson.plannerTasks);
           }
-        }
-
-        if (overviewRes.ok) {
-          const overviewJson = await overviewRes.json();
-          next.planEvents = adaptPlanEventsToUi(
-            overviewJson.scheduleEvents ?? [],
-          );
-        }
-
-        if (subjectsRes.ok) {
-          const subjectsJson = await subjectsRes.json();
-          if (Array.isArray(subjectsJson.subjects)) {
-            next.subjects = subjectsJson.subjects
+          next.planEvents = adaptPlanEventsToUi(homeJson.scheduleEvents ?? []);
+          if (Array.isArray(homeJson.subjects)) {
+            next.subjects = homeJson.subjects
               .map((subject: any) => {
                 const id = String(subject.slug ?? subject.id ?? "").trim();
                 const name = String(subject.name ?? "").trim();
@@ -396,11 +350,12 @@ export default function Home() {
                 Boolean(subject),
               );
           }
+          if (Array.isArray(homeJson.columns)) {
+            next.columns = homeJson.columns;
+          }
         }
 
         if (!isMounted) return;
-
-        next.columns = columnsData ?? [];
 
         setMentorTasks(next.mentorTasks);
         setPlannerTasks(next.plannerTasks);

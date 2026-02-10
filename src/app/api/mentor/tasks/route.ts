@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
 import { mentorTaskCreateBodySchema } from "@/lib/validators/mentor";
 import { createMentorTaskForMentee } from "@/services/mentorTaskService";
 
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
       deadline: parsed.data.deadline,
       materials: parsed.data.materials ?? [],
     });
+    revalidateMenteeHomeCacheByMenteeId(parsed.data.menteeId);
 
     return NextResponse.json({ success: true, data: task }, { status: 201 });
   } catch (error) {

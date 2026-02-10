@@ -4,10 +4,6 @@ import { useEffect, useState } from "react";
 import DashboardClient from "./DashboardClient";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  readMentorDashboardCache,
-  writeMentorDashboardCache,
-} from "@/lib/mentorDashboardCache";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -44,17 +40,6 @@ export default function DashboardPage() {
     let isMounted = true;
     if (!mentorId) return;
 
-    const cached = readMentorDashboardCache(mentorId);
-    if (cached) {
-      setData(cached.data);
-      setIsLoading(false);
-      if (!cached.stale) {
-        return () => {
-          isMounted = false;
-        };
-      }
-    }
-
     const fetchDashboardData = async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -71,7 +56,6 @@ export default function DashboardPage() {
         if (result.success) {
           if (!isMounted) return;
           setData(result.data);
-          writeMentorDashboardCache(mentorId, result.data);
         } else {
           if (!isMounted) return;
           setError(result.error);

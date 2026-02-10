@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
+import { revalidateMentorSurfaceCachesByMenteeId } from "@/lib/mentorServerCache";
 import {
   plannerTaskDeleteQuerySchema,
   plannerTaskIdParamSchema,
@@ -81,6 +83,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         materials: bodyParsed.data.materials ?? undefined,
       }
     );
+    revalidateMenteeHomeCacheByMenteeId(bodyParsed.data.menteeId);
+    await revalidateMentorSurfaceCachesByMenteeId(bodyParsed.data.menteeId);
 
     return NextResponse.json({ task });
   } catch (error) {
@@ -111,6 +115,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       paramsParsed.data.taskId,
       queryParsed.data.menteeId
     );
+    revalidateMenteeHomeCacheByMenteeId(queryParsed.data.menteeId);
+    await revalidateMentorSurfaceCachesByMenteeId(queryParsed.data.menteeId);
 
     return NextResponse.json(result);
   } catch (error) {

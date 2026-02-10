@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
+import { revalidateMentorSurfaceCachesByMentorId } from "@/lib/mentorServerCache";
 import { mentorFeedbackSubmitBodySchema } from "@/lib/validators/mentor";
 import {
   submitTaskFeedback,
@@ -28,7 +30,8 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      await submitTaskFeedback(taskId, mentorId, comment, rating ?? 5);
+      const result = await submitTaskFeedback(taskId, mentorId, comment, rating ?? 5);
+      revalidateMenteeHomeCacheByMenteeId(result.menteeId);
     } else if (type === "planner_task") {
       if (!taskId) {
         return NextResponse.json(
@@ -36,7 +39,8 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      await submitPlannerTaskFeedback(taskId, mentorId, comment);
+      const result = await submitPlannerTaskFeedback(taskId, mentorId, comment);
+      revalidateMenteeHomeCacheByMenteeId(result.menteeId);
     } else if (type === "daily_plan") {
       if (!menteeId || !date) {
         return NextResponse.json(
@@ -45,12 +49,14 @@ export async function POST(request: Request) {
         );
       }
       await updateMentorReply(menteeId, date, comment);
+      revalidateMenteeHomeCacheByMenteeId(menteeId);
     } else {
       return NextResponse.json(
         { success: false, error: "Invalid task type" },
         { status: 400 },
       );
     }
+    revalidateMentorSurfaceCachesByMentorId(mentorId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

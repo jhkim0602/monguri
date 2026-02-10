@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/apiUtils";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
+import { revalidateMentorSurfaceCachesByMenteeId } from "@/lib/mentorServerCache";
 import {
   plannerTaskCreateBodySchema,
   plannerTaskListQuerySchema,
@@ -54,6 +56,8 @@ export async function POST(request: Request) {
       startTime: parsed.data.startTime ?? null,
       endTime: parsed.data.endTime ?? null,
     });
+    revalidateMenteeHomeCacheByMenteeId(parsed.data.menteeId);
+    await revalidateMentorSurfaceCachesByMenteeId(parsed.data.menteeId);
 
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {

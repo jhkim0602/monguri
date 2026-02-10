@@ -149,7 +149,10 @@ export async function submitTaskFeedback(
     console.error("Failed to create task feedback notification:", error);
   }
 
-  return result;
+  return {
+    success: result,
+    menteeId: task.mentee_id,
+  };
 }
 
 export async function submitPlannerTaskFeedback(
@@ -189,7 +192,10 @@ export async function submitPlannerTaskFeedback(
     console.error("Failed to create planner feedback notification:", error);
   }
 
-  return updated;
+  return {
+    task: updated,
+    menteeId: task.mentee_id,
+  };
 }
 
 export async function createMentorTaskForMentee(

@@ -3,6 +3,8 @@ import {
     createPlannerRecurringGroup,
     createPlannerTaskBatch,
 } from "@/repositories/plannerTasksRepository";
+import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
+import { revalidateMentorSurfaceCachesByMenteeId } from "@/lib/mentorServerCache";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export async function POST(req: NextRequest) {
@@ -64,6 +66,8 @@ export async function POST(req: NextRequest) {
         });
 
         const result = await createPlannerTaskBatch(taskInputs, recurringGroupId);
+        revalidateMenteeHomeCacheByMenteeId(menteeId);
+        await revalidateMentorSurfaceCachesByMenteeId(menteeId);
 
         return NextResponse.json({
             success: true,
