@@ -14,6 +14,22 @@ const fileQuerySchema = z.object({
 });
 
 async function canAccessFile(fileId: string, viewerId: string) {
+  const findPlannerRowsByMaterialKey = async (
+    key: "fileId" | "file_id" | "id",
+  ) => {
+    const { data, error } = await supabaseServer
+      .from("planner_tasks")
+      .select("id, mentee_id")
+      .contains("materials", [{ [key]: fileId }])
+      .limit(20);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []) as Array<{ id: string; mentee_id: string | null }>;
+  };
+
   const { data: materialRows, error: materialError } = await supabaseServer
     .from("mentor_materials")
     .select("id")
@@ -98,15 +114,16 @@ async function canAccessFile(fileId: string, viewerId: string) {
     }
   }
 
-  const { data: plannerRows, error: plannerError } = await supabaseServer
-    .from("planner_tasks")
-    .select("id, mentee_id")
-    .contains("materials", [{ fileId }])
-    .limit(20);
-
-  if (plannerError) {
-    throw new Error(plannerError.message);
-  }
+  const plannerRowsByCamel = await findPlannerRowsByMaterialKey("fileId");
+  const plannerRowsBySnake = await findPlannerRowsByMaterialKey("file_id");
+  const plannerRowsByLegacyId = await findPlannerRowsByMaterialKey("id");
+  const plannerRows = Array.from(
+    new Map(
+      [...plannerRowsByCamel, ...plannerRowsBySnake, ...plannerRowsByLegacyId].map(
+        (row) => [row.id, row],
+      ),
+    ).values(),
+  );
 
   if ((plannerRows ?? []).some((row) => row.mentee_id === viewerId)) {
     return true;
