@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useModal } from "@/contexts/ModalContext";
 import { ChevronLeft, ChevronRight, Clock, Video, Calendar as CalendarIcon, AlertCircle, FileText, Plus, Repeat } from "lucide-react";
@@ -46,7 +46,7 @@ type MentorMeeting = {
   mentor_note?: string | null;
 };
 
-export default function SchedulePage() {
+function SchedulePageContent() {
   const { openModal, closeModal } = useModal();
   const today = new Date();
   const [currentDate, setCurrentDate] = useState(today);
@@ -1377,5 +1377,13 @@ export default function SchedulePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FAFAFA]" />}>
+      <SchedulePageContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Plus, Send, Image as ImageIcon, FileText, Calendar, CalendarSearch } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -51,7 +51,7 @@ type ChatMessage = {
   chat_attachments?: ChatAttachment[];
 };
 
-export default function ChatPage() {
+function ChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const scrollToMeetingId = searchParams.get("scrollTo");
@@ -897,5 +897,13 @@ export default function ChatPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FAFAFA]" />}>
+      <ChatPageContent />
+    </Suspense>
   );
 }
