@@ -8,6 +8,16 @@ export type UpcomingMeetingRow = {
   confirmed_time: string;
   zoom_link: string | null;
   mentor_note: string | null;
+  source: "request" | "scheduled";
+};
+
+type MentorScheduledMeetingRawRow = {
+  id: string;
+  mentee_id: string;
+  topic: string | null;
+  confirmed_time: string;
+  zoom_link: string | null;
+  mentor_note: string | null;
 };
 
 export type MentorMeetingRequestStatus = "PENDING" | "CONFIRMED" | "REJECTED";
@@ -109,5 +119,47 @@ export async function listMeetingRequestsByMentorId(
     zoom_link: row.zoom_link ?? null,
     mentor_note: row.mentor_note ?? null,
     created_at: row.created_at,
+  }));
+}
+
+export async function listScheduledMeetingsByMentorId(
+  mentorId: string,
+  queryClient: MeetingQueryClient = supabaseServer,
+): Promise<UpcomingMeetingRow[]> {
+  const { data, error } = await queryClient
+    .from("mentor_meetings")
+    .select("id, mentee_id, topic, confirmed_time, zoom_link, mentor_note")
+    .eq("mentor_id", mentorId)
+    .order("confirmed_time", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as MentorScheduledMeetingRawRow[];
+  if (rows.length === 0) return [];
+
+  const menteeIds = Array.from(new Set(rows.map((row) => row.mentee_id)));
+  const { data: profiles, error: profileError } = await queryClient
+    .from("profiles")
+    .select("id, name")
+    .in("id", menteeIds);
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  const profileMap = new Map(
+    (profiles ?? []).map((profile: any) => [profile.id, profile.name]),
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    studentName: profileMap.get(row.mentee_id) || "알 수 없음",
+    topic: row.topic ?? "",
+    confirmed_time: row.confirmed_time,
+    zoom_link: row.zoom_link ?? null,
+    mentor_note: row.mentor_note ?? null,
+    source: "scheduled",
   }));
 }

@@ -31,6 +31,7 @@ type UpcomingMeeting = {
   confirmedTime: string;
   zoomLink: string | null;
   mentorNote: string | null;
+  source?: "request" | "scheduled";
 };
 
 type DashboardDataProps = {
@@ -480,6 +481,7 @@ export default function DashboardClient({
                     minute: "2-digit",
                     hour12: false,
                   });
+                  const isScheduled = meeting.source === "scheduled";
 
                   return (
                     <Link
@@ -487,10 +489,14 @@ export default function DashboardClient({
                       key={meeting.id}
                       className="flex gap-4 relative pb-4 group"
                     >
-                      <div className="w-4 h-4 rounded-full bg-white border-4 border-blue-500 shrink-0 z-10" />
+                      <div
+                        className={`w-4 h-4 rounded-full bg-white border-4 shrink-0 z-10 ${isScheduled ? "border-orange-400" : "border-emerald-500"}`}
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-xs font-bold text-blue-600">
+                          <span
+                            className={`text-xs font-bold ${isScheduled ? "text-orange-600" : "text-emerald-600"}`}
+                          >
                             {dateObj.getMonth() + 1}월 {dateObj.getDate()}일 {timeStr}
                           </span>
                           {meeting.zoomLink ? (
@@ -499,9 +505,18 @@ export default function DashboardClient({
                             <div className="text-[10px] font-bold text-red-500 animate-pulse">링크 필요</div>
                           )}
                         </div>
-                        <p className="text-sm font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
-                          {meeting.studentName}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p
+                            className={`text-sm font-bold text-gray-900 truncate transition-colors ${isScheduled ? "group-hover:text-orange-600" : "group-hover:text-emerald-600"}`}
+                          >
+                            {meeting.studentName}
+                          </p>
+                          <span
+                            className={`px-1 py-0.5 rounded text-[8px] font-bold ${isScheduled ? "bg-orange-50 text-orange-500" : "bg-emerald-50 text-emerald-600"}`}
+                          >
+                            {isScheduled ? "멘토 등록" : "멘티 신청"}
+                          </span>
+                        </div>
                         <p className="text-xs text-gray-400 truncate">{meeting.topic || "멘토링 상담"}</p>
                         {meeting.mentorNote && (
                           <div className="flex items-center gap-1 mt-1">

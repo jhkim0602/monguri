@@ -1,6 +1,7 @@
 import { ensureMentorProfile } from "@/services/mentorAccessService";
 import {
   listMeetingRequestsByMentorId,
+  listScheduledMeetingsByMentorId,
   type MeetingQueryClient,
   type MentorMeetingRequestRow,
   type UpcomingMeetingRow,
@@ -25,6 +26,7 @@ const toUpcomingMeeting = (
     confirmed_time: row.confirmed_time,
     zoom_link: row.zoom_link,
     mentor_note: row.mentor_note,
+    source: "request",
   };
 };
 
@@ -59,10 +61,25 @@ export async function getMentorMeetingsForScheduleUnchecked(
       return aTime - bTime;
     });
 
-  const upcomingMeetings = confirmedRequests
+  const requestUpcomingMeetings = confirmedRequests
     .map(toUpcomingMeeting)
-    .filter(Boolean)
-    .slice(0, 5) as UpcomingMeetingRow[];
+    .filter(Boolean) as UpcomingMeetingRow[];
+
+  const scheduledMeetings = await listScheduledMeetingsByMentorId(
+    mentorId,
+    queryClient,
+  );
+  const scheduledUpcomingMeetings = scheduledMeetings.filter((meeting) =>
+    isFutureOrNow(meeting.confirmed_time),
+  );
+
+  const upcomingMeetings = [...requestUpcomingMeetings, ...scheduledUpcomingMeetings]
+    .sort((a, b) => {
+      const aTime = new Date(a.confirmed_time).getTime();
+      const bTime = new Date(b.confirmed_time).getTime();
+      return aTime - bTime;
+    })
+    .slice(0, 5);
 
   return {
     pendingRequests,
