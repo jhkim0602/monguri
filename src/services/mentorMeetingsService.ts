@@ -24,6 +24,7 @@ const toUpcomingMeeting = (
     topic: row.topic,
     confirmed_time: row.confirmed_time,
     zoom_link: row.zoom_link,
+    mentor_note: row.mentor_note,
   };
 };
 

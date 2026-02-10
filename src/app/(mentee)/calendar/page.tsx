@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat } from "lucide-react";
+
+import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat, Video, Calendar as CalendarIcon } from "lucide-react";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { computeDailyStudySeconds, formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
@@ -56,6 +57,18 @@ export default function CalendarPage() {
     const [categories, setCategories] = useState<SubjectCategory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const hasLoadedRef = useRef(false);
+
+    // Meeting state
+    type MenteeMeeting = {
+        id: string;
+        topic: string;
+        confirmed_time: string;
+        zoom_link: string | null;
+        recurring_group_id: string | null;
+        mentor_id: string;
+        mentor: { name: string; avatar_url: string | null } | null;
+    };
+    const [menteeMeetings, setMenteeMeetings] = useState<MenteeMeeting[]>([]);
     const forceRefreshRef = useRef(false);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [refreshTick, setRefreshTick] = useState(0);
@@ -260,6 +273,8 @@ export default function CalendarPage() {
             }
         };
     }, []);
+
+    // Handle date param removed per user request
 
     useEffect(() => {
         if (!userId) return;
@@ -483,6 +498,19 @@ export default function CalendarPage() {
                 setDailyRecords(next.dailyRecords);
                 setCategories(nextCategories);
                 writeMenteeCalendarCache(cacheKey, next);
+
+                // Fetch mentee meetings
+                try {
+                    const meetingsRes = await fetch(`/api/mentee/meetings?menteeId=${userId}&from=${from}&to=${to}`);
+                    if (meetingsRes.ok) {
+                        const meetingsJson = await meetingsRes.json();
+                        if (isMounted && Array.isArray(meetingsJson.meetings)) {
+                            setMenteeMeetings(meetingsJson.meetings);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to load meetings:", e);
+                }
             } finally {
                 if (isMounted && !hasLoadedRef.current) {
                     setIsLoading(false);
@@ -992,6 +1020,66 @@ export default function CalendarPage() {
                                     })}
                                 </div>
                             </div>
+
+                            {/* 오늘의 미팅 일정 */}
+                            {(() => {
+                                const selKey = selectedDate ? `${selectedDate.getFullYear()}-${pad2(selectedDate.getMonth() + 1)}-${pad2(selectedDate.getDate())}` : '';
+                                const todayMeetings = menteeMeetings.filter(m => {
+                                    const d = new Date(m.confirmed_time);
+                                    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` === selKey;
+                                });
+                                if (todayMeetings.length === 0) return null;
+                                return (
+                                    <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm">
+                                        <h4 className="text-[17px] font-black text-gray-900 mb-6 flex items-center gap-2 tracking-tight">
+                                            <div className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                                            오늘의 미팅 일정
+                                        </h4>
+                                        <div className="space-y-3.5">
+                                            {todayMeetings.map(meeting => {
+                                                const date = new Date(meeting.confirmed_time);
+                                                const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                                                return (
+                                                    <div key={meeting.id} className="group relative p-5 rounded-[24px] transition-all duration-300 border bg-white border-gray-50 shadow-sm hover:border-blue-200 hover:shadow-md">
+                                                        <div className="flex items-start gap-3.5">
+                                                            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                                                <Video size={18} className="text-blue-600" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-xs font-bold text-blue-600">{timeStr}</span>
+                                                                    {meeting.recurring_group_id && (
+                                                                        <span className="bg-blue-50 text-blue-500 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                                            <Repeat size={8} /> 정기
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-[14.5px] font-bold text-gray-900 truncate">{meeting.topic}</p>
+                                                                <p className="text-xs text-gray-400 mt-0.5">멘토: {meeting.mentor?.name ?? '멘토'}</p>
+                                                                {meeting.zoom_link ? (
+                                                                    <a
+                                                                        href={meeting.zoom_link}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className="mt-2 flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors w-fit"
+                                                                    >
+                                                                        <Video size={12} /> 회의실 입장
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="mt-2 inline-block text-[11px] font-medium text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg">
+                                                                        줌 링크 미등록
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}

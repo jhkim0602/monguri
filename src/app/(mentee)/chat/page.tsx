@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Plus, Send, Image as ImageIcon, FileText, Calendar } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ChevronLeft, Plus, Send, Image as ImageIcon, FileText, Calendar, CalendarSearch } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import MeetingRequestForm from "@/components/mentee/chat/MeetingRequestForm";
-import MeetingRequestCard from "@/components/mentee/chat/MeetingRequestCard";
-import MeetingConfirmedMessage from "@/components/common/chat/MeetingConfirmedMessage";
+import MeetingCard from "@/components/common/chat/MeetingCard";
+import MentorScheduledMeetingCard from "@/components/common/chat/MentorScheduledMeetingCard";
+import MeetingCalendarModal from "@/components/mentee/chat/MeetingCalendarModal";
 import {
   getCachedSignedUrl,
   readMenteeChatCache,
@@ -45,16 +46,19 @@ type ChatMessage = {
   mentor_mentee_id: string;
   sender_id: string;
   body: string | null;
-  message_type: "text" | "image" | "file" | "meeting_request" | "system";
+  message_type: "text" | "image" | "file" | "meeting_request" | "system" | "meeting_scheduled";
   created_at: string;
   chat_attachments?: ChatAttachment[];
 };
 
 export default function ChatPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const scrollToMeetingId = searchParams.get("scrollTo");
   const [inputValue, setInputValue] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMeetingFormOpen, setIsMeetingFormOpen] = useState(false);
+  const [isMeetingCalendarOpen, setIsMeetingCalendarOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [mentorMenteeId, setMentorMenteeId] = useState<string | null>(null);
   const [mentor, setMentor] = useState<MentorProfile | null>(null);
@@ -421,6 +425,33 @@ export default function ChatPage() {
     }
   }, [messages]);
 
+  // Scroll to specific meeting card when scrollTo param is present
+  useEffect(() => {
+    if (!scrollToMeetingId || messages.length === 0 || isLoading) return;
+
+    // Find the message containing this meeting request
+    const targetMessage = messages.find(
+      (msg) =>
+        (msg.message_type === "meeting_request" || msg.message_type === "meeting_scheduled") &&
+        msg.body?.includes(scrollToMeetingId)
+    );
+
+    if (targetMessage) {
+      // Small delay to ensure DOM is rendered
+      setTimeout(() => {
+        const element = document.getElementById(`message-${targetMessage.id}`);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Add highlight effect
+          element.classList.add("ring-2", "ring-blue-400", "ring-offset-2");
+          setTimeout(() => {
+            element.classList.remove("ring-2", "ring-blue-400", "ring-offset-2");
+          }, 2000);
+        }
+      }, 300);
+    }
+  }, [scrollToMeetingId, messages, isLoading]);
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || !userId || !mentorMenteeId || isSending) return;
 
@@ -613,51 +644,78 @@ export default function ChatPage() {
             minute: "2-digit"
           });
 
+          // Skip MEETING_CONFIRMED messages since MeetingCard updates in real-time
+          if (msg.message_type === "system" && msg.body?.startsWith("MEETING_CONFIRMED:")) {
+            return null;
+          }
+
           return (
               msg.message_type === "system" ? (
                 <div key={msg.id} className="w-full flex justify-center my-2">
-                  {msg.body?.startsWith("MEETING_CONFIRMED:") ? (
-                    <MeetingConfirmedMessage
-                        requestId={msg.body.split(":")[1]}
-                        isSender={isMentee}
-                    />
-                  ) : (
-                    <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
-                        {msg.body}
+                  <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
+                      {msg.body}
+                  </span>
+                </div>
+              ) : msg.message_type === "meeting_scheduled" && msg.body?.startsWith("MENTOR_MEETING:") ? (
+                <div key={msg.id} id={`message-${msg.id}`} className="flex justify-start items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300 transition-all rounded-2xl">
+                  <div className="flex flex-col items-center gap-1 shrink-0 mb-1">
+                    <div className="w-9 h-9 rounded-full overflow-hidden shadow-sm border border-white bg-gray-200">
+                      {mentor?.avatar_url ? (
+                        <img src={mentor.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : null}
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-500 max-w-[60px] truncate">
+                      {mentor?.name ?? "멘토"}
                     </span>
-                  )}
+                  </div>
+                  <div className="max-w-[75%] bg-transparent shadow-none p-0 border-none">
+                    <MentorScheduledMeetingCard meetingId={msg.body.replace("MENTOR_MEETING:", "")} />
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-bold mb-1 shrink-0">{timeLabel}</span>
+                </div>
+              ) : msg.message_type === "meeting_scheduled" ? (
+                <div key={msg.id} className="w-full flex justify-center my-2">
+                  <span className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200">
+                      {msg.body}
+                  </span>
                 </div>
               ) : (
                 <div
                   key={msg.id}
-                  className={`flex ${isMentee ? "justify-end" : "justify-start"} items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                  id={`message-${msg.id}`}
+                  className={`flex ${isMentee ? "justify-end" : "justify-start"} items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300 transition-all rounded-2xl`}
                 >
                   {!isMentee && (
-                    <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 shadow-sm border border-white mb-1 bg-gray-200">
-                      {mentor?.avatar_url ? (
-                        <img
-                          src={mentor.avatar_url}
-                          alt="Avatar"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : null}
+                    <div className="flex flex-col items-center gap-1 shrink-0 mb-1">
+                      <div className="w-9 h-9 rounded-full overflow-hidden shadow-sm border border-white bg-gray-200">
+                        {mentor?.avatar_url ? (
+                          <img
+                            src={mentor.avatar_url}
+                            alt="Avatar"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-500 max-w-[60px] truncate">
+                        {mentor?.name ?? "멘토"}
+                      </span>
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[75%] px-4 py-3 rounded-[20px] shadow-sm text-[14px] font-bold leading-relaxed tracking-tight flex flex-col gap-2
+                    className={`max-w-[75%] rounded-[20px] shadow-sm text-[14px] font-bold leading-relaxed tracking-tight flex flex-col gap-2
                       ${
-                        msg.message_type === "meeting_request"
+                        msg.message_type === "meeting_request" || msg.message_type === "image"
                           ? "bg-transparent shadow-none p-0 border-none"
                           : isMentee
-                          ? "bg-primary text-white rounded-br-none shadow-blue-100"
-                          : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
+                          ? "bg-primary text-white rounded-br-none shadow-blue-100 px-4 py-3"
+                          : "bg-white text-gray-800 rounded-bl-none border border-gray-100 px-4 py-3"
                       }`}
                   >
                     {msg.message_type === "meeting_request" && msg.body ? (
-                      <MeetingRequestCard
+                      <MeetingCard
                         requestId={msg.body.replace("MEETING_REQUEST:", "")}
-                        isSender={isMentee}
+                        isMentor={false}
                       />
                     ) : (
                       <>
@@ -674,7 +732,7 @@ export default function ChatPage() {
                                     key={attachment.id}
                                     src={attachment.signed_url}
                                     alt="attachment"
-                                    className="max-w-[220px] rounded-xl border border-white/40"
+                                    className="max-w-[220px] rounded-xl"
                                   />
                                 );
                               }
@@ -801,6 +859,19 @@ export default function ChatPage() {
                     </div>
                     <span className="text-[12px] font-medium text-gray-600">미팅 신청</span>
                 </button>
+
+                <button
+                    onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsMeetingCalendarOpen(true);
+                    }}
+                    className="flex flex-col items-center gap-2 group cursor-pointer"
+                >
+                    <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 group-hover:bg-orange-100 transition-colors">
+                        <CalendarSearch size={24} />
+                    </div>
+                    <span className="text-[12px] font-medium text-gray-600">미팅 캘린더</span>
+                </button>
             </div>
         </div>
        </div>
@@ -814,6 +885,15 @@ export default function ChatPage() {
             mentorId={mentor?.id ?? null}
             senderName={menteeProfile?.name ?? null}
             senderAvatarUrl={menteeProfile?.avatar_url ?? null}
+        />
+      )}
+
+      {mentorMenteeId && userId && (
+        <MeetingCalendarModal
+          isOpen={isMeetingCalendarOpen}
+          onClose={() => setIsMeetingCalendarOpen(false)}
+          mentorMenteeId={mentorMenteeId}
+          menteeId={userId}
         />
       )}
     </div>

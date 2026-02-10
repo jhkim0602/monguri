@@ -47,6 +47,7 @@ export default function StudentDetailClient({
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [dailyReview, setDailyReview] = useState("");
@@ -758,6 +759,7 @@ export default function StudentDetailClient({
             />,
             document.body,
           )}
+
         </>
       )}
     </div>

@@ -107,6 +107,7 @@ export async function getMentorDashboardData(
     topic: meeting.topic,
     confirmedTime: meeting.confirmed_time,
     zoomLink: meeting.zoom_link,
+    mentorNote: meeting.mentor_note,
   }));
 
   return {
