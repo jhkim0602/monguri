@@ -120,11 +120,109 @@ export interface StudentDetailTaskUi {
     previewUrl?: string | null;
   }[];
   submissionNote?: string | null;
+  studyRecord?: {
+    photo?: string;
+    photos?: string[];
+    note?: string | null;
+    attachments?: {
+      id?: string;
+      fileId?: string;
+      name: string;
+      type: "pdf" | "image";
+      url?: string | null;
+      previewUrl?: string | null;
+    }[];
+  } | null;
   startTime?: string;
   endTime?: string;
 }
 
 import { PlannerTaskRow } from "@/repositories/plannerTasksRepository";
+
+const resolvePlannerMaterialType = (
+  material: Record<string, any>,
+): "pdf" | "image" | null => {
+  const rawType = String(
+    material.type ?? material.mimeType ?? material.mime_type ?? "",
+  ).toLowerCase();
+
+  if (rawType === "pdf" || rawType === "application/pdf") return "pdf";
+  if (rawType === "image" || rawType.startsWith("image/")) return "image";
+
+  const rawName = String(
+    material.name ??
+      material.title ??
+      material.originalName ??
+      material.original_name ??
+      material.path ??
+      material.url ??
+      "",
+  ).toLowerCase();
+
+  if (rawName.endsWith(".pdf") || rawName.includes(".pdf?")) return "pdf";
+  if (/\.(png|jpe?g|gif|webp|bmp|heic|heif|svg)(\?|$)/.test(rawName)) {
+    return "image";
+  }
+
+  return null;
+};
+
+const toPlannerStudyRecord = (materials: any[] | null | undefined) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  const attachments: NonNullable<StudentDetailTaskUi["studyRecord"]>["attachments"] =
+    [];
+  let note: string | null = null;
+
+  for (const raw of materials) {
+    if (!raw || typeof raw !== "object") continue;
+
+    if (raw.type === "note" || typeof raw.note === "string") {
+      const nextNote = String(raw.note ?? "").trim();
+      if (nextNote) note = nextNote;
+      continue;
+    }
+
+    const type = resolvePlannerMaterialType(raw);
+    if (!type) continue;
+
+    const fileId =
+      typeof raw.fileId === "string"
+        ? raw.fileId
+        : typeof raw.file_id === "string"
+          ? raw.file_id
+          : undefined;
+    const previewUrl =
+      typeof raw.previewUrl === "string"
+        ? raw.previewUrl
+        : typeof raw.preview_url === "string"
+          ? raw.preview_url
+          : null;
+    const url = typeof raw.url === "string" ? raw.url : null;
+
+    attachments.push({
+      id: fileId ?? (typeof raw.id === "string" ? raw.id : undefined),
+      fileId,
+      name: String(raw.name ?? raw.title ?? raw.originalName ?? "학습 기록 자료"),
+      type,
+      previewUrl,
+      url,
+    });
+  }
+
+  if (attachments.length === 0 && !note) return null;
+
+  const photos = attachments
+    .filter((item) => item.type === "image")
+    .map((item) => item.previewUrl ?? item.url)
+    .filter((item): item is string => Boolean(item));
+
+  return {
+    attachments,
+    photos,
+    note,
+  };
+};
 
 export function adaptPlannerTaskToDetailUi(
   row: PlannerTaskRow,
@@ -137,6 +235,8 @@ export function adaptPlannerTaskToDetailUi(
     bg: subjectData?.color_hex || UNKNOWN_SUBJECT_CATEGORY.colorHex,
     text: subjectData?.text_color_hex || UNKNOWN_SUBJECT_CATEGORY.textColorHex,
   };
+  const studyRecord = toPlannerStudyRecord(row.materials);
+  const isCompleted = row.completed || Boolean(studyRecord);
 
   return {
     id: row.id,
@@ -144,13 +244,14 @@ export function adaptPlannerTaskToDetailUi(
     title: row.title,
     description: row.description || undefined,
     date: new Date(row.date), // Planner tasks use 'date'
-    completed: row.completed,
+    completed: isCompleted,
     categoryId: subjectData?.slug || "study",
     subject: subjectData?.name || "자습",
     timeSpent: row.time_spent_sec || 0,
     hasMentorResponse: Boolean(row.mentor_comment),
     mentorComment: row.mentor_comment || undefined,
     badgeColor,
+    studyRecord,
     startTime: row.start_time || undefined,
     endTime: row.end_time || undefined,
   };
