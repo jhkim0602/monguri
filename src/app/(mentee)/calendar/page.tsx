@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat, Video, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircle, Plus, X, Repeat, Video, Calendar as CalendarIcon, ArrowRight } from "lucide-react";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { computeDailyStudySeconds, formatTime } from "@/utils/timeUtils";
 import PlannerCollectionView from "@/components/mentee/calendar/PlannerCollectionView";
@@ -30,6 +31,7 @@ import {
 } from "@/lib/subjectCategory";
 
 export default function CalendarPage() {
+    const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
@@ -930,95 +932,118 @@ export default function CalendarPage() {
                                     <div className="w-1.5 h-4 bg-primary rounded-full" />
                                     오늘의 학습 계획
                                 </h4>
-                                <div className="space-y-6">
-                                    {selectedEventSections.map(({ category, events }) => {
-                                        return (
-                                            <div key={category.id} className="space-y-4">
-                                                <div className="flex items-center gap-2 px-1">
-                                                    <div
-                                                        className="w-1.5 h-3 rounded-full"
-                                                        style={{ backgroundColor: category.colorHex }}
-                                                    />
-                                                    <span
-                                                        className="text-[10px] font-bold"
-                                                        style={{ color: category.textColorHex }}
-                                                    >
-                                                        {category.name}
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-3.5">
-                                                    {events.map((event, idx) => {
-                                                        // 🔍 Resolve full task details
-                                                        let fullTask: any = null;
-                                                        if (event.taskType === 'mentor') {
-                                                            fullTask = mentorTasks.find(t => String(t.id) === String(event.id));
-                                                        } else if (event.taskType === 'user') {
-                                                            fullTask = plannerTasks.find(t => String(t.id) === String(event.id));
-                                                        }
+                                {selectedEventSections.length === 0 ? (
+                                    <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 px-5 py-7 text-center">
+                                        <p className="text-sm font-bold text-gray-700">
+                                            이 날짜에 등록된 학습 계획이 없어요.
+                                        </p>
+                                        <p className="mt-1 text-xs text-gray-400">
+                                            플래너에서 해당 날짜 계획을 바로 추가해보세요.
+                                        </p>
+                                        <button
+                                            onClick={() =>
+                                                selectedDate &&
+                                                router.push(
+                                                    `/planner?date=${toDateString(selectedDate)}`,
+                                                )
+                                            }
+                                            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-primary/90"
+                                        >
+                                            학습 계획 세우기
+                                            <ArrowRight size={14} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {selectedEventSections.map(({ category, events }) => {
+                                            return (
+                                                <div key={category.id} className="space-y-4">
+                                                    <div className="flex items-center gap-2 px-1">
+                                                        <div
+                                                            className="w-1.5 h-3 rounded-full"
+                                                            style={{ backgroundColor: category.colorHex }}
+                                                        />
+                                                        <span
+                                                            className="text-[10px] font-bold"
+                                                            style={{ color: category.textColorHex }}
+                                                        >
+                                                            {category.name}
+                                                        </span>
+                                                    </div>
+                                                    <div className="space-y-3.5">
+                                                        {events.map((event, idx) => {
+                                                            // 🔍 Resolve full task details
+                                                            let fullTask: any = null;
+                                                            if (event.taskType === 'mentor') {
+                                                                fullTask = mentorTasks.find(t => String(t.id) === String(event.id));
+                                                            } else if (event.taskType === 'user') {
+                                                                fullTask = plannerTasks.find(t => String(t.id) === String(event.id));
+                                                            }
 
-                                                        const isMentorTask = event.taskType === 'mentor';
-                                                        const isSubmitted = fullTask?.status === 'submitted' || fullTask?.status === 'feedback_completed' || !!fullTask?.studyRecord;
-                                                        const isCompleted = isMentorTask ? isSubmitted : (!!fullTask?.completed || isSubmitted);
-                                                        const hasFeedback = fullTask?.hasMentorResponse || (fullTask?.mentorFeedback && fullTask?.mentorFeedback.length > 0);
+                                                            const isMentorTask = event.taskType === 'mentor';
+                                                            const isSubmitted = fullTask?.status === 'submitted' || fullTask?.status === 'feedback_completed' || !!fullTask?.studyRecord;
+                                                            const isCompleted = isMentorTask ? isSubmitted : (!!fullTask?.completed || isSubmitted);
+                                                            const hasFeedback = fullTask?.hasMentorResponse || (fullTask?.mentorFeedback && fullTask?.mentorFeedback.length > 0);
 
-                                                        return (
-                                                            <div
-                                                                key={idx}
-                                                                onClick={() => fullTask && openTaskDetail(fullTask)}
-                                                                className={`group relative p-5 rounded-[24px] transition-all duration-300 border cursor-pointer
-                                                                    ${isCompleted
-                                                                        ? 'bg-gray-50/50 border-gray-50'
-                                                                        : 'bg-white border-gray-50 shadow-sm hover:border-gray-200 hover:shadow-md'
-                                                                    }`}
-                                                            >
-                                                                <div className="flex items-start gap-3.5">
-                                                                    <div
-                                                                        className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5 ${isCompleted
-                                                                            ? 'shadow-sm'
-                                                                            : 'border-gray-200'
-                                                                            }`}
-                                                                        style={
-                                                                            isCompleted
-                                                                                ? { backgroundColor: category.colorHex, borderColor: category.colorHex }
-                                                                                : undefined
-                                                                        }
-                                                                    >
-                                                                        {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
-                                                                    </div>
-
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                                                                            {isMentorTask && (
-                                                                                <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
-                                                                                    MENTOR
-                                                                                </span>
-                                                                            )}
-                                                                            {hasFeedback && (
-                                                                                <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
-                                                                                    <MessageCircle size={8} className="fill-current" />
-                                                                                    FEEDBACK
-                                                                                </span>
-                                                                            )}
-                                                                            <p className={`text-[14.5px] font-bold truncate transition-colors leading-relaxed tracking-[0.01em] ${isCompleted ? 'text-gray-300 line-through' : 'text-gray-900'}`}>
-                                                                                {event.title}
-                                                                            </p>
+                                                            return (
+                                                                <div
+                                                                    key={idx}
+                                                                    onClick={() => fullTask && openTaskDetail(fullTask)}
+                                                                    className={`group relative p-5 rounded-[24px] transition-all duration-300 border cursor-pointer
+                                                                        ${isCompleted
+                                                                            ? 'bg-gray-50/50 border-gray-50'
+                                                                            : 'bg-white border-gray-50 shadow-sm hover:border-gray-200 hover:shadow-md'
+                                                                        }`}
+                                                                >
+                                                                    <div className="flex items-start gap-3.5">
+                                                                        <div
+                                                                            className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5 ${isCompleted
+                                                                                ? 'shadow-sm'
+                                                                                : 'border-gray-200'
+                                                                                }`}
+                                                                            style={
+                                                                                isCompleted
+                                                                                    ? { backgroundColor: category.colorHex, borderColor: category.colorHex }
+                                                                                    : undefined
+                                                                            }
+                                                                        >
+                                                                            {isCompleted && <CheckCircle2 size={12} strokeWidth={4} className="text-white" />}
                                                                         </div>
-                                                                    </div>
 
-                                                                    {!isCompleted && fullTask && (
-                                                                        <div className="text-gray-300 group-hover:text-primary transition-colors mt-0.5">
-                                                                            <ChevronRight size={18} />
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                                                                                {isMentorTask && (
+                                                                                    <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter">
+                                                                                        MENTOR
+                                                                                    </span>
+                                                                                )}
+                                                                                {hasFeedback && (
+                                                                                    <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-1.5 py-0.5 rounded leading-none flex items-center gap-0.5">
+                                                                                        <MessageCircle size={8} className="fill-current" />
+                                                                                        FEEDBACK
+                                                                                    </span>
+                                                                                )}
+                                                                                <p className={`text-[14.5px] font-bold truncate transition-colors leading-relaxed tracking-[0.01em] ${isCompleted ? 'text-gray-300 line-through' : 'text-gray-900'}`}>
+                                                                                    {event.title}
+                                                                                </p>
+                                                                            </div>
                                                                         </div>
-                                                                    )}
+
+                                                                        {!isCompleted && fullTask && (
+                                                                            <div className="text-gray-300 group-hover:text-primary transition-colors mt-0.5">
+                                                                                <ChevronRight size={18} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
                             {/* 오늘의 미팅 일정 */}

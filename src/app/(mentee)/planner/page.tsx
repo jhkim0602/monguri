@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     ChevronLeft,
     ChevronRight,
@@ -37,6 +38,8 @@ import {
 } from "@/lib/subjectCategory";
 
 export default function PlannerPage() {
+    const searchParams = useSearchParams();
+    const queryDateParam = searchParams.get("date");
     // 1. State from Sunbal + Head
     const [currentDate, setCurrentDate] = useState(new Date());
     const [categories, setCategories] = useState<SubjectCategory[]>([]);
@@ -85,6 +88,29 @@ export default function PlannerPage() {
         const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
     };
+
+    const queryDate = useMemo(() => {
+        if (!queryDateParam || !/^\d{4}-\d{2}-\d{2}$/.test(queryDateParam)) return null;
+        const [year, month, day] = queryDateParam.split("-").map(Number);
+        const parsed = new Date(year, month - 1, day);
+        if (
+            Number.isNaN(parsed.getTime()) ||
+            parsed.getFullYear() !== year ||
+            parsed.getMonth() !== month - 1 ||
+            parsed.getDate() !== day
+        ) {
+            return null;
+        }
+        return parsed;
+    }, [queryDateParam]);
+
+    useEffect(() => {
+        if (!queryDate) return;
+        setCurrentDate((prev) => {
+            if (isSameDay(prev, queryDate)) return prev;
+            return queryDate;
+        });
+    }, [queryDate]);
 
     const scheduleRefresh = useCallback(() => {
         if (refreshTimerRef.current) {

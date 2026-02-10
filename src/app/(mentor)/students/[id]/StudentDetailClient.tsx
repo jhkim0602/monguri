@@ -19,7 +19,7 @@ import { createPortal } from "react-dom";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
-import { generateTimeBlocksFromTasks } from "@/utils/timeUtils";
+import { computeDailyStudySeconds } from "@/utils/timeUtils";
 import AssignTaskModal from "@/components/mentor/tasks/AssignTaskModal";
 import { UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
@@ -121,6 +121,33 @@ export default function StudentDetailClient({
     return `${y}-${m}-${day}`;
   };
 
+  const resolveDailyStudySeconds = (record: any): number => {
+    if (!record || typeof record !== "object") return 0;
+
+    const secondCandidates = [
+      record.total_study_time,
+      record.totalStudyTime,
+      record.studyTime,
+      record.study_time_sec,
+      record.study_time_seconds,
+    ];
+
+    for (const candidate of secondCandidates) {
+      if (typeof candidate === "number" && Number.isFinite(candidate)) {
+        return Math.max(0, Math.floor(candidate));
+      }
+    }
+
+    const minuteCandidates = [record.study_time_min, record.studyTimeMin];
+    for (const candidate of minuteCandidates) {
+      if (typeof candidate === "number" && Number.isFinite(candidate)) {
+        return Math.max(0, Math.floor(candidate * 60));
+      }
+    }
+
+    return 0;
+  };
+
   // Filter Tasks for Selected Date
   const currentDateTasks = initialTasks.filter((task) => {
     const d = new Date(task.deadline || task.date); // Handle different task types
@@ -196,10 +223,6 @@ export default function StudentDetailClient({
   const userTasksRaw = currentDateTasks.filter((t) => !t.isMentorTask);
 
   // Statistics Calculation
-  const totalStudySeconds = currentDateTasks.reduce(
-    (acc, task) => acc + (task.timeSpent || 0),
-    0,
-  );
   const totalTasksCount = currentDateTasks.length;
   const completedTasksCount = currentDateTasks.filter(
     (t) => t.completed,
@@ -229,6 +252,16 @@ export default function StudentDetailClient({
       ) ?? null
     );
   }, [initialDailyRecords, selectedDate]);
+
+  // Total study time is based on selected date.
+  // 1) Prefer task-derived duration (start/end or task time fields)
+  // 2) Fallback to daily record aggregate if task durations are absent
+  const totalStudySeconds = useMemo(() => {
+    return computeDailyStudySeconds(
+      currentDateTasks,
+      resolveDailyStudySeconds(selectedDateRecord),
+    );
+  }, [currentDateTasks, selectedDateRecord]);
 
   return (
     <div className="space-y-6">
