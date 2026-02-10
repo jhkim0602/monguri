@@ -100,8 +100,8 @@ export default function LandingPage() {
                     설스터디 프로젝트
                   </span>
                 </h1>
-                <p className="text-lg md:text-xl text-gray-500 font-medium leading-relaxed max-w-lg">
-                  설명입니다. 잘부탁드립니다.
+                <p className="text-base md:text-lg text-gray-500 font-medium leading-relaxed max-w-md">
+                  학습 계획·피드백·상담을 한 곳에서 관리하세요.
                 </p>
               </div>
 
@@ -173,11 +173,11 @@ export default function LandingPage() {
               </span>
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-4">
-              2분만에 알아보는 설스터디
+              영상으로 알아보는 설스터디
             </h2>
             <p className="text-gray-500 font-medium max-w-2xl mx-auto">
-              처음 사용하시는 분들을 위한 상세한 가이드 영상을 준비했습니다.
-              멘토와 멘티 모두를 위한 핵심 기능을 확인해보세요.
+              시작부터 과제 관리, 피드백, 상담 신청까지 핵심 흐름을 한 번에
+              확인해보세요.
             </p>
           </div>
 
@@ -217,38 +217,11 @@ export default function LandingPage() {
                   <div className="aspect-video">
                     <iframe
                       className="w-full h-full"
-                      src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                      src="https://www.youtube.com/embed/7lLqQXCpOMo?rel=0"
                       title="SeolStudy 사용설명서"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     />
-                  </div>
-
-                  {/* Video Footer */}
-                  <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-slate-50 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                          <Play className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-700">
-                            SeolStudy 완벽 가이드
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            멘토 & 멘티 필수 시청
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold">
-                          튜토리얼
-                        </span>
-                        <span className="px-3 py-1 rounded-full bg-violet-50 text-violet-600 text-xs font-bold">
-                          초보자용
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
