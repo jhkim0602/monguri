@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, type RefObject } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { upsertGroupedChatNotification } from "@/lib/chatNotificationAggregator";
 import { ATTACHMENT_BUCKET, Student } from "./types";
 
 type UseMentorChatComposerParams = {
@@ -60,21 +61,18 @@ export function useMentorChatComposer({
       const selectedStudent = students.find((student) => student.id === selectedStudentId);
       const menteeId = selectedStudent?.menteeId;
       if (menteeId) {
-        await supabase.from("notifications").insert({
-          recipient_id: menteeId,
-          recipient_role: "mentee",
-          type: "chat_message",
-          ref_type: "chat_message",
-          ref_id: message?.id ?? null,
-          title: "멘토 새 메시지",
-          message: trimmed,
-          action_url: "/chat",
-          actor_id: mentorId,
-          avatar_url: null,
-          meta: {
-            mentorMenteeId: selectedStudentId,
-            messageType: "text",
-          },
+        await upsertGroupedChatNotification({
+          client: supabase,
+          recipientId: menteeId,
+          recipientRole: "mentee",
+          mentorMenteeId: selectedStudentId,
+          senderName: "멘토",
+          messagePreview: trimmed,
+          actionUrl: "/chat",
+          actorId: mentorId,
+          avatarUrl: null,
+          refId: message?.id ?? null,
+          messageType: "text",
         });
       }
     }
@@ -126,21 +124,18 @@ export function useMentorChatComposer({
       if (menteeId) {
         const preview =
           messageType === "image" ? "이미지를 전송했습니다." : "파일을 전송했습니다.";
-        await supabase.from("notifications").insert({
-          recipient_id: menteeId,
-          recipient_role: "mentee",
-          type: "chat_message",
-          ref_type: "chat_message",
-          ref_id: message.id,
-          title: "멘토 새 메시지",
-          message: preview,
-          action_url: "/chat",
-          actor_id: mentorId,
-          avatar_url: null,
-          meta: {
-            mentorMenteeId: selectedStudentId,
-            messageType,
-          },
+        await upsertGroupedChatNotification({
+          client: supabase,
+          recipientId: menteeId,
+          recipientRole: "mentee",
+          mentorMenteeId: selectedStudentId,
+          senderName: "멘토",
+          messagePreview: preview,
+          actionUrl: "/chat",
+          actorId: mentorId,
+          avatarUrl: null,
+          refId: message.id,
+          messageType,
         });
       }
 
