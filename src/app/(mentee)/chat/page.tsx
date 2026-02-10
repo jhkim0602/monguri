@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Plus, Send, Image as ImageIcon, FileText, Calendar, CalendarSearch } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { upsertGroupedChatNotification } from "@/lib/chatNotificationAggregator";
 import MeetingRequestForm from "@/components/mentee/chat/MeetingRequestForm";
 import MeetingCard from "@/components/common/chat/MeetingCard";
 import MentorScheduledMeetingCard from "@/components/common/chat/MentorScheduledMeetingCard";
@@ -625,21 +626,18 @@ function ChatPageContent() {
       setInputValue("");
       if (mentor?.id) {
         const senderName = menteeProfile?.name || "멘티";
-        await supabase.from("notifications").insert({
-          recipient_id: mentor.id,
-          recipient_role: "mentor",
-          type: "chat_message",
-          ref_type: "chat_message",
-          ref_id: message?.id ?? null,
-          title: `${senderName} 새 메시지`,
-          message: inputValue.trim(),
-          action_url: "/chat-mentor",
-          actor_id: userId,
-          avatar_url: menteeProfile?.avatar_url ?? null,
-          meta: {
-            mentorMenteeId,
-            messageType: "text",
-          },
+        await upsertGroupedChatNotification({
+          client: supabase,
+          recipientId: mentor.id,
+          recipientRole: "mentor",
+          mentorMenteeId,
+          senderName,
+          messagePreview: inputValue.trim(),
+          actionUrl: "/chat-mentor",
+          actorId: userId,
+          avatarUrl: menteeProfile?.avatar_url ?? null,
+          refId: message?.id ?? null,
+          messageType: "text",
         });
       }
     }
@@ -679,21 +677,18 @@ function ChatPageContent() {
       const senderName = menteeProfile?.name || "멘티";
       const preview =
         messageType === "image" ? "이미지를 전송했습니다." : "파일을 전송했습니다.";
-      await supabase.from("notifications").insert({
-        recipient_id: mentor.id,
-        recipient_role: "mentor",
-        type: "chat_message",
-        ref_type: "chat_message",
-        ref_id: message.id,
-        title: `${senderName} 새 메시지`,
-        message: preview,
-        action_url: "/chat-mentor",
-        actor_id: userId,
-        avatar_url: menteeProfile?.avatar_url ?? null,
-        meta: {
-          mentorMenteeId,
-          messageType,
-        },
+      await upsertGroupedChatNotification({
+        client: supabase,
+        recipientId: mentor.id,
+        recipientRole: "mentor",
+        mentorMenteeId,
+        senderName,
+        messagePreview: preview,
+        actionUrl: "/chat-mentor",
+        actorId: userId,
+        avatarUrl: menteeProfile?.avatar_url ?? null,
+        refId: message.id,
+        messageType,
       });
     }
 

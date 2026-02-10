@@ -124,6 +124,20 @@ export function NotificationBadge({ iconSize = 20 }: NotificationBadgeProps) {
           );
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${userId}`,
+        },
+        (payload) => {
+          const deletedId = String(payload.old?.id ?? "");
+          if (!deletedId) return;
+          setNotifications((prev) => prev.filter((item) => item.id !== deletedId));
+        },
+      )
       .subscribe();
 
     return () => {
@@ -162,6 +176,39 @@ export function NotificationBadge({ iconSize = 20 }: NotificationBadgeProps) {
     if (error) {
       console.error("Failed to mark all notifications as read:", error);
       await loadNotifications();
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!userId || notifications.length === 0) return;
+    const previous = notifications;
+    setNotifications([]);
+
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("recipient_id", userId);
+
+    if (error) {
+      console.error("Failed to clear notifications:", error);
+      setNotifications(previous);
+    }
+  };
+
+  const deleteOneNotification = async (notificationId: string) => {
+    if (!userId) return;
+    const previous = notifications;
+    setNotifications((prev) => prev.filter((item) => item.id !== notificationId));
+
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", notificationId)
+      .eq("recipient_id", userId);
+
+    if (error) {
+      console.error("Failed to delete notification:", error);
+      setNotifications(previous);
     }
   };
 
@@ -211,13 +258,22 @@ export function NotificationBadge({ iconSize = 20 }: NotificationBadgeProps) {
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
             <span className="font-semibold text-sm">알림</span>
-            <button
-              type="button"
-              className="text-xs text-blue-600 font-medium hover:underline"
-              onClick={markAllRead}
-            >
-              모두 읽음
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="text-xs text-blue-600 font-medium hover:underline"
+                onClick={markAllRead}
+              >
+                모두 읽음
+              </button>
+              <button
+                type="button"
+                className="text-xs text-gray-500 font-medium hover:underline"
+                onClick={clearAllNotifications}
+              >
+                비우기
+              </button>
+            </div>
           </div>
           <div className="max-h-[300px] overflow-y-auto">
             {notifications.map((notif) => (
@@ -239,9 +295,29 @@ export function NotificationBadge({ iconSize = 20 }: NotificationBadgeProps) {
                 <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
                   {notif.message}
                 </p>
-                <p className="text-[10px] text-gray-400 mt-1.5">
-                  {formatRelativeTime(notif.created_at)}
-                </p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <p className="text-[10px] text-gray-400">
+                    {formatRelativeTime(notif.created_at)}
+                  </p>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="text-[10px] text-gray-400 hover:text-gray-600"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      deleteOneNotification(notif.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      deleteOneNotification(notif.id);
+                    }}
+                  >
+                    지우기
+                  </span>
+                </div>
               </button>
             ))}
             {notifications.length === 0 && (

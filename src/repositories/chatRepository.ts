@@ -14,7 +14,13 @@ export type MentorRecentChatRow = {
         body: string | null;
         created_at: string;
         sender_id: string;
-        message_type: "text" | "image" | "file";
+        message_type:
+          | "text"
+          | "image"
+          | "file"
+          | "meeting_request"
+          | "system"
+          | "meeting_scheduled";
       }[]
     | null;
 };
@@ -69,7 +75,13 @@ export async function getRecentChatsByMentorId(
       body: string | null;
       created_at: string;
       sender_id: string;
-      message_type: "text" | "image" | "file";
+      message_type:
+        | "text"
+        | "image"
+        | "file"
+        | "meeting_request"
+        | "system"
+        | "meeting_scheduled";
     }
   >();
 

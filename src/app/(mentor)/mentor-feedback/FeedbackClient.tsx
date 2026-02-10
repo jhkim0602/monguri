@@ -13,6 +13,7 @@ import {
   Calendar,
   BookOpen,
   Download,
+  Lightbulb,
 } from "lucide-react";
 import { useModal } from "@/contexts/ModalContext";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
@@ -993,24 +994,6 @@ export default function FeedbackClient({
     });
   };
 
-  const handleApprovePlan = () => {
-    openModal({
-      title: "계획 승인",
-      content:
-        "학생의 계획을 별도 코멘트 없이 승인하시겠습니까? '확인했습니다' 알림이 전송됩니다.",
-      type: "confirm",
-      confirmText: "승인",
-      onConfirm: () => {
-        openModal({
-          title: "승인 완료",
-          content: "👌 계획이 승인되었습니다.",
-          type: "success",
-        });
-        setSelectedItemId(null);
-      },
-    });
-  };
-
   const toTaskDetailItem = (task: any) => {
     const isMentorTask = Boolean(
       task?.isMentorTask ?? task?.taskType === "mentor",
@@ -1427,17 +1410,6 @@ export default function FeedbackClient({
                   </div>
                 </div>
               </div>
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                {selectedItem.type === "plan" && (
-                  <button
-                    onClick={handleApprovePlan}
-                    className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    빠른 승인
-                  </button>
-                )}
-              </div>
             </div>
 
             {/* Content Body */}
@@ -1500,15 +1472,17 @@ export default function FeedbackClient({
                           </div>
                         </div>
 
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
-                          <h4 className="text-xs font-bold text-gray-500 mb-2">
-                            🚩 오늘의 목표
+                        <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-100 mb-4">
+                          <h4 className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1.5">
+                            <Lightbulb size={14} />
+                            시스템 도움말
                           </h4>
-                          <p className="text-gray-900 font-medium">
-                            "
-                            {selectedPlanData?.dailyGoalText ||
-                              `완료한 할 일 ${selectedPlanData?.completedTaskCount ?? 0}개를 점검해주세요.`}
-                            "
+                          <p className="text-sm text-gray-800 font-medium">
+                            멘티 할 일{" "}
+                            <span className="font-bold text-blue-700">
+                              {selectedPlanData?.completedTaskCount ?? 0}개
+                            </span>{" "}
+                            진행 상태를 확인하고 핵심 총평을 남겨주세요.
                           </p>
                         </div>
 
