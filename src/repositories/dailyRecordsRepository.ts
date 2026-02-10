@@ -11,6 +11,20 @@ export type DailyRecordRow = {
   mentor_reply_at: string | null;
 };
 
+export type PendingDailyCommentRow = {
+  id: string;
+  mentee_id: string;
+  date: string;
+  mentee_comment: string;
+  mentor_reply: string | null;
+  mentor_reply_at: string | null;
+  mentee: {
+    id: string;
+    name: string | null;
+    avatar_url: string | null;
+  } | null;
+};
+
 type RecordFilters = {
   from?: string;
   to?: string;
@@ -127,4 +141,69 @@ export async function updateMentorReply(
   }
 
   return (data ?? null) as DailyRecordRow | null;
+}
+
+export async function listPendingDailyCommentsByMentorId(mentorId: string) {
+  const { data: mentorMenteeRows, error: mentorMenteeError } = await supabaseServer
+    .from("mentor_mentee")
+    .select("mentee_id")
+    .eq("mentor_id", mentorId)
+    .eq("status", "active");
+
+  if (mentorMenteeError) {
+    throw new Error(mentorMenteeError.message);
+  }
+
+  const menteeIds = mentorMenteeRows?.map((row) => row.mentee_id) ?? [];
+  if (menteeIds.length === 0) {
+    return [] as PendingDailyCommentRow[];
+  }
+
+  const { data: records, error: recordsError } = await supabaseServer
+    .from("daily_records")
+    .select(
+      "id, mentee_id, date, mentee_comment, mentor_reply, mentor_reply_at",
+    )
+    .in("mentee_id", menteeIds)
+    .is("mentor_reply", null)
+    .not("mentee_comment", "is", null)
+    .order("date", { ascending: false });
+
+  if (recordsError) {
+    throw new Error(recordsError.message);
+  }
+
+  const filteredRecords = (records ?? []).filter((row: any) => {
+    const comment = typeof row?.mentee_comment === "string"
+      ? row.mentee_comment.trim()
+      : "";
+    return comment.length > 0;
+  });
+
+  if (filteredRecords.length === 0) {
+    return [] as PendingDailyCommentRow[];
+  }
+
+  const { data: profiles, error: profilesError } = await supabaseServer
+    .from("profiles")
+    .select("id, name, avatar_url")
+    .in("id", Array.from(new Set(filteredRecords.map((row: any) => row.mentee_id))));
+
+  if (profilesError) {
+    throw new Error(profilesError.message);
+  }
+
+  const profileMap = new Map(
+    (profiles ?? []).map((profile: any) => [profile.id, profile]),
+  );
+
+  return filteredRecords.map((row: any) => ({
+    id: row.id,
+    mentee_id: row.mentee_id,
+    date: row.date,
+    mentee_comment: String(row.mentee_comment ?? "").trim(),
+    mentor_reply: row.mentor_reply ?? null,
+    mentor_reply_at: row.mentor_reply_at ?? null,
+    mentee: profileMap.get(row.mentee_id) ?? null,
+  })) as PendingDailyCommentRow[];
 }

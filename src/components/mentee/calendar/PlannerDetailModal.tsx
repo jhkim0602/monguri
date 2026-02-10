@@ -12,6 +12,7 @@ interface PlannerDetailModalProps {
   plannerTasks: PlannerTaskLike[];
   mentorReview?: string;
   onTaskClick?: (task: any) => void;
+  skipDateFilter?: boolean;
 }
 
 export default function PlannerDetailModal({
@@ -24,6 +25,7 @@ export default function PlannerDetailModal({
   plannerTasks,
   mentorReview,
   onTaskClick,
+  skipDateFilter = false,
 }: PlannerDetailModalProps) {
   if (!isOpen || !date) return null;
 
@@ -36,6 +38,18 @@ export default function PlannerDetailModal({
       date1.getMonth() === date2.getMonth() &&
       date1.getFullYear() === date2.getFullYear()
     );
+  };
+
+  const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+  const toDateKey = (value: Date | string | number | null | undefined) => {
+    if (!value) return null;
+    if (typeof value === "string" && DATE_ONLY_PATTERN.test(value)) return value;
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   };
 
   const getTaskDate = (task: any): Date | null => {
@@ -51,12 +65,17 @@ export default function PlannerDetailModal({
   };
 
   // Filter user tasks for the specific date from the raw plannerTasks array
-  const userTasks = plannerTasks.filter(
-    (task: any) => {
-      const taskDate = getTaskDate(task);
-      return taskDate ? isSameDay(taskDate, normalizedDate) : false;
-    },
-  );
+  const selectedDateKey = toDateKey(normalizedDate);
+  const userTasks = skipDateFilter
+    ? plannerTasks
+    : plannerTasks.filter((task: any) => {
+        const taskDateKey = toDateKey(task?.deadline ?? task?.date ?? null);
+        if (selectedDateKey && taskDateKey) {
+          return taskDateKey === selectedDateKey;
+        }
+        const taskDate = getTaskDate(task);
+        return taskDate ? isSameDay(taskDate, normalizedDate) : false;
+      });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">

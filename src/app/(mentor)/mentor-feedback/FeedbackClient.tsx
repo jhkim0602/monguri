@@ -17,8 +17,10 @@ import {
 import { useModal } from "@/contexts/ModalContext";
 import PlannerDetailModal from "@/components/mentee/calendar/PlannerDetailModal";
 import PlannerDetailView from "@/components/mentee/calendar/PlannerDetailView";
+import TaskDetailModal from "@/components/mentee/planner/TaskDetailModal";
 import { FeedbackItem } from "@/services/mentorFeedbackService";
 import { supabase } from "@/lib/supabaseClient";
+import { UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
 // --- Helpers ---
 const getStudentAvatar = (name: string, url?: string) => {
@@ -41,10 +43,23 @@ const formatTimeAgo = (date: Date) => {
   return `${Math.floor(hours / 24)}일 전`;
 };
 
-const toDate = (value: Date | string | number) =>
-  value instanceof Date ? value : new Date(value);
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const toDate = (value: Date | string | number) => {
+  if (value instanceof Date) return new Date(value.getTime());
+
+  if (typeof value === "string" && DATE_ONLY_PATTERN.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  return new Date(value);
+};
 
 const toDateKey = (value: Date | string | number) => {
+  if (typeof value === "string" && DATE_ONLY_PATTERN.test(value)) {
+    return value;
+  }
   const date = toDate(value);
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -54,9 +69,40 @@ const toDateKey = (value: Date | string | number) => {
 
 const resolveCategoryId = (row: any) => {
   const direct =
-    row?.subjects?.slug ?? row?.subject_slug ?? row?.subject_id ?? null;
+    row?.categoryId ??
+    row?.category_id ??
+    row?.subject?.slug ??
+    row?.subjects?.slug ??
+    row?.subjectSlug ??
+    row?.subject_slug ??
+    row?.subjectId ??
+    row?.subject_id ??
+    null;
   if (direct) return String(direct);
   return "unknown";
+};
+
+const mergeRowsById = (
+  baseRows: any[] | null | undefined,
+  overrideRows: any[] | null | undefined,
+) => {
+  const merged = new Map<string, any>();
+  let syntheticIndex = 0;
+
+  const toKey = (row: any) => {
+    if (row?.id !== undefined && row?.id !== null) return String(row.id);
+    syntheticIndex += 1;
+    return `${row?.title ?? "row"}-${row?.date ?? row?.deadline ?? ""}-${syntheticIndex}`;
+  };
+
+  (baseRows ?? []).forEach((row) => {
+    merged.set(toKey(row), row);
+  });
+  (overrideRows ?? []).forEach((row) => {
+    merged.set(toKey(row), row);
+  });
+
+  return Array.from(merged.values());
 };
 
 const hasUploadedSelfStudyFile = (materials: any): boolean => {
@@ -157,6 +203,69 @@ const extractSelfStudySubmission = (materials: any) => {
   return { note, attachments };
 };
 
+const toStudyRecordFromMaterials = (materials: any[] | null | undefined) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  const attachments: {
+    id?: string;
+    fileId?: string;
+    name: string;
+    type: "pdf" | "image";
+    url?: string | null;
+    previewUrl?: string | null;
+  }[] = [];
+  let note: string | null = null;
+
+  materials.forEach((raw) => {
+    if (!raw || typeof raw !== "object") return;
+
+    if (raw.type === "note" || typeof raw.note === "string") {
+      const nextNote = String(raw.note ?? "").trim();
+      if (nextNote) note = nextNote;
+      return;
+    }
+
+    const type = getMaterialFileType(raw);
+    if (!type) return;
+
+    const fileId =
+      typeof raw.fileId === "string"
+        ? raw.fileId
+        : typeof raw.file_id === "string"
+          ? raw.file_id
+          : undefined;
+    const url = typeof raw.url === "string" ? raw.url : null;
+    const previewUrl =
+      typeof raw.previewUrl === "string"
+        ? raw.previewUrl
+        : typeof raw.preview_url === "string"
+          ? raw.preview_url
+          : null;
+
+    attachments.push({
+      id: fileId ?? (typeof raw.id === "string" ? raw.id : undefined),
+      fileId,
+      name: String(raw.name ?? raw.title ?? raw.originalName ?? "학습 기록 자료"),
+      type,
+      url,
+      previewUrl,
+    });
+  });
+
+  if (!attachments.length && !note) return null;
+
+  const photos = attachments
+    .filter((item) => item.type === "image")
+    .map((item) => item.previewUrl ?? item.url)
+    .filter((item): item is string => Boolean(item));
+
+  return {
+    attachments,
+    photos,
+    note,
+  };
+};
+
 export default function FeedbackClient({
   mentorId,
   initialItems,
@@ -186,6 +295,8 @@ export default function FeedbackClient({
     null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previewTaskItem, setPreviewTaskItem] = useState<any | null>(null);
+  const [isPreviewTaskModalOpen, setIsPreviewTaskModalOpen] = useState(false);
 
   // Daily comment state for plan type
   const [dailyMenteeComment, setDailyMenteeComment] = useState<string | null>(
@@ -193,6 +304,12 @@ export default function FeedbackClient({
   );
   const [dailyMentorReply, setDailyMentorReply] = useState<string | null>(null);
   const [isDailyCommentLoading, setIsDailyCommentLoading] = useState(false);
+  const [selectedPlanTasks, setSelectedPlanTasks] = useState<any[] | null>(
+    null,
+  );
+  const [selectedMentorTasks, setSelectedMentorTasks] = useState<any[] | null>(
+    null,
+  );
 
   const handleDownloadAttachment = async (
     fileId: string | null | undefined,
@@ -239,9 +356,12 @@ export default function FeedbackClient({
     const taskItems = items.filter((i) => i.type === "task");
 
     const rawPlanItems = items.filter((i) => i.type === "plan");
+    const planRowsForInbox = rawPlanItems.filter(
+      (item) => item.data?.__planEligible !== false,
+    );
     const groupedPlans = new Map<string, FeedbackItem[]>();
-    rawPlanItems.forEach((item) => {
-      const key = `${item.studentId}-${toDateKey(item.date)}`;
+    planRowsForInbox.forEach((item) => {
+      const key = `${item.studentId}-${toDateKey(item.data?.date ?? item.date)}`;
       const list = groupedPlans.get(key) ?? [];
       list.push(item);
       groupedPlans.set(key, list);
@@ -250,12 +370,18 @@ export default function FeedbackClient({
     const planItems: FeedbackItem[] = Array.from(groupedPlans.entries()).map(
       ([groupKey, groupedItems]) => {
         const first = groupedItems[0];
-        const planDate = toDate(first.date);
-        const plannerTasks = groupedItems.map((i) => i.data);
+        const planDateKey = toDateKey(first.data?.date ?? first.date);
+        const planDate = toDate(planDateKey);
+        const plannerTasks = groupedItems
+          .map((i) => i.data)
+          .filter((row) => !row?.__isVirtualPlanRow);
         const totalStudySeconds = plannerTasks.reduce(
           (sum, row) => sum + (Number(row?.time_spent_sec) || 0),
           0,
         );
+        const dailyComment =
+          groupedItems.find((item) => typeof item.data?.__dailyComment === "string")
+            ?.data?.__dailyComment ?? null;
 
         return {
           id: `plan-${groupKey}`,
@@ -264,13 +390,18 @@ export default function FeedbackClient({
           studentName: first.studentName,
           avatarUrl: first.avatarUrl,
           title: `${planDate.getMonth() + 1}월 ${planDate.getDate()}일 플래너`,
-          subtitle: `완료한 할 일 ${plannerTasks.length}개`,
+          subtitle:
+            plannerTasks.length > 0
+              ? `완료한 할 일 ${plannerTasks.length}개`
+              : "멘티 일일 코멘트",
           date: planDate,
           status: "submitted",
           data: {
             plannerTasks,
             totalStudySeconds,
             dailyGoal: first.data?.dailyGoal ?? first.data?.daily_goal ?? "",
+            dailyComment,
+            dateKey: planDateKey,
           },
         };
       },
@@ -324,7 +455,7 @@ export default function FeedbackClient({
       );
 
       if (rawPlan) {
-        const groupedPlanId = `plan-${rawPlan.studentId}-${toDateKey(rawPlan.date)}`;
+        const groupedPlanId = `plan-${rawPlan.studentId}-${toDateKey(rawPlan.data?.date ?? rawPlan.date)}`;
         if (allItems.some((item) => String(item.id) === groupedPlanId)) {
           return groupedPlanId;
         }
@@ -420,33 +551,178 @@ export default function FeedbackClient({
     if (!selectedItem || selectedItem.type !== "plan") {
       setDailyMenteeComment(null);
       setDailyMentorReply(null);
+      setSelectedPlanTasks(null);
+      setSelectedMentorTasks(null);
       return;
     }
 
-    const loadDailyComment = async () => {
+    const fallbackPlannerRows = Array.isArray(selectedItem.data?.plannerTasks)
+      ? selectedItem.data.plannerTasks
+      : [];
+    const fallbackDailyComment =
+      typeof selectedItem.data?.dailyComment === "string"
+        ? selectedItem.data.dailyComment.trim()
+        : "";
+    const fallbackMentorReply =
+      typeof selectedItem.data?.mentorReply === "string"
+        ? selectedItem.data.mentorReply.trim()
+        : "";
+
+    setSelectedPlanTasks(fallbackPlannerRows);
+    setSelectedMentorTasks(null);
+    setDailyMenteeComment(fallbackDailyComment || null);
+    setDailyMentorReply(fallbackMentorReply || null);
+
+    let isCancelled = false;
+    const loadPlanDetails = async () => {
       setIsDailyCommentLoading(true);
       try {
-        const planDate = toDate(selectedItem.date);
-        const dateStr = toDateKey(planDate);
-        const res = await fetch(
-          `/api/mentee/planner/daily-comment?menteeId=${selectedItem.studentId}&date=${dateStr}`,
+        const menteeId =
+          selectedItem.studentId ||
+          selectedItem.data?.mentee_id ||
+          selectedItem.data?.mentee?.id ||
+          null;
+        if (!menteeId) {
+          if (!isCancelled) {
+            setSelectedPlanTasks(fallbackPlannerRows);
+            setSelectedMentorTasks(null);
+          }
+          return;
+        }
+
+        const dateStr = toDateKey(
+          selectedItem.data?.dateKey ?? selectedItem.data?.date ?? selectedItem.date,
         );
-        if (res.ok) {
-          const json = await res.json();
+
+        let loadedByStudentDetail = false;
+        const studentDetailRes = await fetch(
+          `/api/mentor/students/${menteeId}?mentorId=${mentorId}`,
+        );
+        if (!isCancelled && studentDetailRes.ok) {
+          const studentDetailJson = await studentDetailRes.json();
+          if (studentDetailJson.success) {
+            const detail = studentDetailJson.data ?? {};
+            const rawTasks = Array.isArray(detail.tasks) ? detail.tasks : [];
+            const matchedTasks = rawTasks.filter((task: any) => {
+              const taskDate = task?.deadline ?? task?.date ?? "";
+              return toDateKey(taskDate) === dateStr;
+            });
+            const plannerRows = matchedTasks.filter(
+              (task: any) => !Boolean(task?.isMentorTask),
+            );
+            const mentorRows = matchedTasks.filter((task: any) =>
+              Boolean(task?.isMentorTask),
+            );
+
+            const dailyRecords = Array.isArray(detail.dailyRecords)
+              ? detail.dailyRecords
+              : [];
+            const record = dailyRecords.find(
+              (row: any) => toDateKey(row?.date ?? "") === dateStr,
+            );
+            const menteeComment =
+              typeof record?.menteeComment === "string"
+                ? record.menteeComment.trim()
+                : "";
+            const mentorReply =
+              typeof record?.mentorReply === "string"
+                ? record.mentorReply.trim()
+                : "";
+
+            setSelectedPlanTasks(mergeRowsById(fallbackPlannerRows, plannerRows));
+            setSelectedMentorTasks(mentorRows);
+            setDailyMenteeComment(
+              menteeComment || fallbackDailyComment || null,
+            );
+            setDailyMentorReply(mentorReply || fallbackMentorReply || null);
+            loadedByStudentDetail = true;
+          }
+        }
+
+        if (loadedByStudentDetail) {
+          return;
+        }
+
+        const [dailyCommentRes, plannerTasksRes, mentorTasksRes] =
+          await Promise.all([
+            fetch(
+              `/api/mentee/planner/daily-comment?menteeId=${menteeId}&date=${dateStr}`,
+            ),
+            fetch(
+              `/api/mentee/planner/tasks?menteeId=${menteeId}&date=${dateStr}`,
+            ),
+            fetch(`/api/mentee/tasks?menteeId=${menteeId}`),
+          ]);
+
+        if (!isCancelled && dailyCommentRes.ok) {
+          const json = await dailyCommentRes.json();
           if (json.success) {
-            setDailyMenteeComment(json.data.menteeComment || null);
-            setDailyMentorReply(json.data.mentorReply || null);
+            const menteeComment =
+              typeof json.data.menteeComment === "string"
+                ? json.data.menteeComment.trim()
+                : "";
+            const mentorReply =
+              typeof json.data.mentorReply === "string"
+                ? json.data.mentorReply.trim()
+                : "";
+            setDailyMenteeComment(
+              menteeComment || fallbackDailyComment || null,
+            );
+            setDailyMentorReply(mentorReply || fallbackMentorReply || null);
+          }
+        }
+
+        if (!isCancelled && plannerTasksRes.ok) {
+          const tasksJson = await plannerTasksRes.json();
+          if (Array.isArray(tasksJson.tasks)) {
+            setSelectedPlanTasks(mergeRowsById(fallbackPlannerRows, tasksJson.tasks));
+          } else {
+            setSelectedPlanTasks(fallbackPlannerRows);
+          }
+        }
+
+        if (!isCancelled && mentorTasksRes.ok) {
+          const mentorTasksJson = await mentorTasksRes.json();
+          if (Array.isArray(mentorTasksJson.tasks)) {
+            const filteredMentorTasks = mentorTasksJson.tasks.filter((task: any) => {
+              const deadlineKey = toDateKey(task?.deadline ?? task?.date ?? "");
+              return deadlineKey === dateStr;
+            });
+            setSelectedMentorTasks(filteredMentorTasks);
+          } else {
+            setSelectedMentorTasks([]);
           }
         }
       } catch (e) {
-        console.error("Failed to load daily comment", e);
+        if (!isCancelled) {
+          console.error("Failed to load plan details", e);
+        }
       } finally {
-        setIsDailyCommentLoading(false);
+        if (!isCancelled) {
+          setIsDailyCommentLoading(false);
+        }
       }
     };
 
-    loadDailyComment();
-  }, [selectedItem]);
+    loadPlanDetails();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedItem, mentorId]);
+
+  useEffect(() => {
+    if (!selectedItem || selectedItem.type !== "plan") return;
+    if (dailyMenteeComment !== null || dailyMentorReply !== null) return;
+
+    const fallbackComment =
+      typeof selectedItem.data?.dailyComment === "string"
+        ? selectedItem.data.dailyComment.trim()
+        : null;
+    if (fallbackComment) {
+      setDailyMenteeComment(fallbackComment);
+    }
+  }, [selectedItem, dailyMenteeComment, dailyMentorReply]);
 
   useEffect(() => {
     if (!selectedItem) {
@@ -638,8 +914,9 @@ export default function FeedbackClient({
 
       setIsSubmitting(true);
       try {
-        const planDate = toDate(selectedItem.date);
-        const dateStr = toDateKey(planDate);
+        const dateStr = toDateKey(
+          selectedItem.data?.dateKey ?? selectedItem.data?.date ?? selectedItem.date,
+        );
 
         const response = await fetch("/api/mentor/feedback/submit", {
           method: "POST",
@@ -658,6 +935,27 @@ export default function FeedbackClient({
         if (result.success) {
           setPublishedFeedback(feedbackText);
           setDailyMentorReply(feedbackText);
+          const reviewedDateKey = toDateKey(
+            selectedItem.data?.dateKey ?? selectedItem.data?.date ?? selectedItem.date,
+          );
+          setItems((prev) =>
+            prev.map((item) => {
+              if (item.type !== "plan") return item;
+              if (item.studentId !== selectedItem.studentId) return item;
+              if (toDateKey(item.data?.date ?? item.date) !== reviewedDateKey) {
+                return item;
+              }
+              return {
+                ...item,
+                status: "reviewed",
+                data: {
+                  ...item.data,
+                  __planEligible: false,
+                },
+              };
+            }),
+          );
+          setSelectedItemId(null);
           openModal({
             title: "전송 완료",
             content: "✅ 일일 플래너 답글이 전송되었습니다.",
@@ -713,10 +1011,131 @@ export default function FeedbackClient({
     });
   };
 
+  const toTaskDetailItem = (task: any) => {
+    const isMentorTask = Boolean(
+      task?.isMentorTask ?? task?.taskType === "mentor",
+    );
+    const fallbackBadgeColor = {
+      bg: UNKNOWN_SUBJECT_CATEGORY.colorHex,
+      text: UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+    };
+    const studyRecord =
+      task?.studyRecord ?? toStudyRecordFromMaterials(task?.materials);
+
+    return {
+      id: task?.id ?? "unknown-task",
+      title: task?.title ?? "학습 항목",
+      description: task?.description ?? "",
+      status: task?.status,
+      badgeColor: task?.badgeColor ?? fallbackBadgeColor,
+      categoryId: String(task?.categoryId ?? "unknown"),
+      attachments: Array.isArray(task?.attachments) ? task.attachments : [],
+      submissions: Array.isArray(task?.submissions) ? task.submissions : [],
+      submissionNote:
+        typeof task?.submissionNote === "string" ? task.submissionNote : null,
+      submittedAt:
+        typeof task?.submittedAt === "string" ? task.submittedAt : null,
+      mentorComment:
+        typeof task?.mentorComment === "string" ? task.mentorComment : "",
+      feedbackFiles: Array.isArray(task?.feedbackFiles) ? task.feedbackFiles : [],
+      isMentorTask,
+      completed: Boolean(task?.completed),
+      studyRecord,
+      userQuestion:
+        typeof task?.userQuestion === "string" ? task.userQuestion : undefined,
+      hasMentorResponse: Boolean(
+        task?.hasMentorResponse ??
+          task?.mentorComment ??
+          task?.latestFeedback?.comment,
+      ),
+      recurringGroupId:
+        typeof task?.recurringGroupId === "string" ? task.recurringGroupId : null,
+    };
+  };
+
+  const handleOpenTaskDetailFromPlanner = (task: any, closeExpanded = false) => {
+    const nextTask = toTaskDetailItem(task);
+    setPreviewTaskItem(nextTask);
+    setIsPreviewTaskModalOpen(true);
+    if (closeExpanded) {
+      setExpandedPlanItemId(null);
+    }
+  };
+
   // --- Helper for Plan Data ---
-  const getPlanData = (item: FeedbackItem) => {
-    const planDate = toDate(item.date);
-    const plannerRows = (item.data?.plannerTasks ?? []) as any[];
+  const mapMentorTaskToPlannerItem = (row: any) => {
+    const subjectName =
+      typeof row?.subject === "string"
+        ? row.subject
+        : row?.subject?.name || "멘토 과제";
+    const subjectSlug =
+      row?.categoryId ??
+      row?.category_id ??
+      row?.subject?.slug ??
+      row?.subjectSlug ??
+      "unknown";
+    const badgeColor = {
+      bg:
+        row?.badgeColor?.bg ??
+        row?.subject?.colorHex ??
+        UNKNOWN_SUBJECT_CATEGORY.colorHex,
+      text:
+        row?.badgeColor?.text ??
+        row?.subject?.textColorHex ??
+        UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+    };
+
+    return {
+      id: row?.id,
+      taskType: "mentor",
+      title: row?.title || "멘토 과제",
+      description: row?.description || "",
+      date: row?.deadline || row?.date,
+      deadline: row?.deadline || undefined,
+      completed:
+        typeof row?.completed === "boolean"
+          ? row.completed
+          : row?.status === "submitted" ||
+            row?.status === "feedback_completed" ||
+            Boolean(row?.latestSubmission),
+      categoryId: String(subjectSlug),
+      subject: subjectName,
+      timeSpent: Number(row?.timeSpent ?? 0) || 0,
+      startTime: row?.startTime ?? row?.start_time ?? undefined,
+      endTime: row?.endTime ?? row?.end_time ?? undefined,
+      hasMentorResponse: Boolean(
+        row?.hasMentorResponse ?? row?.latestFeedback ?? row?.mentorComment,
+      ),
+      mentorComment:
+        row?.mentorComment ?? row?.latestFeedback?.comment ?? undefined,
+      attachments: Array.isArray(row?.attachments) ? row.attachments : [],
+      submissions: Array.isArray(row?.submissions) ? row.submissions : [],
+      submissionNote:
+        typeof row?.submissionNote === "string" ? row.submissionNote : null,
+      submittedAt: typeof row?.submittedAt === "string" ? row.submittedAt : null,
+      feedbackFiles: Array.isArray(row?.feedbackFiles) ? row.feedbackFiles : [],
+      isMentorTask: true,
+      status: row?.status,
+      badgeColor,
+    };
+  };
+
+  const getPlanData = (
+    item: FeedbackItem,
+    plannerRowsOverride?: any[] | null,
+    mentorRowsOverride?: any[] | null,
+    dailyCommentOverride?: string | null,
+    dailyMentorReplyOverride?: string | null,
+  ) => {
+    const planDate = toDate(item.data?.dateKey ?? item.data?.date ?? item.date);
+    const plannerRows = mergeRowsById(
+      Array.isArray(item.data?.plannerTasks) ? item.data.plannerTasks : [],
+      plannerRowsOverride ?? [],
+    ) as any[];
+    const mentorRows = mergeRowsById(
+      Array.isArray(item.data?.mentorTasks) ? item.data.mentorTasks : [],
+      mentorRowsOverride ?? [],
+    ) as any[];
 
     const plannerTasks = plannerRows.map((row) => ({
       id: row?.id,
@@ -726,25 +1145,59 @@ export default function FeedbackClient({
       date: row?.date || planDate.toISOString().slice(0, 10),
       completed: Boolean(row?.completed ?? true),
       categoryId: resolveCategoryId(row),
-      subject: row?.subjects?.name || row?.subject || "자습",
-      timeSpent: Number(row?.time_spent_sec) || 0,
-      startTime: row?.start_time || undefined,
-      endTime: row?.end_time || undefined,
-      hasMentorResponse: Boolean(row?.mentor_comment),
-      mentorComment: row?.mentor_comment || undefined,
+      subject: row?.subject?.name || row?.subjects?.name || row?.subject || "자습",
+      timeSpent: Number(row?.time_spent_sec ?? row?.timeSpentSec ?? row?.timeSpent) || 0,
+      startTime: row?.start_time ?? row?.startTime ?? undefined,
+      endTime: row?.end_time ?? row?.endTime ?? undefined,
+      hasMentorResponse: Boolean(row?.mentor_comment ?? row?.mentorComment),
+      mentorComment: row?.mentor_comment ?? row?.mentorComment ?? undefined,
+      isMentorTask: Boolean(row?.is_mentor_task ?? row?.isMentorTask),
+      materials: Array.isArray(row?.materials) ? row.materials : [],
+      studyRecord: toStudyRecordFromMaterials(
+        Array.isArray(row?.materials) ? row.materials : [],
+      ),
+      badgeColor: {
+        bg:
+          row?.badgeColor?.bg ??
+          row?.subject?.colorHex ??
+          row?.subjects?.color_hex ??
+          UNKNOWN_SUBJECT_CATEGORY.colorHex,
+        text:
+          row?.badgeColor?.text ??
+          row?.subject?.textColorHex ??
+          row?.subjects?.text_color_hex ??
+          UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+      },
     }));
+
+    const plannerMentorTasks = plannerTasks.filter((task) => task.isMentorTask);
+    const userTasks = plannerTasks.filter((task) => !task.isMentorTask);
+    const mentorDeadlines = [
+      ...plannerMentorTasks,
+      ...mentorRows.map(mapMentorTaskToPlannerItem),
+    ];
+    const resolvedDailyComment =
+      dailyCommentOverride ??
+      (typeof item.data?.dailyComment === "string" ? item.data.dailyComment : null);
+    const resolvedMentorReply =
+      dailyMentorReplyOverride ??
+      (typeof item.data?.mentorReply === "string" ? item.data.mentorReply : null);
 
     return {
       planDate,
-      mentorDeadlines: [],
-      userTasks: plannerTasks,
+      mentorDeadlines,
+      userTasks,
       dailyRecord: {
         studyTime: Number(item.data?.totalStudySeconds) || 0,
         memo: item.data?.dailyGoal || "",
+        menteeComment: resolvedDailyComment,
+        mentorReply: resolvedMentorReply,
       },
       dailyEvents: [],
       dailyGoalText: item.data?.dailyGoal || "",
-      completedTaskCount: plannerTasks.length,
+      dailyComment: resolvedDailyComment,
+      dateKey: toDateKey(item.data?.dateKey ?? item.data?.date ?? item.date),
+      completedTaskCount: userTasks.length + mentorDeadlines.length,
     };
   };
 
@@ -752,14 +1205,33 @@ export default function FeedbackClient({
     setExpandedPlanItemId(itemId);
   };
 
+  const selectedPlanData =
+    selectedItem?.type === "plan"
+      ? getPlanData(
+          selectedItem,
+          selectedPlanTasks,
+          selectedMentorTasks,
+          dailyMenteeComment,
+          dailyMentorReply ?? publishedFeedback,
+        )
+      : null;
   const expandedPlanItem = allItems.find(
     (item) => item.id === expandedPlanItemId && item.type === "plan",
   );
-  const expandedPlanData = expandedPlanItem
-    ? getPlanData(expandedPlanItem)
-    : null;
-  const selectedPlanData =
-    selectedItem?.type === "plan" ? getPlanData(selectedItem) : null;
+  const expandedPlanData =
+    expandedPlanItem &&
+    selectedItem?.type === "plan" &&
+    selectedPlanData &&
+    selectedItem.id === expandedPlanItem.id
+      ? selectedPlanData
+      : expandedPlanItem
+        ? getPlanData(expandedPlanItem)
+        : null;
+  const resolvedDailyMenteeComment =
+    dailyMenteeComment ??
+    (typeof selectedPlanData?.dailyComment === "string"
+      ? selectedPlanData.dailyComment
+      : null);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -1003,6 +1475,9 @@ export default function FeedbackClient({
                               userTasks={selectedPlanData.userTasks}
                               dailyEvents={selectedPlanData.dailyEvents}
                               mentorReview={publishedFeedback ?? undefined}
+                              onTaskClick={(task) =>
+                                handleOpenTaskDetailFromPlanner(task)
+                              }
                               size="full"
                             />
                           </div>
@@ -1044,13 +1519,13 @@ export default function FeedbackClient({
                               멘티 코멘트 로딩중...
                             </p>
                           </div>
-                        ) : dailyMenteeComment ? (
+                        ) : resolvedDailyMenteeComment ? (
                           <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
                             <h4 className="text-xs font-bold text-orange-600 mb-2 flex items-center gap-1">
                               💬 멘티 코멘트
                             </h4>
                             <p className="text-gray-900 font-medium">
-                              "{dailyMenteeComment}"
+                              "{resolvedDailyMenteeComment}"
                             </p>
                           </div>
                         ) : (
@@ -1352,6 +1827,22 @@ export default function FeedbackClient({
           plannerTasks={expandedPlanData.userTasks as any}
           dailyEvents={expandedPlanData.dailyEvents}
           mentorReview={publishedFeedback ?? undefined}
+          onTaskClick={(task) =>
+            handleOpenTaskDetailFromPlanner(task, true)
+          }
+          skipDateFilter={true}
+        />
+      )}
+
+      {previewTaskItem && (
+        <TaskDetailModal
+          isOpen={isPreviewTaskModalOpen}
+          onClose={() => {
+            setIsPreviewTaskModalOpen(false);
+            setPreviewTaskItem(null);
+          }}
+          task={previewTaskItem}
+          isReadOnly={true}
         />
       )}
     </div>

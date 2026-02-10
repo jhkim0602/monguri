@@ -388,58 +388,63 @@ export default function DashboardClient({
             </Link>
           </div>
 
-          <div className="space-y-3 flex-1">
-            {recentFeedback.length === 0 && (
+          <div className="flex-1 min-h-0">
+            {recentFeedback.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-gray-400 font-medium">
                 피드백 대기 항목이 없습니다.
               </div>
+            ) : (
+              <>
+                <div className="space-y-3 h-full overflow-y-auto pr-1 custom-scrollbar">
+                  {recentFeedback.map((item, idx) => (
+                    <Link
+                      href={`/mentor-feedback?itemId=${encodeURIComponent(item.id)}`}
+                      key={idx}
+                      className="group bg-gray-50 p-4 rounded-2xl flex items-start gap-4 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-bold flex-shrink-0 overflow-hidden">
+                        {item.studentAvatarUrl ? (
+                          <img
+                            src={item.studentAvatarUrl}
+                            alt={item.studentName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          item.studentName?.substring(0, 1) ||
+                          item.title.substring(0, 1)
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-bold text-sm text-gray-900 truncate pr-2">
+                            {item.title}
+                          </h4>
+                          <span className="text-[10px] text-gray-400 shrink-0">
+                            {formatDateBadge(item.date)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 truncate flex items-center gap-1">
+                          <span className="font-bold text-gray-800">
+                            {item.studentName || "이름 없음"}
+                          </span>
+                          <span className="text-gray-400">|</span>
+                          <span>
+                            {item.type === "task"
+                              ? "과제 제출"
+                              : item.type === "plan"
+                                ? "플래너"
+                                : "자습"}
+                          </span>
+                        </p>
+                      </div>
+                      <span className="p-1 rounded-lg text-gray-400 group-hover:text-gray-900 transition-colors flex-shrink-0">
+                        <ChevronRight size={18} />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </>
             )}
-            {recentFeedback.slice(0, 3).map((item, idx) => (
-                <Link
-                  href={`/mentor-feedback?itemId=${encodeURIComponent(item.id)}`}
-                  key={idx}
-                  className="bg-gray-50 p-4 rounded-2xl flex items-start gap-4 hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-bold flex-shrink-0 overflow-hidden">
-                    {item.studentAvatarUrl ? (
-                      <img
-                        src={item.studentAvatarUrl}
-                        alt={item.studentName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      item.studentName?.substring(0, 1) ||
-                      item.title.substring(0, 1)
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-bold text-sm text-gray-900 truncate pr-2">
-                        {item.title}
-                      </h4>
-                      <span className="text-[10px] text-gray-400 shrink-0">
-                        {formatDateBadge(item.date)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-600 truncate flex items-center gap-1">
-                      <span className="font-bold text-gray-800">
-                        {item.studentName || "이름 없음"}
-                      </span>
-                      <span className="text-gray-400">|</span>
-                      <span>
-                        {item.type === "task"
-                          ? "과제 제출"
-                          : item.type === "plan"
-                            ? "플래너"
-                            : "자습"}
-                      </span>
-                    </p>
-                  </div>
-                  <span className="p-1 rounded-lg text-gray-400 group-hover:text-gray-900 transition-colors flex-shrink-0">
-                    <ChevronRight size={18} />
-                  </span>
-                </Link>
-              ))}
           </div>
         </div>
 

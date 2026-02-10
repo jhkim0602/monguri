@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { handleRouteError } from "@/lib/apiUtils";
 import { revalidateMenteeHomeCacheByMenteeId } from "@/lib/menteeHomeServerCache";
+import { revalidateMentorSurfaceCachesByMenteeId } from "@/lib/mentorServerCache";
 import {
   getDailyRecordByDate,
   upsertDailyRecord,
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
       { menteeComment: parsed.data.comment }
     );
     revalidateMenteeHomeCacheByMenteeId(parsed.data.menteeId);
+    await revalidateMentorSurfaceCachesByMenteeId(parsed.data.menteeId);
 
     return NextResponse.json({
       success: true,

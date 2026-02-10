@@ -1,5 +1,6 @@
 import { getTasksWithSubmissionsByMentorId } from "@/repositories/mentorTasksRepository";
 import { getCompletedPlannerTasksByMentorId } from "@/repositories/plannerTasksRepository";
+import { listPendingDailyCommentsByMentorId } from "@/repositories/dailyRecordsRepository";
 
 export type FeedbackItem = {
   id: string;
@@ -25,18 +26,49 @@ const pickLatestSubmission = (submissions: any[] | null | undefined) => {
   })[0];
 };
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const toDateKey = (value: unknown): string | null => {
+  if (typeof value === "string" && DATE_ONLY_PATTERN.test(value)) {
+    return value;
+  }
+
+  if (value === null || value === undefined) return null;
+
+  const parsed = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const hasReviewedTaskFeedback = (taskFeedback: any[] | null | undefined) => {
+  if (!Array.isArray(taskFeedback) || taskFeedback.length === 0) return false;
+
+  return taskFeedback.some((feedback) => {
+    const status = String(feedback?.status ?? "").toLowerCase();
+    const comment =
+      typeof feedback?.comment === "string" ? feedback.comment.trim() : "";
+    return status === "reviewed" && comment.length > 0;
+  });
+};
+
 export async function getPendingFeedbackItems(
   mentorId: string,
 ): Promise<FeedbackItem[]> {
   // 1. Fetch pending tasks (submitted by mentee, no mentor feedback yet)
-  const [taskRows, planRows] = await Promise.all([
+  const [taskRows, planRows, pendingDailyCommentRows] = await Promise.all([
     getTasksWithSubmissionsByMentorId(mentorId),
     getCompletedPlannerTasksByMentorId(mentorId),
+    listPendingDailyCommentsByMentorId(mentorId),
   ]);
 
-  const pendingTaskRows = taskRows.filter(
-    (row) => row.status === "submitted" && !(row.task_feedback?.length ?? 0),
-  );
+  const pendingTaskRows = taskRows.filter((row) => {
+    if (row.status !== "submitted") return false;
+    return !hasReviewedTaskFeedback(row.task_feedback);
+  });
 
   const taskItems: FeedbackItem[] = pendingTaskRows.map((row) => {
     const latestSubmission = pickLatestSubmission(row.task_submissions);
@@ -87,9 +119,64 @@ export async function getPendingFeedbackItems(
     };
   });
 
-  const pendingPlanRows = planRows.filter((row) => !row.mentor_comment);
+  const pendingCommentByKey = new Map<string, (typeof pendingDailyCommentRows)[number]>();
+  pendingDailyCommentRows.forEach((row) => {
+    const dateKey = toDateKey(row.date);
+    if (!dateKey) return;
+    pendingCommentByKey.set(`${row.mentee_id}-${dateKey}`, row);
+  });
 
-  const planItems: FeedbackItem[] = pendingPlanRows.map((row) => ({
+  const annotatedPlanRows = planRows.map((row) => {
+    const dateKey = toDateKey(row.date);
+    const key = `${row.mentee_id}-${dateKey ?? row.date}`;
+    const pendingComment = pendingCommentByKey.get(key);
+    return {
+      ...row,
+      __planEligible: Boolean(pendingComment),
+      __dailyComment: pendingComment?.mentee_comment ?? null,
+      __isVirtualPlanRow: false,
+    };
+  });
+
+  const existingPlanKeys = new Set<string>();
+  annotatedPlanRows.forEach((row) => {
+    const dateKey = toDateKey(row.date);
+    if (!dateKey) return;
+    existingPlanKeys.add(`${row.mentee_id}-${dateKey}`);
+  });
+
+  const virtualPlanRows = pendingDailyCommentRows
+    .filter((row) => {
+      const dateKey = toDateKey(row.date);
+      if (!dateKey) return false;
+      return !existingPlanKeys.has(`${row.mentee_id}-${dateKey}`);
+    })
+    .map((row) => ({
+      id: `daily-comment-${row.id}`,
+      mentee_id: row.mentee_id,
+      subject_id: null,
+      title: "일일 코멘트",
+      description: null,
+      date: row.date,
+      completed: true,
+      time_spent_sec: 0,
+      start_time: null,
+      end_time: null,
+      recurring_group_id: null,
+      is_mentor_task: false,
+      materials: [],
+      mentor_comment: null,
+      created_at: new Date(row.date).toISOString(),
+      subjects: null,
+      mentee: row.mentee,
+      __planEligible: true,
+      __dailyComment: row.mentee_comment,
+      __isVirtualPlanRow: true,
+    }));
+
+  const allPlanRows = [...annotatedPlanRows, ...virtualPlanRows];
+
+  const planItems: FeedbackItem[] = allPlanRows.map((row) => ({
     id: `plan-${row.id}`,
     type: "plan",
     studentId: row.mentee?.id ?? row.mentee_id,
