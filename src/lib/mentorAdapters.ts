@@ -5,6 +5,7 @@ import {
 } from "@/types/mentor";
 import { MentorMenteeRow } from "@/repositories/mentorMenteeRepository";
 import { MentorTaskRow } from "@/repositories/mentorTasksRepository";
+import { UNKNOWN_SUBJECT_CATEGORY } from "@/lib/subjectCategory";
 
 function calculateDDay(targetDate: string | null | undefined): number | null {
   if (!targetDate) return null;
@@ -75,6 +76,8 @@ export function adaptMentorTaskToUi(
     description: row.description || "",
     status: row.status as MentorTaskStatus,
     deadline: new Date(row.deadline || Date.now()),
+    startTime: row.start_time || undefined,
+    endTime: row.end_time || undefined,
     hasMentorResponse: Boolean(latestFeedback),
     mentorComment: latestFeedback?.comment || undefined,
     menteeName: row.mentee?.name || "이름 없음",
@@ -96,6 +99,10 @@ export interface StudentDetailTaskUi {
   hasMentorResponse?: boolean;
   mentorComment?: string;
   status?: "pending" | "submitted" | "feedback_completed";
+  badgeColor?: {
+    bg: string;
+    text: string;
+  };
   attachments?: {
     id?: string;
     fileId?: string;
@@ -126,6 +133,10 @@ export function adaptPlannerTaskToDetailUi(
   const subjectData = Array.isArray(row.subjects)
     ? row.subjects[0]
     : row.subjects;
+  const badgeColor = {
+    bg: subjectData?.color_hex || UNKNOWN_SUBJECT_CATEGORY.colorHex,
+    text: subjectData?.text_color_hex || UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+  };
 
   return {
     id: row.id,
@@ -139,6 +150,7 @@ export function adaptPlannerTaskToDetailUi(
     timeSpent: row.time_spent_sec || 0,
     hasMentorResponse: Boolean(row.mentor_comment),
     mentorComment: row.mentor_comment || undefined,
+    badgeColor,
     startTime: row.start_time || undefined,
     endTime: row.end_time || undefined,
   };
@@ -223,6 +235,10 @@ export function adaptMentorTaskToDetailUi(
   const subjectData = Array.isArray(row.subjects)
     ? row.subjects[0]
     : row.subjects;
+  const badgeColor = {
+    bg: subjectData?.color_hex || UNKNOWN_SUBJECT_CATEGORY.colorHex,
+    text: subjectData?.text_color_hex || UNKNOWN_SUBJECT_CATEGORY.textColorHex,
+  };
 
   const latestFeedback = row.task_feedback?.[0];
   const submissionData = buildSubmissions();
@@ -243,6 +259,9 @@ export function adaptMentorTaskToDetailUi(
     hasMentorResponse: Boolean(latestFeedback),
     mentorComment: latestFeedback?.comment || undefined,
     status: row.status,
+    badgeColor,
+    startTime: row.start_time || undefined,
+    endTime: row.end_time || undefined,
     attachments: buildAttachments(),
     submissions: submissionData.files,
     submissionNote: submissionData.note,

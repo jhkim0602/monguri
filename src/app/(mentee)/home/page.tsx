@@ -19,6 +19,7 @@ import {
 import {
   readMenteeHomeCache,
   writeMenteeHomeCache,
+  type HomeSubjectLike,
 } from "@/lib/menteeHomeCache";
 import { COLUMN_SERIES } from "@/constants/mentee/columns";
 import Link from "next/link";
@@ -35,6 +36,7 @@ export default function Home() {
   const [planEvents, setPlanEvents] = useState<ScheduleEventLike[]>([]);
   const [profile, setProfile] = useState<UiProfile | null>(null);
   const [columns, setColumns] = useState<any[]>([]); // Use flexible type for now or define proper interface
+  const [subjects, setSubjects] = useState<HomeSubjectLike[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasLoadedRef = useRef(false);
   const forceRefreshRef = useRef(false);
@@ -278,6 +280,7 @@ export default function Home() {
       setPlanEvents(cached.data.planEvents);
       setProfile(cached.data.profile);
       setColumns(cached.data.columns ?? []);
+      setSubjects(cached.data.subjects ?? []);
       if (!hasLoadedRef.current) {
         setIsLoading(false);
         hasLoadedRef.current = true;
@@ -295,7 +298,7 @@ export default function Home() {
         setIsLoading(true);
       }
       try {
-        const [tasksRes, profileRes, plannerRes, overviewRes] =
+        const [tasksRes, profileRes, plannerRes, overviewRes, subjectsRes] =
           await Promise.all([
             fetch(`/api/mentee/tasks?menteeId=${userId}`),
             fetch(`/api/mentee/profile?profileId=${userId}`),
@@ -305,6 +308,7 @@ export default function Home() {
             fetch(
               `/api/mentee/planner/overview?menteeId=${userId}&from=${from}&to=${to}`,
             ),
+            fetch(`/api/subjects`),
           ]);
 
         // Fetch Columns directly from Supabase - simplified query
@@ -332,12 +336,14 @@ export default function Home() {
           planEvents: ScheduleEventLike[];
           profile: UiProfile | null;
           columns: any[];
+          subjects: HomeSubjectLike[];
         } = {
           mentorTasks: [],
           plannerTasks: [],
           planEvents: [],
           profile: null,
           columns: [],
+          subjects: [],
         };
 
         if (tasksRes.ok) {
@@ -366,6 +372,32 @@ export default function Home() {
           );
         }
 
+        if (subjectsRes.ok) {
+          const subjectsJson = await subjectsRes.json();
+          if (Array.isArray(subjectsJson.subjects)) {
+            next.subjects = subjectsJson.subjects
+              .map((subject: any) => {
+                const id = String(subject.slug ?? subject.id ?? "").trim();
+                const name = String(subject.name ?? "").trim();
+                if (!id || !name) return null;
+
+                return {
+                  id,
+                  name,
+                  colorHex: subject.colorHex ?? null,
+                  textColorHex: subject.textColorHex ?? null,
+                  sortOrder:
+                    typeof subject.sortOrder === "number"
+                      ? subject.sortOrder
+                      : null,
+                } as HomeSubjectLike;
+              })
+              .filter((subject: HomeSubjectLike | null): subject is HomeSubjectLike =>
+                Boolean(subject),
+              );
+          }
+        }
+
         if (!isMounted) return;
 
         next.columns = columnsData ?? [];
@@ -375,6 +407,7 @@ export default function Home() {
         setPlanEvents(next.planEvents);
         setProfile(next.profile);
         setColumns(next.columns);
+        setSubjects(next.subjects);
         writeMenteeHomeCache(cacheKey, next);
       } finally {
         if (isMounted && !hasLoadedRef.current) {
@@ -473,6 +506,7 @@ export default function Home() {
         onDateChange={setSelectedDate}
         mentorTasks={mentorTasks}
         scheduleEvents={scheduleEvents}
+        subjects={subjects}
       />
 
       <section className="px-6 mb-6">

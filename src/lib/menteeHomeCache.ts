@@ -5,12 +5,21 @@ import type {
   UiProfile,
 } from "@/lib/menteeAdapters";
 
+export type HomeSubjectLike = {
+  id: string;
+  name: string;
+  colorHex: string | null;
+  textColorHex: string | null;
+  sortOrder: number | null;
+};
+
 export type MenteeHomeCacheData = {
   mentorTasks: MentorTaskLike[];
   plannerTasks: PlannerTaskLike[];
   planEvents: ScheduleEventLike[];
   profile: UiProfile | null;
   columns: any[];
+  subjects?: HomeSubjectLike[];
 };
 
 type CacheEntry = {

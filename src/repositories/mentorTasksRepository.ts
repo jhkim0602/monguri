@@ -9,8 +9,9 @@ export type MentorTaskRow = {
   description: string | null;
   status: "pending" | "submitted" | "feedback_completed";
   deadline: string | null;
-  badge_color: string | null;
   created_at: string;
+  start_time: string | null;
+  end_time: string | null;
   subjects: {
     id: string;
     slug: string;
@@ -82,6 +83,12 @@ export type MentorTaskCoreRow = {
   title: string;
 };
 
+export type MentorTaskTimeRangeRow = {
+  id: string;
+  start_time: string | null;
+  end_time: string | null;
+};
+
 export type MentorTaskMaterialRow = {
   id: string;
   task_id: string;
@@ -104,8 +111,9 @@ export async function listMentorTasksByMenteeId(menteeId: string) {
       description,
       status,
       deadline,
-      badge_color,
       created_at,
+      start_time,
+      end_time,
       subjects (
         id,
         slug,
@@ -209,6 +217,39 @@ export async function updateMentorTaskStatus(
   return (data ?? null) as { id: string; status: MentorTaskStatus } | null;
 }
 
+export async function updateMentorTaskTimeRange(
+  taskId: string,
+  updates: {
+    startTime?: string | null;
+    endTime?: string | null;
+  },
+) {
+  const payload: {
+    start_time?: string | null;
+    end_time?: string | null;
+  } = {};
+
+  if (updates.startTime !== undefined) {
+    payload.start_time = updates.startTime;
+  }
+  if (updates.endTime !== undefined) {
+    payload.end_time = updates.endTime;
+  }
+
+  const { data, error } = await supabaseServer
+    .from("mentor_tasks")
+    .update(payload)
+    .eq("id", taskId)
+    .select("id, start_time, end_time")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? null) as MentorTaskTimeRangeRow | null;
+}
+
 export async function getTasksByMentorId(mentorId: string) {
   const { data, error } = await supabaseServer
     .from("mentor_tasks")
@@ -222,8 +263,9 @@ export async function getTasksByMentorId(mentorId: string) {
       description,
       status,
       deadline,
-      badge_color,
       created_at,
+      start_time,
+      end_time,
       subjects (
         id,
         slug,
@@ -307,8 +349,9 @@ export async function getTasksWithSubmissionsByMentorId(mentorId: string) {
       description,
       status,
       deadline,
-      badge_color,
       created_at,
+      start_time,
+      end_time,
       subjects (
         id,
         slug,

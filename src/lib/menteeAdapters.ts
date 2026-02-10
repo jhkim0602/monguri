@@ -18,10 +18,6 @@ type ApiMentorTask = {
   status: "pending" | "submitted" | "feedback_completed";
   deadline: string | null;
   createdAt?: string;
-  badgeColor?: {
-    bg: string;
-    text: string;
-  } | null;
   attachments?: {
     id: string;
     fileId: string;
@@ -40,6 +36,8 @@ type ApiMentorTask = {
   }[];
   submissionNote?: string | null;
   submittedAt?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   latestSubmission?: {
     id: string;
     submittedAt: string;
@@ -119,7 +117,7 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
     const subjectColor = subject?.colorHex ?? subjectCategory.colorHex;
     const subjectTextColor =
       subject?.textColorHex ?? subjectCategory.textColorHex;
-    const badgeColor = task.badgeColor || {
+    const badgeColor = {
       bg: subjectColor ?? DEFAULT_BADGE.bg,
       text: subjectTextColor ?? DEFAULT_BADGE.text,
     };
@@ -156,6 +154,8 @@ export function adaptMentorTasksToUi(tasks: ApiMentorTask[]): MentorTaskLike[] {
       submissionNote: task.submissionNote ?? task.latestSubmission?.note ?? null,
       submittedAt:
         task.submittedAt ?? task.latestSubmission?.submittedAt ?? null,
+      startTime: task.startTime ?? undefined,
+      endTime: task.endTime ?? undefined,
     };
   });
 }

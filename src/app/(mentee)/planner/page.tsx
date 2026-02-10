@@ -555,13 +555,14 @@ export default function PlannerPage() {
 
     const updateTaskTimeRange = async (taskId: number | string, startTime: string, endTime: string) => {
         const taskIdStr = String(taskId);
+        const targetTask = tasks.find((task) => String(task.id) === taskIdStr);
+        if (!targetTask) return;
+
+        // Reflect immediately in timeline for both mentor and planner tasks.
         setTasks(prev => {
             const next = prev.map(task => {
-                if (String(task.id) === taskIdStr) {
-                    if (task.isMentorTask) return task;
-                    return { ...task, startTime, endTime };
-                }
-                return task;
+                if (String(task.id) !== taskIdStr) return task;
+                return { ...task, startTime, endTime };
             });
             persistCache(next);
             return next;
@@ -570,15 +571,27 @@ export default function PlannerPage() {
         if (!menteeId) return;
 
         try {
-            await fetch(`/api/mentee/planner/tasks/${taskIdStr}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    menteeId,
-                    startTime,
-                    endTime
-                })
-            });
+            if (targetTask.isMentorTask) {
+                await fetch(`/api/mentee/tasks/${taskIdStr}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        menteeId,
+                        startTime,
+                        endTime
+                    })
+                });
+            } else {
+                await fetch(`/api/mentee/planner/tasks/${taskIdStr}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        menteeId,
+                        startTime,
+                        endTime
+                    })
+                });
+            }
         } catch (e) {
             console.error("Failed to update task time range", e);
         }
