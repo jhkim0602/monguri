@@ -255,7 +255,7 @@ export default function ChatRoom({ mentorMenteeId, currentUserId }: ChatRoomProp
                         <img
                           src={attachment.signed_url}
                           alt="attachment"
-                          className="max-w-[240px] rounded-lg border border-gray-200"
+                          className="max-w-[240px] rounded-lg"
                         />
                       ) : (
                         <a

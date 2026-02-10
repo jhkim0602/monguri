@@ -7,6 +7,7 @@ export type UpcomingMeetingRow = {
   topic: string;
   confirmed_time: string;
   zoom_link: string | null;
+  mentor_note: string | null;
 };
 
 export type MentorMeetingRequestStatus = "PENDING" | "CONFIRMED" | "REJECTED";
@@ -21,6 +22,7 @@ export type MentorMeetingRequestRow = {
   status: MentorMeetingRequestStatus;
   confirmed_time: string | null;
   zoom_link: string | null;
+  mentor_note: string | null;
   created_at: string;
 };
 
@@ -42,6 +44,7 @@ export async function listMeetingRequestsByMentorId(
       status,
       confirmed_time,
       zoom_link,
+      mentor_note,
       created_at,
       mentor_mentee:mentor_mentee!inner(
         mentor_id
@@ -74,6 +77,7 @@ export async function listMeetingRequestsByMentorId(
       status: row.status,
       confirmed_time: row.confirmed_time ?? null,
       zoom_link: row.zoom_link ?? null,
+      mentor_note: row.mentor_note ?? null,
       created_at: row.created_at,
     }));
   }
@@ -103,6 +107,7 @@ export async function listMeetingRequestsByMentorId(
     status: row.status,
     confirmed_time: row.confirmed_time ?? null,
     zoom_link: row.zoom_link ?? null,
+    mentor_note: row.mentor_note ?? null,
     created_at: row.created_at,
   }));
 }

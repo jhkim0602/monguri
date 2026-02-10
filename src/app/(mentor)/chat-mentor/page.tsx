@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowDown, CheckCheck, Paperclip, Send, Smile } from "lucide-react";
-import MentorMeetingRequestCard from "@/components/mentor/chat/MentorMeetingRequestCard";
-import MeetingConfirmedMessage from "@/components/common/chat/MeetingConfirmedMessage";
+import { ArrowDown, CheckCheck, Paperclip, Send, CalendarPlus } from "lucide-react";
+import MeetingCard from "@/components/common/chat/MeetingCard";
+import MentorScheduledMeetingCard from "@/components/common/chat/MentorScheduledMeetingCard";
 import MentorChatSidebar from "@/components/mentor/chat/MentorChatSidebar";
 import { useMentorProfile } from "@/contexts/MentorProfileContext";
 import {
@@ -158,7 +158,9 @@ export default function MentorChatPage() {
                         prevMsg &&
                         prevMsg.sender_id === msg.sender_id &&
                         prevMsg.message_type !== "system" &&
+                        prevMsg.message_type !== "meeting_scheduled" &&
                         msg.message_type !== "system" &&
+                        msg.message_type !== "meeting_scheduled" &&
                         new Date(msg.created_at).getTime() -
                           new Date(prevMsg.created_at).getTime() <
                           60000;
@@ -173,22 +175,56 @@ export default function MentorChatPage() {
                         minute: "2-digit",
                       });
 
+                      // Skip MEETING_CONFIRMED messages since MeetingCard updates in real-time
+                      if (msg.message_type === "system" && msg.body?.startsWith("MEETING_CONFIRMED:")) {
+                        return null;
+                      }
+
                       if (msg.message_type === "system") {
                         return (
                           <div
                             key={msg.id}
                             className="my-4 flex w-full justify-start pl-12"
                           >
-                            {msg.body?.startsWith("MEETING_CONFIRMED:") ? (
-                              <MeetingConfirmedMessage
-                                requestId={msg.body.split(":")[1]}
-                                isSender={isMe}
-                              />
-                            ) : (
-                              <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-[11px] text-gray-500">
-                                {msg.body}
-                              </span>
-                            )}
+                            <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-[11px] text-gray-500">
+                              {msg.body}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      if (msg.message_type === "meeting_scheduled" && msg.body?.startsWith("MENTOR_MEETING:")) {
+                        return (
+                          <div key={msg.id} className={`group relative flex gap-3 ${isSequence ? "mt-[2px]" : "mt-5"}`}>
+                            <div className="flex w-10 flex-shrink-0 flex-col items-center">
+                              {!isSequence ? (
+                                <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white shadow-sm ${isMe ? "flex items-center justify-center bg-[linear-gradient(135deg,_var(--chat-accent),_var(--chat-accent-2))] text-sm font-bold text-white" : "bg-slate-200"}`}>
+                                  {isMe ? (mentorAvatarUrl ? <img src={mentorAvatarUrl} alt="mentor profile" className="h-full w-full object-cover" /> : "멘") : selectedStudent?.avatarUrl ? <img src={selectedStudent.avatarUrl} alt="profile" className="h-full w-full object-cover" /> : (selectedStudent?.name?.[0] ?? "멘")}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="flex max-w-[75%] flex-col items-start">
+                              {!isSequence && (
+                                <div className="mb-1 flex flex-wrap items-end gap-2">
+                                  <span className="text-[14px] font-semibold text-slate-900">{senderLabel}</span>
+                                  <span className="text-[12px] text-slate-400">{timeLabel}</span>
+                                </div>
+                              )}
+                              <MentorScheduledMeetingCard meetingId={msg.body.replace("MENTOR_MEETING:", "")} />
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (msg.message_type === "meeting_scheduled") {
+                        return (
+                          <div
+                            key={msg.id}
+                            className="my-4 flex w-full justify-start pl-12"
+                          >
+                            <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-[11px] text-gray-500">
+                              {msg.body}
+                            </span>
                           </div>
                         );
                       }
@@ -261,8 +297,9 @@ export default function MentorChatPage() {
                               {msg.message_type === "meeting_request" &&
                               msg.body?.startsWith("MEETING_REQUEST:") ? (
                                 <div className="mt-1">
-                                  <MentorMeetingRequestCard
+                                  <MeetingCard
                                     requestId={msg.body.split(":")[1]}
+                                    isMentor={true}
                                   />
                                 </div>
                               ) : null}
@@ -374,8 +411,10 @@ export default function MentorChatPage() {
                       <button
                         className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
                         disabled={!selectedStudentId || isSending}
+                        onClick={() => window.location.href = '/schedule?openAdd=true'}
+                        title="미팅 추가"
                       >
-                        <Smile className="h-4 w-4" />
+                        <CalendarPlus className="h-4 w-4" />
                       </button>
                     </div>
                     <button

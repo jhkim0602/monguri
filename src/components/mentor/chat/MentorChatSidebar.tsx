@@ -122,7 +122,11 @@ export default function MentorChatSidebar({
                         </span>
                       </div>
                       <p className="mt-2 truncate text-xs text-slate-500">
-                        {student.lastMsg}
+                        {student.lastMsg?.startsWith("MEETING_REQUEST:")
+                          ? "미팅 신청이 도착했습니다"
+                          : student.lastMsg?.startsWith("MENTOR_MEETING:")
+                            ? "미팅이 등록되었습니다"
+                            : student.lastMsg}
                       </p>
                     </div>
 

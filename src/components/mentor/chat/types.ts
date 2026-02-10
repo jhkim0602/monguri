@@ -56,7 +56,7 @@ export type ChatMessage = {
   mentor_mentee_id: string;
   sender_id: string;
   body: string | null;
-  message_type: "text" | "image" | "file" | "meeting_request" | "system";
+  message_type: "text" | "image" | "file" | "meeting_request" | "system" | "meeting_scheduled";
   created_at: string;
   chat_attachments?: ChatAttachment[];
 };
