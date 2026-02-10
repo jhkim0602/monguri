@@ -77,7 +77,46 @@ function ChatPageContent() {
     prevScrollTop: number;
   } | null>(null);
   const shouldScrollToBottomRef = useRef(true);
+  const isPinnedToBottomRef = useRef(true);
+  const forceBottomRafRef = useRef<number | null>(null);
+  const forceBottomUntilRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
   const PAGE_SIZE = 50;
+
+  const stopForceBottom = useCallback(() => {
+    if (forceBottomRafRef.current !== null) {
+      cancelAnimationFrame(forceBottomRafRef.current);
+      forceBottomRafRef.current = null;
+    }
+    forceBottomUntilRef.current = 0;
+  }, []);
+
+  const forceScrollToBottom = useCallback((durationMs = 1800) => {
+    const deadline = Date.now() + durationMs;
+    forceBottomUntilRef.current = Math.max(forceBottomUntilRef.current, deadline);
+
+    const step = () => {
+      const container = listRef.current;
+      if (!container) {
+        forceBottomRafRef.current = null;
+        return;
+      }
+
+      container.scrollTop = container.scrollHeight;
+      isPinnedToBottomRef.current = true;
+
+      if (Date.now() < forceBottomUntilRef.current) {
+        forceBottomRafRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      forceBottomRafRef.current = null;
+    };
+
+    if (forceBottomRafRef.current === null) {
+      forceBottomRafRef.current = requestAnimationFrame(step);
+    }
+  }, []);
 
   const persistCache = useCallback(
     (nextMessages: ChatMessage[]) => {
@@ -258,6 +297,8 @@ function ChatPageContent() {
     if (cached?.data?.messages?.length) {
       setMessages(cached.data.messages);
       setHasMore(cached.data.messages.length >= PAGE_SIZE);
+      shouldScrollToBottomRef.current = true;
+      forceScrollToBottom(2200);
       if (!cached.stale) {
         return;
       }
@@ -276,8 +317,9 @@ function ChatPageContent() {
     setHasMore(page.rawCount >= PAGE_SIZE);
     persistCache(page.items);
     shouldScrollToBottomRef.current = true;
+    forceScrollToBottom(2200);
     isLoadingMessagesRef.current = false;
-  }, [mentorMenteeId, fetchMessagesPage, persistCache]);
+  }, [mentorMenteeId, fetchMessagesPage, persistCache, forceScrollToBottom]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!mentorMenteeId || !hasMore || isLoadingMore) return;
@@ -332,8 +374,10 @@ function ChatPageContent() {
             const { scrollTop, scrollHeight, clientHeight } = listRef.current;
             const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 120;
             shouldScrollToBottomRef.current = isNearBottom;
+            isPinnedToBottomRef.current = isNearBottom;
           } else {
             shouldScrollToBottomRef.current = true;
+            isPinnedToBottomRef.current = true;
           }
 
           setMessages((prev) => {
@@ -422,8 +466,116 @@ function ChatPageContent() {
     if (shouldScrollToBottomRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
       shouldScrollToBottomRef.current = false;
+      isPinnedToBottomRef.current = true;
+      lastScrollTopRef.current = listRef.current.scrollTop;
     }
   }, [messages]);
+
+  useEffect(() => {
+    const container = listRef.current;
+    if (!container) return;
+
+    const scrollToBottomIfPinned = () => {
+      if (pendingScrollAdjustRef.current || isLoadingMore) return;
+      if (!isPinnedToBottomRef.current && !shouldScrollToBottomRef.current) return;
+
+      container.scrollTop = container.scrollHeight;
+      shouldScrollToBottomRef.current = false;
+      isPinnedToBottomRef.current = true;
+      lastScrollTopRef.current = container.scrollTop;
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(scrollToBottomIfPinned);
+    });
+    const mutationObserver = new MutationObserver(() => {
+      requestAnimationFrame(scrollToBottomIfPinned);
+    });
+
+    const observed = container.firstElementChild as HTMLElement | null;
+    if (observed) {
+      resizeObserver.observe(observed);
+    }
+    mutationObserver.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [mentorMenteeId, isLoadingMore]);
+
+  const updateScrollState = useCallback(() => {
+    const container = listRef.current;
+    if (!container) return;
+
+    const currentScrollTop = container.scrollTop;
+    const forceActive = Date.now() < forceBottomUntilRef.current;
+    if (forceActive && currentScrollTop + 2 < lastScrollTopRef.current) {
+      stopForceBottom();
+      shouldScrollToBottomRef.current = false;
+      isPinnedToBottomRef.current = false;
+    }
+    lastScrollTopRef.current = currentScrollTop;
+
+    if (shouldScrollToBottomRef.current) {
+      isPinnedToBottomRef.current = true;
+      return;
+    }
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isNearBottom = distanceFromBottom <= 140;
+    isPinnedToBottomRef.current = isNearBottom;
+
+    if (!isNearBottom && Date.now() >= forceBottomUntilRef.current) {
+      stopForceBottom();
+    }
+
+    if (
+      messages.length > 0 &&
+      container.scrollTop <= 40 &&
+      hasMore &&
+      !isLoadingMore
+    ) {
+      loadOlderMessages();
+    }
+  }, [hasMore, isLoadingMore, loadOlderMessages, messages.length, stopForceBottom]);
+
+  useEffect(() => {
+    const container = listRef.current;
+    if (!container) return;
+
+    const stopForceOnUserIntent = () => {
+      if (Date.now() < forceBottomUntilRef.current) {
+        stopForceBottom();
+        shouldScrollToBottomRef.current = false;
+        isPinnedToBottomRef.current = false;
+      }
+    };
+
+    const handleScroll = () => updateScrollState();
+    container.addEventListener("scroll", handleScroll);
+    container.addEventListener("wheel", stopForceOnUserIntent, { passive: true });
+    container.addEventListener("touchstart", stopForceOnUserIntent, {
+      passive: true,
+    });
+    container.addEventListener("pointerdown", stopForceOnUserIntent);
+    updateScrollState();
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("wheel", stopForceOnUserIntent);
+      container.removeEventListener("touchstart", stopForceOnUserIntent);
+      container.removeEventListener("pointerdown", stopForceOnUserIntent);
+    };
+  }, [updateScrollState, stopForceBottom]);
+
+  useEffect(
+    () => () => {
+      stopForceBottom();
+    },
+    [stopForceBottom],
+  );
 
   // Scroll to specific meeting card when scrollTo param is present
   useEffect(() => {
@@ -457,6 +609,7 @@ function ChatPageContent() {
 
     setIsSending(true);
     shouldScrollToBottomRef.current = true;
+    forceScrollToBottom();
     const { data: message, error } = await supabase
       .from("chat_messages")
       .insert({
@@ -499,6 +652,7 @@ function ChatPageContent() {
 
     setIsSending(true);
     shouldScrollToBottomRef.current = true;
+    forceScrollToBottom();
 
     const fileArray = Array.from(files);
     const messageType = fileArray.every((file) => file.type.startsWith("image/"))
@@ -607,12 +761,6 @@ function ChatPageContent() {
       <div
         ref={listRef}
         className="flex-1 min-h-0 px-4 pt-4 pb-8 space-y-4 overflow-y-auto"
-        onScroll={() => {
-          if (!listRef.current || isLoadingMore || !hasMore) return;
-          if (listRef.current.scrollTop <= 40) {
-            loadOlderMessages();
-          }
-        }}
       >
         {isLoadingMore && (
           <p className="text-center text-xs text-gray-400">
