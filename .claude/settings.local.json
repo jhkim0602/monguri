@@ -20,7 +20,8 @@
       "Bash(export SUPABASE_ACCESS_TOKEN=sbp_b2839e38a7b7fbb6f5b10958bcf917e42f2ae27a)",
       "Bash(supabase db execute:*)",
       "Bash(supabase link:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(supabase:*)"
     ]
   }
 }

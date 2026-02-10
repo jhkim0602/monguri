@@ -204,7 +204,7 @@ export function useMentorChatController() {
               body: string | null;
               created_at: string;
               sender_id: string;
-              message_type: "text" | "image" | "file" | "meeting_request" | "system";
+              message_type: "text" | "image" | "file" | "meeting_request" | "system" | "meeting_scheduled";
             }
           | undefined;
 

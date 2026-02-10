@@ -18,7 +18,6 @@ import {
   Loader2,
   RefreshCw,
   CheckCircle2,
-  Clock,
   Video,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -31,6 +30,7 @@ type UpcomingMeeting = {
   topic: string;
   confirmedTime: string;
   zoomLink: string | null;
+  mentorNote: string | null;
 };
 
 type DashboardDataProps = {
@@ -467,30 +467,14 @@ export default function DashboardClient({
             </Link>
           </div>
 
-          <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
+          <div className="flex-1 space-y-0 relative overflow-y-auto custom-scrollbar">
+            <div className="absolute left-[7px] top-2 bottom-0 w-0.5 bg-gray-100" />
             {upcomingMeetings.length === 0 ? (
-              <div className="h-full bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                <CalendarIcon size={24} className="text-gray-300 mb-2" />
-                <p className="text-xs font-bold text-gray-500 mb-1">
-                  예정된 일정이 없습니다
-                </p>
-                <p className="text-[11px] text-gray-400 leading-relaxed">
-                  학생이 상담을 요청하면
-                  <br />
-                  이곳에 표시됩니다.
-                </p>
-              </div>
+              <div className="text-xs text-gray-400 pl-6">다가오는 일정이 없습니다.</div>
             ) : (
-              <div className="space-y-2">
+              <>
                 {upcomingMeetings.slice(0, 3).map((meeting) => {
                   const dateObj = new Date(meeting.confirmedTime);
-                  const isToday = new Date().toDateString() === dateObj.toDateString();
-                  const isTomorrow = new Date(Date.now() + 86400000).toDateString() === dateObj.toDateString();
-                  const dateLabel = isToday
-                    ? "오늘"
-                    : isTomorrow
-                    ? "내일"
-                    : `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
                   const timeStr = dateObj.toLocaleTimeString("ko-KR", {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -501,53 +485,43 @@ export default function DashboardClient({
                     <Link
                       href="/schedule"
                       key={meeting.id}
-                      className="block bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-xl border border-green-100 hover:border-green-200 transition-all group"
+                      className="flex gap-4 relative pb-4 group"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                              isToday
-                                ? "bg-green-500 text-white"
-                                : "bg-green-100 text-green-700"
-                            }`}
-                          >
-                            {dateLabel}
+                      <div className="w-4 h-4 rounded-full bg-white border-4 border-blue-500 shrink-0 z-10" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-bold text-blue-600">
+                            {dateObj.getMonth() + 1}월 {dateObj.getDate()}일 {timeStr}
                           </span>
-                          <span className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                            <Clock size={10} />
-                            {timeStr}
-                          </span>
+                          {meeting.zoomLink ? (
+                            <Video size={10} className="text-blue-600" />
+                          ) : (
+                            <div className="text-[10px] font-bold text-red-500 animate-pulse">링크 필요</div>
+                          )}
                         </div>
-                        {meeting.zoomLink ? (
-                          <div className="flex items-center gap-1 text-[9px] font-bold text-blue-600">
-                            <Video size={10} />
-                            준비완료
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 text-[9px] font-bold text-orange-500 animate-pulse">
-                            링크 필요
+                        <p className="text-sm font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                          {meeting.studentName}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">{meeting.topic || "멘토링 상담"}</p>
+                        {meeting.mentorNote && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <FileText size={10} className="text-purple-400 shrink-0" />
+                            <p className="text-[10px] text-purple-500 truncate">{meeting.mentorNote}</p>
                           </div>
                         )}
                       </div>
-                      <p className="text-sm font-bold text-gray-900 truncate mb-0.5">
-                        {meeting.studentName} 학생
-                      </p>
-                      <p className="text-[11px] text-gray-500 truncate">
-                        {meeting.topic || "멘토링 상담"}
-                      </p>
                     </Link>
                   );
                 })}
                 {upcomingMeetings.length > 3 && (
                   <Link
                     href="/schedule"
-                    className="block text-center py-2 text-xs font-bold text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                    className="block text-center py-2 text-xs font-bold text-blue-600 hover:text-blue-700 rounded-lg transition-colors pl-6"
                   >
                     +{upcomingMeetings.length - 3}개 더보기
                   </Link>
                 )}
-              </div>
+              </>
             )}
           </div>
         </motion.div>

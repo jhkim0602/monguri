@@ -10,6 +10,7 @@ interface ModalOptions {
   content: React.ReactNode;
   type?: ModalType;
   onConfirm?: (inputValue?: any) => void;
+  onClose?: () => void | Promise<void>;
   confirmText?: string;
   cancelText?: string;
   inputPlaceholder?: string;
@@ -37,14 +38,21 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
   };
 
-  const closeModal = () => {
+  const closeModal = async () => {
+    // 사용자 정의 onClose 콜백이 있으면 호출 (자동 저장 등)
+    if (modalProps.onClose) {
+      await modalProps.onClose();
+    }
     setIsOpen(false);
   };
+
+  // onClose를 제외한 나머지 props만 전달
+  const { onClose: _, ...restModalProps } = modalProps;
 
   return (
     <ModalContext.Provider value={{ openModal, closeModal }}>
       {children}
-      <CommonModal isOpen={isOpen} onClose={closeModal} {...modalProps} />
+      <CommonModal isOpen={isOpen} onClose={closeModal} {...restModalProps} />
     </ModalContext.Provider>
   );
 }
