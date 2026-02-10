@@ -295,7 +295,6 @@ interface PlannerTasksProps {
     selectedCategoryId: string;
     setSelectedCategoryId: (val: string) => void;
     onAddTask: () => void;
-    onAddCategory: (name: string) => any;
 }
 
 export default function PlannerTasks({
@@ -308,26 +307,15 @@ export default function PlannerTasks({
     setNewTaskTitle,
     selectedCategoryId,
     setSelectedCategoryId,
-    onAddTask,
-    onAddCategory
+    onAddTask
 }: PlannerTasksProps) {
     const router = useRouter();
-    const [isAddingCategory, setIsAddingCategory] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState("");
 
     const isTaskCompleted = (task: any) => {
         const isMentorTask = task.isMentorTask;
         const isSubmitted = task.status === "submitted" || task.status === "feedback_completed" || !!task.studyRecord;
         if (isMentorTask) return isSubmitted;
         return !!task.completed || !!task.studyRecord;
-    };
-
-    const handleAddCategorySubmit = () => {
-        if (!newCategoryName.trim()) return;
-        const newCat = onAddCategory(newCategoryName);
-        setSelectedCategoryId(newCat.id);
-        setNewCategoryName("");
-        setIsAddingCategory(false);
     };
 
     const displayCategories = mergeSubjectCategories(
@@ -377,39 +365,6 @@ export default function PlannerTasks({
                             </button>
                         );
                     })}
-                    {isAddingCategory ? (
-                        <div className="flex items-center gap-1 animate-slide-in-right duration-200">
-                            <input
-                                autoFocus
-                                type="text"
-                                value={newCategoryName}
-                                onChange={(e) => setNewCategoryName(e.target.value)}
-                                placeholder="과목명"
-                                className="w-24 px-3 py-2 rounded-xl text-[11px] font-black border border-primary outline-none"
-                                onKeyPress={(e) => e.key === 'Enter' && handleAddCategorySubmit()}
-                            />
-                            <button
-                                onClick={handleAddCategorySubmit}
-                                className="p-2 bg-primary text-white rounded-xl hover:bg-blue-600 transition-all"
-                            >
-                                <Plus size={14} strokeWidth={3} />
-                            </button>
-                            <button
-                                onClick={() => setIsAddingCategory(false)}
-                                className="p-2 bg-gray-100 text-gray-400 rounded-xl hover:bg-gray-200 transition-all"
-                            >
-                                <X size={14} strokeWidth={3} />
-                            </button>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={() => setIsAddingCategory(true)}
-                            className="px-4 py-2 rounded-xl text-[11px] font-black transition-all border border-dashed border-gray-300 text-gray-400 hover:border-primary hover:text-primary flex items-center gap-1.5"
-                        >
-                            <Plus size={12} />
-                            과목 추가
-                        </button>
-                    )}
                 </div>
                 <div className="flex gap-3">
                     <input

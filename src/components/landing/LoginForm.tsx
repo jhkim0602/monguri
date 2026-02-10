@@ -146,14 +146,6 @@ export default function LoginForm() {
         </div>
       </div>
 
-      <div className="mt-6 text-center">
-        <p className="text-xs text-gray-400">
-          계정이 없으신가요?{" "}
-          <span className="text-blue-500 font-bold cursor-pointer hover:underline">
-            회원가입
-          </span>
-        </p>
-      </div>
     </div>
   );
 }

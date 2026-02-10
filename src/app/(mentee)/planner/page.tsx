@@ -152,6 +152,7 @@ export default function PlannerPage() {
         nextTasks: Array<MentorTaskLike | PlannerTaskLike>,
         nextCategories = categories,
         nextSelectedCategoryId = selectedCategoryId,
+        nextProfile = profile,
     ) => {
         if (!menteeId) return;
         const dateStr = toDateString(currentDate);
@@ -159,30 +160,8 @@ export default function PlannerPage() {
             tasks: nextTasks,
             categories: nextCategories,
             selectedCategoryId: nextSelectedCategoryId,
+            profile: nextProfile,
         });
-    };
-
-    const handleAddCategory = (name: string) => {
-        const newId = name.toLowerCase().replace(/\s+/g, '-');
-        // Simple color rotation or random color
-        const colors = [
-            { colorHex: "#E9D5FF", textColorHex: "#7E22CE" },
-            { colorHex: "#FED7AA", textColorHex: "#C2410C" },
-            { colorHex: "#FEF08A", textColorHex: "#A16207" },
-            { colorHex: "#C7D2FE", textColorHex: "#4338CA" }
-        ];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-        const newCategory = {
-            id: newId,
-            name,
-            ...randomColor
-        };
-
-        const nextCategories = [...categories, newCategory];
-        setCategories(nextCategories);
-        persistCache(tasks, nextCategories, selectedCategoryId);
-        return newCategory;
     };
 
     useEffect(() => {
@@ -309,6 +288,7 @@ export default function PlannerPage() {
         if (cached) {
             setTasks(cached.data.tasks);
             setCategories(cached.data.categories);
+            setProfile(cached.data.profile ?? null);
             setSelectedCategoryId(
                 ensureSelectedCategory(
                     cached.data.categories,
@@ -321,7 +301,12 @@ export default function PlannerPage() {
             }
         }
 
-        if (cached && !cached.stale && !forceRefresh) {
+        if (
+            cached &&
+            cached.data.profile !== undefined &&
+            !cached.stale &&
+            !forceRefresh
+        ) {
             return () => {
                 isMounted = false;
             };
@@ -339,11 +324,10 @@ export default function PlannerPage() {
                     fetch(`/api/mentee/profile?profileId=${menteeId}`)
                 ]);
 
+                let nextProfile = profile;
                 if (profileRes.ok) {
                     const profileJson = await profileRes.json();
-                    if (isMounted) {
-                        setProfile(adaptProfileToUi(profileJson.profile ?? null));
-                    }
+                    nextProfile = adaptProfileToUi(profileJson.profile ?? null);
                 }
 
                 let nextCategories = categories;
@@ -404,11 +388,13 @@ export default function PlannerPage() {
                 setCategories(nextCategories);
                 setSelectedCategoryId(nextSelectedCategoryId);
                 setTasks(nextTasks);
+                setProfile(nextProfile);
 
                 writeMenteePlannerCache(cacheKey, {
                     tasks: nextTasks,
                     categories: nextCategories,
                     selectedCategoryId: nextSelectedCategoryId,
+                    profile: nextProfile,
                 });
             } catch (e) {
                 console.error("Failed to load planner data", e);
@@ -443,6 +429,23 @@ export default function PlannerPage() {
 
         return mergeSubjectCategories(categories, taskCategories);
     }, [categories, tasks]);
+
+    const displayDDay = useMemo(() => {
+        const targetDate = profile?.targetDate;
+        if (!targetDate) return null;
+
+        const [year, month, day] = targetDate.split("-").map(Number);
+        if (!year || !month || !day) return null;
+
+        const target = new Date(year, month - 1, day);
+        target.setHours(0, 0, 0, 0);
+
+        const base = new Date(currentDate);
+        base.setHours(0, 0, 0, 0);
+
+        const diffTime = target.getTime() - base.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }, [profile?.targetDate, currentDate]);
 
     // Load daily comment when date or menteeId changes
     useEffect(() => {
@@ -658,9 +661,9 @@ export default function PlannerPage() {
                         <h2 className="text-lg font-bold text-gray-800">
                             {currentDate.getMonth() + 1}월 {currentDate.getDate()}일 ({['일', '월', '화', '수', '목', '금', '토'][currentDate.getDay()]})
                         </h2>
-                        {profile?.dDay !== null && profile?.dDay !== undefined && (
+                        {displayDDay !== null && (
                             <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                {profile.dDay === 0 ? "D-Day" : profile.dDay < 0 ? `D+${Math.abs(profile.dDay)}` : `D-${profile.dDay}`}
+                                {displayDDay === 0 ? "D-Day" : displayDDay < 0 ? `D+${Math.abs(displayDDay)}` : `D-${displayDDay}`}
                             </span>
                         )}
                     </div>
@@ -734,7 +737,6 @@ export default function PlannerPage() {
                     selectedCategoryId={selectedCategoryId}
                     setSelectedCategoryId={setSelectedCategoryId}
                     onAddTask={addTask}
-                    onAddCategory={handleAddCategory}
                 />
 
                 <StudyTimeline

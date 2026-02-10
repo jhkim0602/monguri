@@ -1,4 +1,8 @@
-import type { MentorTaskLike, PlannerTaskLike } from "@/lib/menteeAdapters";
+import type {
+  MentorTaskLike,
+  PlannerTaskLike,
+  UiProfile,
+} from "@/lib/menteeAdapters";
 
 export type PlannerCategory = {
   id: string;
@@ -11,6 +15,7 @@ export type MenteePlannerCacheData = {
   tasks: Array<MentorTaskLike | PlannerTaskLike>;
   categories: PlannerCategory[];
   selectedCategoryId: string;
+  profile?: UiProfile | null;
 };
 
 type CacheEntry = {

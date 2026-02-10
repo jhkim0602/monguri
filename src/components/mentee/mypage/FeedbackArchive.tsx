@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import FeedbackCard from "./FeedbackCard";
 import {
-  Search,
   Library,
   Calculator,
   Languages,
@@ -211,7 +210,6 @@ export default function FeedbackArchive({
     { id: "korean", name: "국어", color: "emerald", icon: Library },
     { id: "math", name: "수학", color: "blue", icon: Calculator },
     { id: "english", name: "영어", color: "purple", icon: Languages },
-    { id: OTHER_SUBJECT_ID, name: "기타", color: "gray", icon: Search },
   ];
 
   // ==========================================
