@@ -27,7 +27,7 @@ type StudentDetailClientProps = {
   mentorId: string;
   student: MentorMentee;
   initialTasks: any[]; // Replace with proper type later
-  initialDailyRecord: any;
+  initialDailyRecords: any[];
   initialDailyEvents: any[];
 };
 
@@ -35,7 +35,7 @@ export default function StudentDetailClient({
   mentorId,
   student,
   initialTasks = [],
-  initialDailyRecord,
+  initialDailyRecords = [],
   initialDailyEvents = [],
 }: StudentDetailClientProps) {
   const { openModal } = useModal();
@@ -110,6 +110,15 @@ export default function StudentDetailClient({
   };
 
   const weekDates = getWeekDates(selectedDate);
+  const toLocalDateString = (d: Date | string | undefined | null) => {
+    if (!d) return "";
+    if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    const dateObj = new Date(d);
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
   // Filter Tasks for Selected Date
   const currentDateTasks = initialTasks.filter((task) => {
@@ -211,6 +220,14 @@ export default function StudentDetailClient({
   };
 
   const weekDays = ["월", "화", "수", "목", "금", "토", "일"];
+  const selectedDateRecord = useMemo(() => {
+    const selectedDateStr = toLocalDateString(selectedDate);
+    return (
+      initialDailyRecords.find(
+        (record: any) => toLocalDateString(record?.date) === selectedDateStr,
+      ) ?? null
+    );
+  }, [initialDailyRecords, selectedDate]);
 
   return (
     <div className="space-y-6">
@@ -353,21 +370,6 @@ export default function StudentDetailClient({
                       const isSelected =
                         date.toDateString() === selectedDate.toDateString();
 
-                      // Helper for local date comparison
-                      const toLocalDateString = (
-                        d: Date | string | undefined | null,
-                      ) => {
-                        if (!d) return "";
-                        const dateObj = new Date(d);
-                        const y = dateObj.getFullYear();
-                        const m = String(dateObj.getMonth() + 1).padStart(
-                          2,
-                          "0",
-                        );
-                        const day = String(dateObj.getDate()).padStart(2, "0");
-                        return `${y}-${m}-${day}`;
-                      };
-
                       const dateStr = toLocalDateString(date);
 
                       const dayMentorDeadlines = initialTasks.filter(
@@ -387,9 +389,10 @@ export default function StudentDetailClient({
                       );
 
                       const dayRecord =
-                        date.toDateString() === new Date().toDateString()
-                          ? initialDailyRecord || { studyTime: 0, memo: "" }
-                          : { studyTime: 0, memo: "" };
+                        initialDailyRecords.find(
+                          (record: any) =>
+                            toLocalDateString(record?.date) === dateStr,
+                        ) ?? null;
 
                       return (
                         <div
@@ -409,9 +412,12 @@ export default function StudentDetailClient({
                             dailyRecord={{
                               studyTime:
                                 dayRecord?.total_study_time ||
-                                dayRecord.studyTime ||
+                                dayRecord?.studyTime ||
                                 0,
                               memo: dayRecord?.memo || "",
+                              menteeComment: dayRecord?.menteeComment || null,
+                              mentorReply: dayRecord?.mentorReply || null,
+                              mentorReplyAt: dayRecord?.mentorReplyAt || null,
                             }}
                             mentorDeadlines={dayMentorDeadlines}
                             userTasks={dayUserTasksRaw}
@@ -727,7 +733,7 @@ export default function StudentDetailClient({
               isOpen={isPlannerDetailOpen}
               onClose={() => setIsPlannerDetailOpen(false)}
               date={selectedDate}
-              dailyRecord={initialDailyRecord}
+              dailyRecord={selectedDateRecord}
               mentorDeadlines={mentorDeadlines}
               dailyEvents={initialDailyEvents}
               plannerTasks={userTasksRaw}

@@ -71,7 +71,7 @@ export default function StudentDetailPage({
       mentorId={mentorId}
       student={data.student}
       initialTasks={data.tasks || []}
-      initialDailyRecord={data.dailyRecord || null}
+      initialDailyRecords={data.dailyRecords || []}
       initialDailyEvents={data.events || []}
     />
   );
