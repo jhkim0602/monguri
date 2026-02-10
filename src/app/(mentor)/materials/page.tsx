@@ -231,11 +231,11 @@ export default function MaterialsPage() {
   };
 
   return (
-    <div className="p-8 space-y-8 min-h-screen bg-gray-50/50">
+    <div className="p-3 sm:p-6 lg:p-8 space-y-5 sm:space-y-8 min-h-screen bg-gray-50/50">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2 mb-2">
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2 mb-2">
             <FolderOpen className="text-blue-600" />
             학습 자료실
           </h1>
@@ -243,17 +243,17 @@ export default function MaterialsPage() {
             학생들에게 배포할 학습 자료를 관리하세요.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           <button
             onClick={handleOpenSolutionModal}
-            className="bg-gray-900 hover:bg-black text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+            className="bg-gray-900 hover:bg-black text-white px-4 sm:px-5 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
           >
             <Plus size={20} />
             약점 맞춤 솔루션 추가
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-gray-900 hover:bg-black text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+            className="bg-gray-900 hover:bg-black text-white px-4 sm:px-5 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
           >
             <Plus size={20} />
             자료 추가
@@ -262,7 +262,7 @@ export default function MaterialsPage() {
       </div>
 
       {/* Search & Stats */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="flex-1 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 px-4">
           <Search size={20} className="text-gray-400" />
           <input
@@ -273,17 +273,17 @@ export default function MaterialsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-2 text-sm font-bold text-gray-500">
+        <div className="bg-white px-5 sm:px-6 py-3 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center sm:justify-start gap-2 text-sm font-bold text-gray-500">
           총 <span className="text-blue-600">{filteredMaterials.length}</span>개
         </div>
       </div>
 
       {/* List View */}
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         {filteredMaterials.map((material) => (
           <div
             key={material.id}
-            className="group bg-white rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center justify-between"
+            className="group bg-white rounded-xl p-3.5 sm:p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center justify-between"
           >
             <div className="flex items-center gap-4 flex-1 min-w-0">
               {/* Icon */}
@@ -307,9 +307,22 @@ export default function MaterialsPage() {
 
               {/* Text Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-900 text-sm truncate mb-0.5">
-                  {material.title}
-                </h3>
+                <div className="flex items-center gap-2 mb-0.5 min-w-0">
+                  <h3 className="font-bold text-gray-900 text-sm truncate flex-1">
+                    {material.title}
+                  </h3>
+                  <span
+                    className={`sm:hidden inline-flex text-[10px] font-bold uppercase px-2 py-1 rounded-md whitespace-nowrap ${
+                      material.type === "pdf"
+                        ? "bg-red-50 text-red-600"
+                        : material.type === "image"
+                          ? "bg-purple-50 text-purple-600"
+                          : "bg-blue-50 text-blue-600"
+                    }`}
+                  >
+                    {material.type}
+                  </span>
+                </div>
                 <button
                   onClick={() => handleOpenMaterial(material)}
                   className="text-xs text-gray-400 hover:text-blue-500 transition-colors truncate flex items-center gap-1 max-w-md"
@@ -325,12 +338,12 @@ export default function MaterialsPage() {
             </div>
 
             {/* Meta & Actions */}
-            <div className="flex items-center gap-6 pl-4">
+            <div className="flex items-center gap-3 sm:gap-6 pl-3 sm:pl-4 self-start sm:self-auto">
               <span className="text-xs text-gray-400 font-medium whitespace-nowrap hidden sm:block">
                 {new Date(material.created_at).toLocaleDateString()}
               </span>
               <span
-                className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md whitespace-nowrap ${
+                className={`hidden sm:inline-flex text-[10px] font-bold uppercase px-2 py-1 rounded-md whitespace-nowrap ${
                   material.type === "pdf"
                     ? "bg-red-50 text-red-600"
                     : material.type === "image"

@@ -35,7 +35,7 @@ export default function Sidebar() {
     `https://ui-avatars.com/api/?name=${encodeURIComponent(mentorName)}&background=EFF6FF&color=1D4ED8`;
 
   return (
-    <aside className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-40 flex flex-col justify-between">
+    <aside className="fixed top-16 left-0 bottom-0 z-40 hidden w-64 flex-col justify-between border-r border-gray-200 bg-white lg:flex">
       {/* Navigation */}
       <div className="p-6">
         {/* Navigation */}

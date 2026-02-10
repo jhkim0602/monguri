@@ -301,19 +301,19 @@ export default function DashboardClient({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header Section (Simple Welcome) */}
       <div className="mb-2">
-        <h1 className="text-2xl font-black text-gray-900">대시보드</h1>
+        <h1 className="text-xl sm:text-2xl font-black text-gray-900">대시보드</h1>
         <p className="text-gray-500 text-sm mt-1">
           {mentorName}님, 오늘 하루도 힘내세요! 👋
         </p>
       </div>
 
       {/* Bento Grid */}
-      <div className="grid grid-cols-4 grid-rows-2 gap-6 h-[720px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:grid-rows-2 lg:gap-6 lg:h-[720px]">
         {/* 1. Student Status Widget (Large Vertical) */}
-        <div className="col-span-1 row-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow">
+        <div className="col-span-1 lg:row-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-4 sm:p-6 flex flex-col hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
@@ -369,7 +369,7 @@ export default function DashboardClient({
           </div>
         </div>
         {/* 2. Feedback Inbox (Wide Horizontal) */}
-        <div className="col-span-2 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow">
+        <div className="col-span-1 lg:col-span-2 lg:row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-4 sm:p-6 flex flex-col hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
@@ -450,7 +450,7 @@ export default function DashboardClient({
 
         {/* 3. Calendar / Schedule (Square) */}
         <motion.div
-          className="col-span-1 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between relative overflow-hidden hover:shadow-md transition-shadow"
+          className="col-span-1 lg:row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-4 sm:p-6 flex flex-col justify-between relative overflow-hidden hover:shadow-md transition-shadow"
           variants={itemVariants}
         >
           <div className="flex items-center justify-between mb-4">
@@ -547,7 +547,7 @@ export default function DashboardClient({
         </motion.div>
 
         {/* 4. Recent Chat (Wide Horizontal) - Bottom Row */}
-        <div className="col-span-2 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow">
+        <div className="col-span-1 lg:col-span-2 lg:row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-4 sm:p-6 flex flex-col hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -612,7 +612,7 @@ export default function DashboardClient({
         </div>
 
         {/* 5. Weakness Solution (Square) */}
-        <div className="col-span-1 row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col hover:shadow-md transition-shadow overflow-x-hidden">
+        <div className="col-span-1 lg:row-span-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-4 sm:p-6 flex flex-col hover:shadow-md transition-shadow overflow-x-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
@@ -932,7 +932,7 @@ function AddWeaknessSolutionModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 block ml-1">
                 과목

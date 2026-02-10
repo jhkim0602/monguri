@@ -264,7 +264,7 @@ export default function StudentDetailClient({
   }, [currentDateTasks, selectedDateRecord]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Link
         href="/students"
         className="inline-flex items-center text-sm font-bold text-gray-400 hover:text-gray-900 transition-colors"
@@ -274,9 +274,9 @@ export default function StudentDetailClient({
       </Link>
 
       {/* Profile Header */}
-      <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm flex items-start justify-between">
-        <div className="flex gap-6">
-          <div className="w-24 h-24 rounded-2xl bg-gray-100 shrink-0 overflow-hidden border-2 border-white shadow-lg shadow-gray-100">
+      <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-6 lg:p-8 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex gap-4 sm:gap-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-2xl bg-gray-100 shrink-0 overflow-hidden border-2 border-white shadow-lg shadow-gray-100">
             <img
               src={
                 student.avatarUrl ||
@@ -287,15 +287,15 @@ export default function StudentDetailClient({
             />
           </div>
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-black text-gray-900">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900">
                 {student.name}
               </h1>
               <span className="px-2.5 py-0.5 bg-gray-900 text-white text-xs font-bold rounded-lg">
                 {student.grade}
               </span>
             </div>
-            <div className="flex items-center flex-wrap gap-4 text-sm text-gray-500 font-medium mb-4">
+            <div className="flex items-center flex-wrap gap-x-3 gap-y-2 text-xs sm:text-sm text-gray-500 font-medium mb-1 sm:mb-2">
               <span className="flex items-center gap-1.5">
                 <GraduationCap size={16} /> {student.track}
               </span>
@@ -320,10 +320,10 @@ export default function StudentDetailClient({
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full lg:w-auto">
           <button
             onClick={() => setIsAssignmentModalOpen(true)}
-            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center gap-2"
+            className="w-full lg:w-auto px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
           >
             <Plus size={18} />
             과제 부여
@@ -332,13 +332,13 @@ export default function StudentDetailClient({
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-12 gap-8">
-        <div className="col-span-8 space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
+        <div className="xl:col-span-8 space-y-6">
           <div className="space-y-4">
               {/* Date & View Controls */}
               <div className="flex flex-col gap-3 mb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center justify-between sm:justify-start gap-3">
                     <h3 className="text-lg font-bold text-gray-900">
                       학습 현황
                     </h3>
@@ -366,7 +366,7 @@ export default function StudentDetailClient({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 bg-white border border-gray-200 rounded-lg p-1 shadow-sm w-full sm:w-auto">
                     <button
                       onClick={() => {
                         const d = new Date(selectedDate);
@@ -377,7 +377,7 @@ export default function StudentDetailClient({
                     >
                       <ChevronLeft size={16} />
                     </button>
-                    <span className="text-sm font-bold text-gray-700 tabular-nums px-2">
+                    <span className="text-sm font-bold text-gray-700 tabular-nums px-2 whitespace-nowrap">
                       {selectedDate.getFullYear()}.{" "}
                       {selectedDate.getMonth() + 1}. {selectedDate.getDate()}. (
                       {weekDays[selectedDate.getDay()]})
@@ -398,7 +398,7 @@ export default function StudentDetailClient({
 
               {/* View Mode: Card (Planner View) */}
               {viewMode === "card" && (
-                <div className="w-full overflow-x-auto pb-4 pt-2 -mx-4 px-4 scrollbar-hide">
+                <div className="w-full overflow-x-auto pb-4 pt-2 -mx-2 px-2 sm:-mx-4 sm:px-4 scrollbar-hide">
                   <div className="flex gap-4 min-w-max">
                     {weekDates.map((date, i) => {
                       const isSelected =
@@ -431,7 +431,7 @@ export default function StudentDetailClient({
                       return (
                         <div
                           key={i}
-                          className={`w-[360px] h-[560px] bg-white rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col shadow-sm ${
+                          className={`w-[300px] sm:w-[340px] lg:w-[360px] h-[500px] sm:h-[560px] bg-white rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col shadow-sm ${
                             isSelected
                               ? "ring-2 ring-gray-900 ring-offset-2 opacity-100"
                               : "opacity-60 hover:opacity-100"
@@ -530,7 +530,7 @@ export default function StudentDetailClient({
                             setFilterCategory("all");
                             setFilterStatus("all");
                           }}
-                          className="ml-auto h-9 px-3 rounded-lg bg-gray-100 text-xs font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                          className="w-full sm:w-auto sm:ml-auto h-9 px-3 rounded-lg bg-gray-100 text-xs font-bold text-gray-600 hover:bg-gray-200 transition-colors"
                         >
                           필터 초기화
                         </button>
@@ -657,7 +657,7 @@ export default function StudentDetailClient({
         </div>
 
         {/* Right Sidebar (Stats) */}
-        <div className="col-span-4 space-y-6">
+        <div className="xl:col-span-4 space-y-6">
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-4">학습 요약</h3>
             <div className="space-y-4">

@@ -1026,14 +1026,14 @@ function SchedulePageContent() {
   };
 
   return (
-    <div className="flex gap-8 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col gap-4 lg:flex-row lg:gap-8 lg:h-[calc(100vh-8rem)]">
       {/* Calendar Section */}
-      <div className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+      <div className="w-full flex-1 bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2">
             {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
           </h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={openAddMeetingModal}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -1062,7 +1062,7 @@ function SchedulePageContent() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col p-6">
+        <div className="flex-1 flex flex-col p-3 sm:p-6">
           <div className="grid grid-cols-7 mb-4">
             {weekDays.map((day, i) => (
               <div
@@ -1128,8 +1128,8 @@ function SchedulePageContent() {
       </div>
 
       {/* Sidebar */}
-      <div className="w-80 flex flex-col gap-6">
-        <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm h-1/2 overflow-hidden flex flex-col">
+      <div className="w-full lg:w-80 flex flex-col gap-4 lg:gap-6">
+        <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-6 shadow-sm h-auto lg:h-1/2 min-h-[280px] overflow-hidden flex flex-col">
           <h3 className="font-bold text-lg mb-1 text-gray-900">상담 요청</h3>
           <p className="text-gray-500 text-xs mb-4">
             새로운 멘토링 요청이 {requests.length}건 있습니다.
@@ -1198,7 +1198,7 @@ function SchedulePageContent() {
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm flex-1 p-6 overflow-hidden flex flex-col">
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm min-h-[280px] lg:flex-1 p-4 sm:p-6 overflow-hidden flex flex-col">
           <h3 className="font-bold text-gray-900 mb-4">다가오는 일정</h3>
           <div className="flex-1 space-y-0 relative overflow-y-auto custom-scrollbar">
             <div className="absolute left-[7px] top-2 bottom-0 w-0.5 bg-gray-100" />
@@ -1335,7 +1335,7 @@ function SchedulePageContent() {
               </div>
 
               {/* 날짜 & 시간 */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-2">날짜</label>
                   <input

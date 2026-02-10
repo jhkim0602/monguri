@@ -18,7 +18,9 @@ export default function MentorLayout({
           <div className="h-screen bg-[#F5F7FA] overflow-y-auto overflow-x-hidden">
             <TopNav />
             <Sidebar />
-            <main className="min-h-screen pb-8 pl-72 pr-8 pt-20">{children}</main>
+            <main className="min-h-screen px-4 pb-8 pt-20 sm:px-6 lg:pl-72 lg:pr-8">
+              {children}
+            </main>
           </div>
         </MentorProfileProvider>
       </ModalProvider>

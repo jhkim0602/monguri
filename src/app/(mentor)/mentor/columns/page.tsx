@@ -63,18 +63,30 @@ export default function MentorColumnsPage() {
     col.title.toLowerCase().includes(search.toLowerCase())
   );
 
+  const getStatusStyle = (status: Column["status"]) => {
+    if (status === "published") return "bg-green-100 text-green-700";
+    if (status === "draft") return "bg-gray-100 text-gray-600";
+    return "bg-red-50 text-red-600";
+  };
+
+  const getStatusLabel = (status: Column["status"]) => {
+    if (status === "published") return "게시됨";
+    if (status === "draft") return "임시저장";
+    return "보관됨";
+  };
+
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
-      <header className="flex items-center justify-between">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-4 sm:space-y-6">
+      <header className="flex items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">칼럼 관리</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">칼럼 관리</h1>
           <p className="text-sm text-gray-500 mt-1">
             작성한 칼럼을 조회하고 관리합니다.
           </p>
         </div>
         <Link
           href="/mentor/columns/new"
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm"
+          className="shrink-0 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm"
         >
           <Plus size={16} />새 칼럼 작성
         </Link>
@@ -103,92 +115,145 @@ export default function MentorColumnsPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 font-medium">
-              <tr>
-                <th className="px-6 py-3 w-[40px]">#</th>
-                <th className="px-6 py-3">제목</th>
-                <th className="px-6 py-3 w-[120px]">상태</th>
-                <th className="px-6 py-3 w-[150px]">작성일</th>
-                <th className="px-6 py-3 w-[120px] text-right">관리</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredColumns.map((col, index) => (
-                <tr key={col.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 text-gray-400">
-                    {filteredColumns.length - index}
-                  </td>
-                  <td className="px-6 py-4">
+        <>
+          {/* Mobile Rows: 1행 제목 / 2행 상태+작성일+관리 */}
+          <div className="md:hidden bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm divide-y divide-gray-100">
+            {filteredColumns.map((col, index) => (
+              <div key={`mobile-${col.id}`} className="p-4">
+                <div className="mb-3">
+                  <Link
+                    href={`/mentor/columns/${col.id}/edit`}
+                    className="font-bold text-gray-900 hover:text-blue-600 transition-colors line-clamp-2 block"
+                  >
+                    {filteredColumns.length - index}. {col.title}
+                  </Link>
+                  {col.subtitle && (
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                      {col.subtitle}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusStyle(col.status)}`}
+                    >
+                      {getStatusLabel(col.status)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {format(new Date(col.created_at), "yyyy. MM. dd", {
+                        locale: ko,
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {col.status === "published" && (
+                      <Link
+                        href={`/column/${col.slug}`}
+                        target="_blank"
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="보기"
+                      >
+                        <Eye size={16} />
+                      </Link>
+                    )}
                     <Link
                       href={`/mentor/columns/${col.id}/edit`}
-                      className="font-bold text-gray-900 hover:text-blue-600 transition-colors line-clamp-1 block max-w-md"
+                      className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="수정"
                     >
-                      {col.title}
+                      <Edit3 size={16} />
                     </Link>
-                    {col.subtitle && (
-                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                        {col.subtitle}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        col.status === "published"
-                          ? "bg-green-100 text-green-700"
-                          : col.status === "draft"
-                          ? "bg-gray-100 text-gray-600"
-                          : "bg-red-50 text-red-600"
-                      }`}
+                    <button
+                      onClick={() => handleDelete(col.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="삭제"
                     >
-                      {col.status === "published"
-                        ? "게시됨"
-                        : col.status === "draft"
-                        ? "임시저장"
-                        : "보관됨"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-500">
-                    {format(new Date(col.created_at), "yyyy. MM. dd", {
-                      locale: ko,
-                    })}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                       {/* Preview Link (only if published, ideally via simplified Mentee route) */}
-                       {col.status === 'published' && (
-                           <Link
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 font-medium">
+                <tr>
+                  <th className="px-6 py-3 w-[40px]">#</th>
+                  <th className="px-6 py-3">제목</th>
+                  <th className="px-6 py-3 w-[120px]">상태</th>
+                  <th className="px-6 py-3 w-[150px]">작성일</th>
+                  <th className="px-6 py-3 w-[120px] text-right">관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredColumns.map((col, index) => (
+                  <tr key={col.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 text-gray-400">
+                      {filteredColumns.length - index}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/mentor/columns/${col.id}/edit`}
+                        className="font-bold text-gray-900 hover:text-blue-600 transition-colors line-clamp-1 block max-w-md"
+                      >
+                        {col.title}
+                      </Link>
+                      {col.subtitle && (
+                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                          {col.subtitle}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusStyle(col.status)}`}
+                      >
+                        {getStatusLabel(col.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {format(new Date(col.created_at), "yyyy. MM. dd", {
+                        locale: ko,
+                      })}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {col.status === "published" && (
+                          <Link
                             href={`/column/${col.slug}`}
                             target="_blank"
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="보기"
-                           >
-                            <Eye size={16}/>
-                           </Link>
-                       )}
-                      <Link
-                        href={`/mentor/columns/${col.id}/edit`}
-                        className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="수정"
-                      >
-                        <Edit3 size={16} />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(col.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="삭제"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                          >
+                            <Eye size={16} />
+                          </Link>
+                        )}
+                        <Link
+                          href={`/mentor/columns/${col.id}/edit`}
+                          className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="수정"
+                        >
+                          <Edit3 size={16} />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(col.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

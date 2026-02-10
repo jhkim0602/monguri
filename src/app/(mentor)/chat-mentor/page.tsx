@@ -40,7 +40,7 @@ export default function MentorChatPage() {
 
   return (
     <div
-      className={`${bodyFont.className} relative h-[calc(100vh-7rem)] overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-[0_30px_80px_-55px_rgba(15,23,42,0.65)] animate-[softIn_0.6s_ease-out]`}
+      className={`${bodyFont.className} relative -mx-4 h-[calc(100vh-5rem)] overflow-hidden rounded-none border-y border-slate-200/70 bg-white shadow-[0_30px_80px_-55px_rgba(15,23,42,0.65)] animate-[softIn_0.6s_ease-out] sm:mx-0 sm:h-[calc(100vh-7rem)] sm:rounded-[28px] sm:border`}
       style={themeStyle}
     >
       <style>{`
@@ -89,7 +89,7 @@ export default function MentorChatPage() {
         <section className="flex flex-1 flex-col">
           {selectedStudent ? (
             <>
-              <div className="border-b border-slate-200/70 bg-white/80 px-6 pb-4 pt-5 backdrop-blur">
+              <div className="border-b border-slate-200/70 bg-white/80 px-3 pb-4 pt-4 backdrop-blur sm:px-6 sm:pt-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="relative">
@@ -137,9 +137,9 @@ export default function MentorChatPage() {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(15,118,110,0.08),_transparent_65%),_linear-gradient(180deg,_rgba(248,250,252,0.85),_rgba(255,255,255,0.92))]" />
                 <div
                   ref={chatScrollRef}
-                  className="chat-scroll relative h-full overflow-y-auto px-6 py-6"
+                  className="chat-scroll relative h-full overflow-y-auto px-2 py-4 sm:px-6 sm:py-6"
                 >
-                  <div className="flex min-h-full flex-col justify-end px-2 py-4">
+                  <div className="flex min-h-full flex-col justify-end px-0 py-3 sm:px-2 sm:py-4">
                     {isLoadingMore && (
                       <div className="text-center text-xs text-slate-400">
                         이전 메시지 불러오는 중...
@@ -355,7 +355,7 @@ export default function MentorChatPage() {
                       behavior: "smooth",
                     });
                   }}
-                  className={`absolute bottom-6 right-6 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-lg shadow-slate-200/60 transition-all ${
+                  className={`absolute bottom-4 right-3 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-lg shadow-slate-200/60 transition-all sm:bottom-6 sm:right-6 ${
                     showScrollToBottom
                       ? "translate-y-0 opacity-100"
                       : "pointer-events-none translate-y-2 opacity-0"
@@ -366,7 +366,7 @@ export default function MentorChatPage() {
                 </button>
               </div>
 
-              <div className="border-t border-slate-200/70 bg-white/80 p-5 backdrop-blur">
+              <div className="border-t border-slate-200/70 bg-white/80 p-3 sm:p-5 backdrop-blur">
                 <div className="mt-0 flex items-end gap-3">
                   <div className="relative flex-1">
                     <textarea

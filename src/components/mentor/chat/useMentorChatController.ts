@@ -254,6 +254,13 @@ export function useMentorChatController() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setIsSidebarOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!mentorId || !selectedStudentId) return;
     markChatNotificationsRead(selectedStudentId, mentorId);
   }, [mentorId, selectedStudentId, markChatNotificationsRead]);

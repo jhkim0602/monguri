@@ -14,10 +14,10 @@ export default function StudentsClient({
   mentees: MentorMentee[];
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">학생 관리</h1>
+          <h1 className="text-xl font-black text-gray-900 sm:text-2xl">학생 관리</h1>
           <p className="text-gray-500 text-sm mt-1">
             담당 학생들의 학습 현황을 한눈에 확인하세요.
           </p>
@@ -25,7 +25,7 @@ export default function StudentsClient({
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4">
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <div className="relative flex-1">
           <Search
             size={16}
@@ -43,8 +43,55 @@ export default function StudentsClient({
         </button>
       </div>
 
-      {/* Student Table */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+      {/* Mobile Cards */}
+      <div className="space-y-3 md:hidden">
+        {mentees.map((student) => (
+          <Link
+            key={`mobile-${student.id}`}
+            href={`/students/${student.id}`}
+            className="block bg-white border border-gray-100 rounded-2xl p-4 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-gray-100 overflow-hidden border border-gray-100 shrink-0">
+                <img
+                  src={
+                    student.avatarUrl ||
+                    `https://api.dicebear.com/7.x/notionists/svg?seed=${student.name}`
+                  }
+                  alt={student.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-gray-900 truncate">
+                    {student.name}
+                  </h3>
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-500 rounded shrink-0">
+                    {student.grade}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 truncate">{student.goal}</p>
+              </div>
+              <ChevronRight size={18} className="text-gray-300" />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-500 mb-0.5">최근 학습</p>
+                <p className="text-xs text-gray-700 truncate">
+                  {(student as any).recentTask?.title || "최근 학습 기록 없음"}
+                </p>
+              </div>
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-green-50 text-green-600 shrink-0">
+                활동 중
+              </span>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
@@ -89,10 +136,7 @@ export default function StudentsClient({
                           {student.grade}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400">
-                        {/* {student.school} • D-{student.dDay} */}
-                        {student.goal}
-                      </p>
+                      <p className="text-xs text-gray-400">{student.goal}</p>
                     </div>
                   </div>
                 </td>

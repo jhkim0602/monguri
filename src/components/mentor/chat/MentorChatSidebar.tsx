@@ -31,7 +31,7 @@ export default function MentorChatSidebar({
   return (
     <aside
       className={`flex flex-col border-r border-slate-200/70 bg-gradient-to-b from-white via-slate-50 to-white transition-all duration-300 ${
-        isSidebarOpen ? "w-[22rem]" : "w-20"
+        isSidebarOpen ? "w-[16.5rem] sm:w-[22rem]" : "w-[53px] sm:w-20"
       }`}
     >
       {isSidebarOpen ? (
@@ -149,7 +149,7 @@ export default function MentorChatSidebar({
         </>
       ) : (
         <>
-          <div className="flex items-center justify-center px-3 pt-4">
+          <div className="flex items-center justify-center px-0.5 pt-3 sm:px-3 sm:pt-4">
             <button
               onClick={() => setIsSidebarOpen(true)}
               className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm hover:bg-slate-50"
@@ -158,7 +158,7 @@ export default function MentorChatSidebar({
             </button>
           </div>
 
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto px-2 pb-4">
+          <div className="mt-3 flex-1 space-y-2 overflow-y-auto px-0.5 pt-1 pb-3 sm:mt-4 sm:space-y-3 sm:px-2 sm:pt-1 sm:pb-4">
             {students.map((student) => {
               const subject = SUBJECT_META[student.subject];
               const isActive = selectedStudentId === student.id;
@@ -167,14 +167,14 @@ export default function MentorChatSidebar({
                 <button
                   key={student.id}
                   onClick={() => onSelectStudent(student.id)}
-                  className={`relative flex w-full items-center justify-center rounded-2xl border p-2 transition-all ${
+                  className={`relative flex w-full items-center justify-center rounded-xl p-0.5 transition-all sm:rounded-2xl sm:p-2 ${
                     isActive
-                      ? "border-[color:var(--chat-accent)] bg-white shadow-[0_12px_30px_-22px_rgba(15,23,42,0.55)]"
-                      : "border-transparent bg-white/60 hover:border-slate-200 hover:bg-white"
+                      ? "bg-white ring-1 ring-[color:var(--chat-accent)] shadow-[0_10px_20px_-18px_rgba(15,23,42,0.65)]"
+                      : "bg-transparent hover:bg-white/90"
                   }`}
                 >
                   <div
-                    className={`h-11 w-11 overflow-hidden rounded-2xl bg-gradient-to-br ${subject.avatar} flex items-center justify-center text-sm font-semibold text-white shadow-sm`}
+                    className={`h-10 w-10 sm:h-11 sm:w-11 overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br ${subject.avatar} flex items-center justify-center text-sm font-semibold text-white shadow-sm`}
                   >
                     {student.avatarUrl ? (
                       <img
@@ -187,12 +187,12 @@ export default function MentorChatSidebar({
                     )}
                   </div>
                   <span
-                    className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${
+                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white ${
                       student.online ? "bg-emerald-500" : "bg-slate-400"
                     }`}
                   />
                   {student.unread > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--chat-warm)] text-[10px] font-bold text-white shadow-sm">
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--chat-warm)] text-[9px] font-bold text-white shadow-sm">
                       {student.unread}
                     </span>
                   )}

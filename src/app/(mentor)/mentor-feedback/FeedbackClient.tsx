@@ -1234,14 +1234,14 @@ export default function FeedbackClient({
       : null);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="h-[calc(100vh-9.5rem)] lg:h-[calc(100vh-8rem)] min-h-[560px] flex bg-white rounded-2xl lg:rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
       {/* LEFT PANEL: Inbox List */}
       <div
         className={`${selectedItemId ? "hidden lg:flex" : "flex"} w-full lg:w-[420px] flex-col border-r border-gray-100 bg-gray-50/30`}
       >
-        <div className="p-5 border-b border-gray-100 bg-white">
+        <div className="p-4 sm:p-5 border-b border-gray-100 bg-white">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2">
               📥 피드백 인박스{" "}
               <span className="text-blue-600 text-lg">
                 {filteredItems.length}
@@ -1389,15 +1389,15 @@ export default function FeedbackClient({
         {selectedItem ? (
           <>
             {/* Header */}
-            <div className="h-16 px-6 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="min-h-16 px-4 sm:px-6 py-3 sm:py-0 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex min-w-0 items-center gap-3">
                 <button
                   onClick={() => setSelectedItemId(null)}
                   className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-900"
                 >
                   <ArrowLeft size={20} />
                 </button>
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <span
                     className={`p-2 rounded-lg
                                 ${
@@ -1416,11 +1416,11 @@ export default function FeedbackClient({
                       <FileText size={20} />
                     )}
                   </span>
-                  <div>
-                    <h2 className="text-base font-bold text-gray-900 leading-tight">
+                  <div className="min-w-0">
+                    <h2 className="text-sm sm:text-base font-bold text-gray-900 leading-tight line-clamp-1">
                       {selectedItem.title}
                     </h2>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
                       {selectedItem.studentName} •{" "}
                       {formatDate(selectedItem.date)}
                     </p>
@@ -1441,7 +1441,7 @@ export default function FeedbackClient({
             </div>
 
             {/* Content Body */}
-            <div className="flex-1 overflow-y-auto p-8 bg-gray-50/30">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-gray-50/30">
               <div className="max-w-4xl mx-auto space-y-6">
                 {/* 1. PLAN REVIEW DETAIL */}
                 {selectedItem.type === "plan" && (
@@ -1465,7 +1465,7 @@ export default function FeedbackClient({
 
                         {selectedPlanData && (
                           <div
-                            className="h-[620px] rounded-xl border border-gray-100 overflow-hidden cursor-pointer"
+                            className="h-[500px] sm:h-[620px] rounded-xl border border-gray-100 overflow-hidden cursor-pointer"
                             onClick={() => handleExpandPlan(selectedItem.id)}
                           >
                             <PlannerDetailView
@@ -1604,7 +1604,7 @@ export default function FeedbackClient({
                       <h4 className="text-xs font-bold text-gray-500 mb-3 block">
                         제출된 파일
                       </h4>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {selectedItem.data.submissions?.map(
                           (sub: any, i: number) => (
                             <div
@@ -1714,7 +1714,7 @@ export default function FeedbackClient({
                         제출된 파일
                       </h4>
                       {selectedSelfSubmission.attachments.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {selectedSelfSubmission.attachments.map((sub, i) => (
                             <div
                               key={`${sub.fileId ?? sub.name}-${i}`}
