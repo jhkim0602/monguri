@@ -13,22 +13,32 @@ const fileQuerySchema = z.object({
   mode: z.enum(["preview", "download"]).optional(),
 });
 
-async function canAccessFile(fileId: string, viewerId: string) {
-  const findPlannerRowsByMaterialKey = async (
-    key: "fileId" | "file_id" | "id",
-  ) => {
-    const { data, error } = await supabaseServer
-      .from("planner_tasks")
-      .select("id, mentee_id")
-      .contains("materials", [{ [key]: fileId }])
-      .limit(20);
+const FILE_ROUTE_LOG_PREFIX = "[api/files/[fileId]]";
 
-    if (error) {
-      throw new Error(error.message);
-    }
+function logFileRouteError(
+  stage: string,
+  requestId: string,
+  context: Record<string, unknown>,
+  error: unknown,
+) {
+  console.error(FILE_ROUTE_LOG_PREFIX, stage, {
+    requestId,
+    ...context,
+    error,
+  });
+}
 
-    return (data ?? []) as Array<{ id: string; mentee_id: string | null }>;
-  };
+function plannerMaterialsContainFileId(materials: unknown, fileId: string) {
+  if (!Array.isArray(materials)) return false;
+  return materials.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    const row = item as Record<string, unknown>;
+    const candidates = [row.fileId, row.file_id, row.id];
+    return candidates.some((candidate) => candidate === fileId);
+  });
+}
+
+async function canAccessFile(fileId: string, viewerId: string, requestId: string) {
 
   const { data: materialRows, error: materialError } = await supabaseServer
     .from("mentor_materials")
@@ -38,6 +48,12 @@ async function canAccessFile(fileId: string, viewerId: string) {
     .maybeSingle();
 
   if (materialError) {
+    logFileRouteError(
+      "canAccessFile.mentor_materials",
+      requestId,
+      { fileId, viewerId },
+      materialError,
+    );
     throw new Error(materialError.message);
   }
 
@@ -50,6 +66,12 @@ async function canAccessFile(fileId: string, viewerId: string) {
     .limit(20);
 
   if (materialLinkError) {
+    logFileRouteError(
+      "canAccessFile.mentor_task_materials",
+      requestId,
+      { fileId, viewerId },
+      materialLinkError,
+    );
     throw new Error(materialLinkError.message);
   }
 
@@ -63,6 +85,12 @@ async function canAccessFile(fileId: string, viewerId: string) {
       .limit(1);
 
     if (taskError) {
+      logFileRouteError(
+        "canAccessFile.mentor_tasks_from_materials",
+        requestId,
+        { fileId, viewerId, taskIds },
+        taskError,
+      );
       throw new Error(taskError.message);
     }
 
@@ -77,6 +105,12 @@ async function canAccessFile(fileId: string, viewerId: string) {
       .limit(20);
 
   if (submissionLinkError) {
+    logFileRouteError(
+      "canAccessFile.task_submission_files",
+      requestId,
+      { fileId, viewerId },
+      submissionLinkError,
+    );
     throw new Error(submissionLinkError.message);
   }
 
@@ -89,6 +123,12 @@ async function canAccessFile(fileId: string, viewerId: string) {
       .limit(20);
 
     if (submissionError) {
+      logFileRouteError(
+        "canAccessFile.task_submissions",
+        requestId,
+        { fileId, viewerId, submissionIds },
+        submissionError,
+      );
       throw new Error(submissionError.message);
     }
 
@@ -107,6 +147,12 @@ async function canAccessFile(fileId: string, viewerId: string) {
           .limit(1);
 
       if (submissionTaskError) {
+        logFileRouteError(
+          "canAccessFile.mentor_tasks_from_submissions",
+          requestId,
+          { fileId, viewerId, submissionTaskIds },
+          submissionTaskError,
+        );
         throw new Error(submissionTaskError.message);
       }
 
@@ -114,39 +160,77 @@ async function canAccessFile(fileId: string, viewerId: string) {
     }
   }
 
-  const plannerRowsByCamel = await findPlannerRowsByMaterialKey("fileId");
-  const plannerRowsBySnake = await findPlannerRowsByMaterialKey("file_id");
-  const plannerRowsByLegacyId = await findPlannerRowsByMaterialKey("id");
-  const plannerRows = Array.from(
-    new Map(
-      [...plannerRowsByCamel, ...plannerRowsBySnake, ...plannerRowsByLegacyId].map(
-        (row) => [row.id, row],
-      ),
-    ).values(),
-  );
+  const { data: ownPlannerRows, error: ownPlannerRowsError } = await supabaseServer
+    .from("planner_tasks")
+    .select("id, mentee_id, materials")
+    .eq("mentee_id", viewerId)
+    .not("materials", "is", null)
+    .limit(500);
 
-  if ((plannerRows ?? []).some((row) => row.mentee_id === viewerId)) {
+  if (ownPlannerRowsError) {
+    logFileRouteError(
+      "canAccessFile.own_planner_tasks",
+      requestId,
+      { fileId, viewerId },
+      ownPlannerRowsError,
+    );
+    throw new Error(ownPlannerRowsError.message);
+  }
+
+  if (
+    (ownPlannerRows ?? []).some((row) =>
+      plannerMaterialsContainFileId((row as any).materials, fileId),
+    )
+  ) {
     return true;
   }
 
+  const { data: mentorMenteeRows, error: mentorMenteeError } = await supabaseServer
+    .from("mentor_mentee")
+    .select("mentee_id")
+    .eq("mentor_id", viewerId)
+    .eq("status", "active")
+    .limit(2000);
+
+  if (mentorMenteeError) {
+    logFileRouteError(
+      "canAccessFile.mentor_mentee_lookup",
+      requestId,
+      { fileId, viewerId },
+      mentorMenteeError,
+    );
+    throw new Error(mentorMenteeError.message);
+  }
+
   const plannerMenteeIds = Array.from(
-    new Set((plannerRows ?? []).map((row) => row.mentee_id).filter(Boolean)),
+    new Set((mentorMenteeRows ?? []).map((row) => row.mentee_id).filter(Boolean)),
   );
   if (plannerMenteeIds.length > 0) {
-    const { data: mentorMenteeRows, error: mentorMenteeError } =
+    const { data: menteePlannerRows, error: menteePlannerRowsError } =
       await supabaseServer
-        .from("mentor_mentee")
-        .select("id")
-        .eq("mentor_id", viewerId)
-        .eq("status", "active")
+        .from("planner_tasks")
+        .select("id, mentee_id, materials")
         .in("mentee_id", plannerMenteeIds)
-        .limit(1);
+        .not("materials", "is", null)
+        .limit(5000);
 
-    if (mentorMenteeError) {
-      throw new Error(mentorMenteeError.message);
+    if (menteePlannerRowsError) {
+      logFileRouteError(
+        "canAccessFile.mentee_planner_tasks",
+        requestId,
+        { fileId, viewerId, plannerMenteeIds },
+        menteePlannerRowsError,
+      );
+      throw new Error(menteePlannerRowsError.message);
     }
 
-    if (mentorMenteeRows && mentorMenteeRows.length > 0) return true;
+    if (
+      (menteePlannerRows ?? []).some((row) =>
+        plannerMaterialsContainFileId((row as any).materials, fileId),
+      )
+    ) {
+      return true;
+    }
   }
 
   return false;
@@ -156,9 +240,14 @@ export async function GET(
   request: Request,
   { params }: { params: { fileId: string } },
 ) {
+  const requestId = crypto.randomUUID();
   try {
     const paramsParsed = fileParamsSchema.safeParse(params);
     if (!paramsParsed.success) {
+      console.warn(FILE_ROUTE_LOG_PREFIX, "invalid_file_id", {
+        requestId,
+        params,
+      });
       return NextResponse.json({ error: "Invalid fileId." }, { status: 400 });
     }
 
@@ -168,6 +257,11 @@ export async function GET(
     });
 
     if (!queryParsed.success) {
+      console.warn(FILE_ROUTE_LOG_PREFIX, "invalid_query", {
+        requestId,
+        fileId: paramsParsed.data.fileId,
+        query: searchParams.toString(),
+      });
       return NextResponse.json({ error: "Invalid query." }, { status: 400 });
     }
 
@@ -180,6 +274,11 @@ export async function GET(
       : null;
 
     if (!token) {
+      console.warn(FILE_ROUTE_LOG_PREFIX, "missing_token", {
+        requestId,
+        fileId,
+        mode,
+      });
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
@@ -187,6 +286,12 @@ export async function GET(
       await supabaseServer.auth.getUser(token);
 
     if (authError || !authData?.user) {
+      console.warn(FILE_ROUTE_LOG_PREFIX, "auth_failed", {
+        requestId,
+        fileId,
+        mode,
+        authError,
+      });
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
@@ -199,6 +304,7 @@ export async function GET(
       .maybeSingle();
 
     if (fileError) {
+      logFileRouteError("files_lookup", requestId, { fileId, mode, viewerId }, fileError);
       throw new Error(fileError.message);
     }
 
@@ -206,8 +312,14 @@ export async function GET(
       return NextResponse.json({ error: "File not found." }, { status: 404 });
     }
 
-    const allowed = await canAccessFile(fileId, viewerId);
+    const allowed = await canAccessFile(fileId, viewerId, requestId);
     if (!allowed) {
+      console.warn(FILE_ROUTE_LOG_PREFIX, "access_denied", {
+        requestId,
+        fileId,
+        mode,
+        viewerId,
+      });
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
     }
 
@@ -216,6 +328,18 @@ export async function GET(
       .download(file.path);
 
     if (error || !data) {
+      logFileRouteError(
+        "storage_download",
+        requestId,
+        {
+          fileId,
+          mode,
+          viewerId,
+          bucket: file.bucket,
+          path: file.path,
+        },
+        error ?? "download returned empty data",
+      );
       throw new Error(error?.message ?? "Failed to download file.");
     }
 
@@ -233,6 +357,15 @@ export async function GET(
 
     return new NextResponse(data, { headers });
   } catch (error) {
+    logFileRouteError(
+      "unhandled",
+      requestId,
+      {
+        fileId: params?.fileId ?? null,
+        url: request.url,
+      },
+      error,
+    );
     return handleRouteError(error);
   }
 }
