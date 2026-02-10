@@ -3,12 +3,26 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon } fro
 import Link from "next/link";
 import type { MentorTaskLike, ScheduleEventLike } from "@/lib/menteeAdapters";
 
+type HomeSubjectLike = {
+    id: string;
+    name: string;
+    colorHex?: string | null;
+    textColorHex?: string | null;
+};
+
+const DEFAULT_SUBJECTS: HomeSubjectLike[] = [
+    { id: "korean", name: "국어", colorHex: "#DCFCE7", textColorHex: "#10B981" },
+    { id: "math", name: "수학", colorHex: "#DBEAFE", textColorHex: "#3B82F6" },
+    { id: "english", name: "영어", colorHex: "#F3E8FF", textColorHex: "#A855F7" },
+];
+
 interface HomeProgressProps {
     animatedProgress: number;
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     mentorTasks?: MentorTaskLike[];
     scheduleEvents?: ScheduleEventLike[];
+    subjects?: HomeSubjectLike[];
 }
 
 export default function HomeProgress({
@@ -16,22 +30,12 @@ export default function HomeProgress({
     selectedDate,
     onDateChange,
     mentorTasks = [],
-    scheduleEvents
+    scheduleEvents,
+    subjects = [],
 }: HomeProgressProps) {
     const [dailyTasks, setDailyTasks] = useState<any[]>([]);
-
-    // Merge: Added progressData state and SUBJECTS from sunbal
-    const [progressData, setProgressData] = useState<Record<string, number>>({
-        korean: 0,
-        math: 0,
-        english: 0
-    });
-
-    const SUBJECTS = [
-        { id: 'korean', name: '국어', color: 'text-emerald-500', bg: 'bg-emerald-500', ring: 'border-emerald-100' },
-        { id: 'math', name: '수학', color: 'text-blue-500', bg: 'bg-blue-500', ring: 'border-blue-100' },
-        { id: 'english', name: '영어', color: 'text-purple-500', bg: 'bg-purple-500', ring: 'border-purple-100' },
-    ];
+    const [progressData, setProgressData] = useState<Record<string, number>>({});
+    const resolvedSubjects = subjects.length > 0 ? subjects : DEFAULT_SUBJECTS;
 
     const isSameDay = (date1: Date, date2: Date) => {
         return (
@@ -79,18 +83,16 @@ export default function HomeProgress({
         }
     }, [selectedDate, mentorTasks, scheduleEvents]);
 
-    // Calculate Progress Charts from Props (HEAD Logic adapted to Sunbal UI)
     useEffect(() => {
-        const stats: Record<string, { total: number; completed: number }> = {
-            korean: { total: 0, completed: 0 },
-            math: { total: 0, completed: 0 },
-            english: { total: 0, completed: 0 }
-        };
+        const stats = resolvedSubjects.reduce<Record<string, { total: number; completed: number }>>(
+            (acc, subject) => {
+                acc[subject.id] = { total: 0, completed: 0 };
+                return acc;
+            },
+            {},
+        );
 
-        // 1. Mentor Tasks Progress
         mentorTasks.forEach(task => {
-            // Filter by Selected Date
-            // Only include tasks that have a deadline on the selected date
             if (!task.deadline || !isSameDay(new Date(task.deadline), selectedDate)) {
                 return;
             }
@@ -105,33 +107,19 @@ export default function HomeProgress({
             }
         });
 
-        // [FUTURE EXTENSION: Mentee Personal Plan Integration]
-        // If you decide to include Personal Planner Tasks in the progress:
-        // 1. Add `plannerTasks` to the component props.
-        // 2. Uncomment and adapt the following logic:
-        /*
-        plannerTasks.forEach(task => {
-             // Filter by Date
-             if (!task.deadline || !isSameDay(new Date(task.deadline), selectedDate)) return;
-             
-             const key = task.categoryId; // Ensure planner tasks have mapped categoryIds ('korean', 'math', 'english')
-             if (stats[key]) {
-                 stats[key].total++;
-                 if (task.isCompleted) { // Assuming 'isCompleted' or similar status property
-                     stats[key].completed++;
-                 }
-             }
-        });
-        */
-
-        const newProgress = {
-            korean: stats.korean.total ? Math.round((stats.korean.completed / stats.korean.total) * 100) : 0,
-            math: stats.math.total ? Math.round((stats.math.completed / stats.math.total) * 100) : 0,
-            english: stats.english.total ? Math.round((stats.english.completed / stats.english.total) * 100) : 0,
-        };
+        const newProgress = resolvedSubjects.reduce<Record<string, number>>(
+            (acc, subject) => {
+                const stat = stats[subject.id];
+                acc[subject.id] = stat?.total
+                    ? Math.round((stat.completed / stat.total) * 100)
+                    : 0;
+                return acc;
+            },
+            {},
+        );
 
         setProgressData(newProgress);
-    }, [mentorTasks, selectedDate]); // Updates when prop or date changes
+    }, [mentorTasks, selectedDate, resolvedSubjects]);
 
     const handlePrevDay = () => {
         const newDate = new Date(selectedDate);
@@ -150,7 +138,7 @@ export default function HomeProgress({
         return `${date.getMonth() + 1}월 ${date.getDate()}일 (${days[date.getDay()]})`;
     };
 
-    const renderDonut = (percentage: number, colorClass: string) => {
+    const renderDonut = (percentage: number, colorHex: string) => {
         const radius = 14;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - (percentage / 100) * circumference;
@@ -177,10 +165,11 @@ export default function HomeProgress({
                         strokeDasharray={circumference}
                         strokeDashoffset={offset}
                         strokeLinecap="round"
-                        className={`${colorClass} transition-all duration-1000 ease-out`}
+                        className="transition-all duration-1000 ease-out"
+                        style={{ color: colorHex }}
                     />
                 </svg>
-                <span className={`absolute text-[9px] font-black ${colorClass}`}>
+                <span className="absolute text-[9px] font-black" style={{ color: colorHex }}>
                     {percentage}%
                 </span>
             </div>
@@ -210,11 +199,19 @@ export default function HomeProgress({
 
                 {/* Donut Charts Section (Integrated) */}
                 <div className="flex items-center justify-between bg-gray-50 rounded-2xl p-3 mb-5 border border-gray-100/50">
-                    {SUBJECTS.map(subject => (
+                    {resolvedSubjects.map(subject => (
                         <div key={subject.id} className="flex items-center gap-2 px-1">
-                            {renderDonut(progressData[subject.id], subject.color)}
+                            {renderDonut(
+                                progressData[subject.id] ?? 0,
+                                subject.textColorHex ?? "#6B7280",
+                            )}
                             <div className="flex flex-col">
-                                <span className={`text-[10px] font-bold ${subject.color}`}>{subject.name}</span>
+                                <span
+                                    className="text-[10px] font-bold"
+                                    style={{ color: subject.textColorHex ?? "#6B7280" }}
+                                >
+                                    {subject.name}
+                                </span>
                                 <span className="text-[9px] font-medium text-gray-400">달성도</span>
                             </div>
                         </div>
